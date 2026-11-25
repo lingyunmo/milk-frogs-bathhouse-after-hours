@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "tool_cart_diff_2k",
+      "normal": "tool_cart_nor_gl_2k",
+      "arm": "tool_cart_arm_2k_Unity"
+    }
+  ]
+}

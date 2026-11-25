@@ -1,0 +1,32 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "potted_plant_01_pot_diff_2k",
+      "normal": "potted_plant_01_pot_nor_gl_2k",
+      "arm": "potted_plant_01_pot_rough_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 0,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "potted_plant_01_leaves_diff_2k",
+      "normal": "potted_plant_01_leaves_nor_gl_2k",
+      "arm": "potted_plant_01_leaves_rough_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 0,
+      "rough": 1
+    }
+  ]
+}

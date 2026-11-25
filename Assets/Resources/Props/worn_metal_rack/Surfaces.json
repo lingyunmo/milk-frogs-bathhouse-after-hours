@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "worn_metal_rack_diff_2k",
+      "normal": "worn_metal_rack_nor_gl_2k",
+      "arm": "worn_metal_rack_arm_2k_Unity"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "rollershutter_window_01_diff_2k",
+      "normal": "rollershutter_window_01_nor_gl_2k",
+      "arm": "rollershutter_window_01_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "rollershutter_window_01_graffiti_diff_2k",
+      "normal": "rollershutter_window_01_nor_gl_2k",
+      "arm": "rollershutter_window_01_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

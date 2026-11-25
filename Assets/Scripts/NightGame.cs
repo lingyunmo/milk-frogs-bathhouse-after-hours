@@ -49,6 +49,8 @@ namespace AfterHours
             SetupHud();
         }
 
+        void OnDestroy() => world?.Dispose();
+
         void Begin(NightState save)
         {
             State=save??new NightState();
@@ -56,6 +58,8 @@ namespace AfterHours
             stones.Clear();
             world.Refresh();
             hunter.Reset();
+            Physics.SyncTransforms();
+            State.spawn=WalkableSavePosition(State.spawn);
             Player.ResetPosition(State.spawn,State.yaw);
             Player.SetTorch(false);
             menu=false;
@@ -130,7 +134,27 @@ namespace AfterHours
             caughtTime=0;
         }
 
-        internal void RecoverPlayer() => Player.ResetPosition(State.spawn,State.yaw);
+        internal void RecoverPlayer() => Player.ResetPosition(WalkableSavePosition(State.spawn),State.yaw);
+
+        // A save made before furniture was added can overlap one of the new colliders.
+        static Vector3 WalkableSavePosition(Vector3 position)
+        {
+            const int scene = ~(1 << NightPlayer.PlayerLayer);
+            static bool Clear(Vector3 p) => !Physics.CheckCapsule(p+Vector3.up*.29f,
+                p+Vector3.up*1.44f,.24f,scene,QueryTriggerInteraction.Ignore);
+            if(Clear(position))return position;
+            for(int ring=1;ring<=4;ring++)
+            for(int direction=0;direction<8;direction++)
+            {
+                float angle=direction*Mathf.PI/4;
+                var near=position+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*(ring*.5f);
+                if(!Physics.Raycast(near+Vector3.up*.27f,Vector3.down,out var floor,.67f,scene,QueryTriggerInteraction.Ignore))
+                    continue;
+                var at=floor.point+Vector3.up*.058f;
+                if(Clear(at))return at;
+            }
+            return NightState.NewSpawn;
+        }
 
         void Notify(string text,float time=3.4f)
         {

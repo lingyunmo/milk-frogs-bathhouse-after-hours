@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "WoodenTable_01_diff_2k",
+      "normal": "WoodenTable_01_nor_gl_2k",
+      "arm": "WoodenTable_01_arm_2k_Unity"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "tea_set_01_diff_2k",
+      "normal": "tea_set_01_nor_gl_2k",
+      "arm": "tea_set_01_arm_2k_Unity"
+    }
+  ]
+}

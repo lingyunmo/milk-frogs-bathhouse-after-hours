@@ -1,0 +1,46 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "metal_trash_can_diff_2k",
+      "normal": "metal_trash_can_nor_gl_2k",
+      "arm": "metal_trash_can_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "metal_trash_can_rust_diff_2k",
+      "normal": "metal_trash_can_rust_nor_gl_2k",
+      "arm": "metal_trash_can_rust_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_2",
+      "color": "metal_trash_can_rust_diff_2k",
+      "normal": "metal_trash_can_rust_nor_gl_2k",
+      "arm": "metal_trash_can_rust_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

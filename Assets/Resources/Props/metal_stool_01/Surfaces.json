@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "metal_stool_01_diff_2k",
+      "normal": "metal_stool_01_nor_gl_2k",
+      "arm": "metal_stool_01_arm_2k_Unity"
+    }
+  ]
+}

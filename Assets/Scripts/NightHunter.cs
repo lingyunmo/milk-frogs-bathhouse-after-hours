@@ -59,14 +59,26 @@ namespace AfterHours
             visual.localScale*=scale;
             visual.localPosition=-(bounds.center-actor.position)*scale+Vector3.up*.75f;
             var skin=new Material(Shader.Find("Standard")){mainTexture=Resources.Load<Texture2D>("Creature/Skin"),color=Color.white};
+            skin.SetFloat("_Glossiness",.24f);
+            var mucosa=Resources.Load<Texture2D>("Creature/Mucosa");
+            var lining=OralSurface(mucosa,new Color(.92f,.71f,.62f),.13f);
+            lining.SetFloat("_DepthTint",1);
+            var tongue=OralSurface(mucosa,new Color(.75f,.38f,.33f),.16f);
+            var enamel=Tint(new Color(.73f,.62f,.42f));
+            enamel.SetFloat("_Glossiness",.17f);
+            var iris=Tint(new Color(.66f,.48f,.14f),.075f);
+            iris.mainTexture=Resources.Load<Texture2D>("Creature/Iris");
+            var eyeBulb=Tint(new Color(.62f,.41f,.13f),.14f);
+            var eyelid=Tint(new Color(.21f,.15f,.07f));
             foreach(var r in renderers)
             {
                 if(r.name.StartsWith("01"))r.sharedMaterial=skin;
-                else if(r.name.Contains("tooth"))r.sharedMaterial=Tint(new Color(.56f,.46f,.3f));
-                else if(r.name.Contains("sulfur"))r.sharedMaterial=Tint(new Color(.89f,.71f,.14f),.4f);
-                else if(r.name.Contains("Tongue")||r.name.Contains("gums"))r.sharedMaterial=Tint(new Color(.23f,.074f,.083f));
-                else if(r.name.Contains("mouth"))r.sharedMaterial=Tint(new Color(.055f,.025f,.027f));
-                else r.sharedMaterial=Tint(new Color(.25f,.17f,.06f));
+                else if(r.name=="Mouth lining")r.sharedMaterial=lining;
+                else if(r.name.Contains("tooth"))r.sharedMaterial=enamel;
+                else if(r.name.Contains("sulfur"))r.sharedMaterial=eyeBulb;
+                else if(r.name.Contains("Scleral slit"))r.sharedMaterial=iris;
+                else if(r.name.StartsWith("Tongue"))r.sharedMaterial=tongue;
+                else r.sharedMaterial=eyelid;
                 if(r is not SkinnedMeshRenderer morph)continue;
                 for(int i=0;i<morph.sharedMesh.blendShapeCount;i++)
                 {
@@ -90,9 +102,23 @@ namespace AfterHours
             var flat=toward-Position;
             flat.y=0;
             if(flat.sqrMagnitude>.01f)actor.rotation=Quaternion.LookRotation(flat);
-            foreach(var (mesh,index) in laughShapes)mesh.SetBlendShapeWeight(index,Mathf.SmoothStep(0,100,duration*4));
+            float open=Mathf.SmoothStep(0,1,duration*3.6f);
+            float voice=.94f+.06f*Mathf.Sin(duration*13);
+            SetExpression(open*voice);
             if(gait){if(strideA>=0)gait.SetBlendShapeWeight(strideA,0);if(strideB>=0)gait.SetBlendShapeWeight(strideB,0);}
             visual.localRotation=modelFacing*Quaternion.Euler(Mathf.Sin(duration*22)*5,0,Mathf.Sin(duration*16)*5);
+        }
+
+        void SetExpression(float weight)
+        {
+            foreach(var (mesh,index) in laughShapes)mesh.SetBlendShapeWeight(index,Mathf.Clamp01(weight)*100);
+        }
+
+        static Material OralSurface(Texture2D texture, Color tint,float smoothness)
+        {
+            var material=new Material(Resources.Load<Shader>("OralLining")) { color=tint, mainTexture=texture };
+            material.SetFloat("_Glossiness",smoothness);
+            return material;
         }
 
         static Material Tint(Color color,float glow=0)
@@ -105,7 +131,7 @@ namespace AfterHours
         internal void Reset()
         {
             actor.position=posts[1];
-            foreach(var (mesh,index) in laughShapes)mesh.SetBlendShapeWeight(index,0);
+            SetExpression(0);
             visual.localRotation=modelFacing;
             noises.Clear();
             visits.Clear();
