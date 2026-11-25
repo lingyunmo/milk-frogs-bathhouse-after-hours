@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1090" height="870" viewBox="0 0 1090 870" role="img"><title>浴场四层平面图，北侧在上，房间、两座楼梯、房门与翻越窗</title>
+<rect width="1090" height="870" fill="#101b20"/>
+<g font-family="Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+<text x="30" y="38" text-anchor="start" font-size="25" fill="#eceddf">浴场平面  /  四层共用同一轴网</text>
+<text x="30" y="68" text-anchor="start" font-size="15" fill="#bfcdc8">北 ↑    每层 36 × 24 米    米色缺口为房门，蓝线为翻越窗，金色块为楼梯，标高以门厅为零。</text>
+<text x="34" y="110" text-anchor="start" font-size="20" fill="#f3d391">B1   设备层    /    −3.6 m</text>
+<rect x="34" y="128" width="468" height="312" fill="#203035" stroke="#9badab" stroke-width="1.5"/>
+<text x="268" y="289" text-anchor="middle" font-size="14" fill="#bfd0cc">横廊   ·   净宽 4 m</text>
+<rect x="34" y="128" width="52" height="130" fill="#58482e" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="60.0" y="197" text-anchor="middle" font-size="12" fill="#eceddf">勤务梯</text>
+<path d="M50.900000000000006 258 L69.1 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="86" y="128" width="143" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="157.5" y="197" text-anchor="middle" font-size="14" fill="#eceddf">发电机房</text>
+<path d="M148.4 258 L166.6 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="229" y="128" width="130" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="294.0" y="197" text-anchor="middle" font-size="14" fill="#eceddf">循环泵房</text>
+<path d="M284.9 258 L303.09999999999997 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="359" y="128" width="143" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="430.5" y="197" text-anchor="middle" font-size="14" fill="#eceddf">集水间</text>
+<path d="M421.40000000000003 258 L439.59999999999997 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="34" y="310" width="156" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="112.0" y="379" text-anchor="middle" font-size="14" fill="#eceddf">检修工坊</text>
+<path d="M102.89999999999999 310 L121.10000000000001 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="190" y="310" width="143" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="261.5" y="379" text-anchor="middle" font-size="14" fill="#eceddf">备品库</text>
+<path d="M252.4 310 L270.6 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="333" y="310" width="117" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="391.5" y="379" text-anchor="middle" font-size="14" fill="#eceddf">配电间</text>
+<path d="M382.40000000000003 310 L400.59999999999997 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="450" y="310" width="52" height="130" fill="#58482e" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="476.0" y="379" text-anchor="middle" font-size="12" fill="#eceddf">前厅梯</text>
+<path d="M466.9 310 L485.1 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M229 183.9 L229 202.10000000000002" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M190 365.9 L190 384.09999999999997" fill="none" stroke="#f3d391" stroke-width="5"/>
+<text x="569" y="110" text-anchor="start" font-size="20" fill="#f3d391">1F   营业层    /    0.0 m</text>
+<rect x="569" y="128" width="468" height="312" fill="#203035" stroke="#9badab" stroke-width="1.5"/>
+<text x="803" y="289" text-anchor="middle" font-size="14" fill="#bfd0cc">横廊   ·   净宽 4 m</text>
+<rect x="569" y="128" width="52" height="130" fill="#58482e" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="595.0" y="197" text-anchor="middle" font-size="12" fill="#eceddf">勤务梯</text>
+<path d="M585.9 258 L604.1 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="621" y="128" width="104" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="673.0" y="197" text-anchor="middle" font-size="14" fill="#eceddf">洗衣房</text>
+<path d="M663.9 258 L682.1 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="725" y="128" width="78" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="764.0" y="197" text-anchor="middle" font-size="14" fill="#eceddf">布草间</text>
+<path d="M754.9 258 L773.1 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="803" y="128" width="143" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="874.5" y="197" text-anchor="middle" font-size="14" fill="#eceddf">大浴池</text>
+<path d="M865.4000000000001 258 L883.5999999999999 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="946" y="128" width="91" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="991.5" y="197" text-anchor="middle" font-size="14" fill="#eceddf">淋浴间</text>
+<path d="M982.4000000000001 258 L1000.6 258" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="569" y="310" width="78" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="608.0" y="379" text-anchor="middle" font-size="14" fill="#eceddf">卫生间</text>
+<path d="M598.9 310 L617.1 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="647" y="310" width="130" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="712.0" y="379" text-anchor="middle" font-size="14" fill="#eceddf">茶座</text>
+<path d="M702.9 310 L721.1 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="777" y="310" width="130" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="842.0" y="379" text-anchor="middle" font-size="14" fill="#eceddf">门厅</text>
+<path d="M832.9000000000001 310 L851.0999999999999 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="907" y="310" width="78" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="946.0" y="379" text-anchor="middle" font-size="14" fill="#eceddf">前台室</text>
+<path d="M936.9000000000001 310 L955.0999999999999 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="985" y="310" width="52" height="130" fill="#58482e" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="1011.0" y="379" text-anchor="middle" font-size="12" fill="#eceddf">前厅梯</text>
+<path d="M1001.9 310 L1020.1 310" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M725 183.9 L725 202.10000000000002" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M946 183.9 L946 202.10000000000002" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M777 365.9 L777 384.09999999999997" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M907 365.9 L907 384.09999999999997" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M1037 181 L1037 205" fill="none" stroke="#83dcd8" stroke-width="5"/>
+<text x="1023" y="176" text-anchor="middle" font-size="11" fill="#9ee3e1">W4</text>
+<path d="M817.3 440 L840.7 440" fill="none" stroke="#f3d391" stroke-width="5"/>
+<text x="829" y="431" text-anchor="middle" font-size="12" fill="#f3d391">正门</text>
+<path d="M661.3 128 L684.7 128" fill="none" stroke="#f3d391" stroke-width="5"/>
+<text x="673" y="145" text-anchor="middle" font-size="12" fill="#f3d391">货门</text>
+<text x="34" y="490" text-anchor="start" font-size="20" fill="#f3d391">2F   休息层    /    +3.6 m</text>
+<rect x="34" y="508" width="468" height="312" fill="#203035" stroke="#9badab" stroke-width="1.5"/>
+<text x="268" y="669" text-anchor="middle" font-size="14" fill="#bfd0cc">横廊   ·   净宽 4 m</text>
+<rect x="34" y="508" width="52" height="130" fill="#58482e" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="60.0" y="577" text-anchor="middle" font-size="12" fill="#eceddf">勤务梯</text>
+<path d="M50.900000000000006 638 L69.1 638" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="86" y="508" width="117" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="144.5" y="577" text-anchor="middle" font-size="14" fill="#eceddf">折叠间</text>
+<path d="M135.39999999999998 638 L153.6 638" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="203" y="508" width="143" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="274.5" y="577" text-anchor="middle" font-size="14" fill="#eceddf">更衣室</text>
+<path d="M265.4 638 L283.6 638" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="346" y="508" width="156" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="424.0" y="577" text-anchor="middle" font-size="14" fill="#eceddf">按摩室</text>
+<path d="M414.90000000000003 638 L433.09999999999997 638" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="34" y="690" width="117" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="92.5" y="759" text-anchor="middle" font-size="14" fill="#eceddf">沙发厅</text>
+<path d="M83.4 690 L101.60000000000001 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="151" y="690" width="104" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="203.0" y="759" text-anchor="middle" font-size="14" fill="#eceddf">放映室</text>
+<path d="M193.9 690 L212.1 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="255" y="690" width="104" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="307.0" y="759" text-anchor="middle" font-size="14" fill="#eceddf">盥洗室</text>
+<path d="M297.90000000000003 690 L316.09999999999997 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="359" y="690" width="91" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="404.5" y="759" text-anchor="middle" font-size="14" fill="#eceddf">毛巾库</text>
+<path d="M395.40000000000003 690 L413.59999999999997 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="450" y="690" width="52" height="130" fill="#58482e" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="476.0" y="759" text-anchor="middle" font-size="12" fill="#eceddf">前厅梯</text>
+<path d="M466.9 690 L485.1 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M203 563.9 L203 582.1" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M151 745.9 L151 764.0999999999999" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M359 745.9 L359 764.0999999999999" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M34 743 L34 767" fill="none" stroke="#83dcd8" stroke-width="5"/>
+<text x="48" y="738" text-anchor="middle" font-size="11" fill="#9ee3e1">W2</text>
+<path d="M132.5 508 L156.5 508" fill="none" stroke="#83dcd8" stroke-width="5"/>
+<text x="144.5" y="526" text-anchor="middle" font-size="11" fill="#9ee3e1">W3</text>
+<path d="M412 508 L436 508" fill="none" stroke="#83dcd8" stroke-width="5"/>
+<text x="424" y="526" text-anchor="middle" font-size="11" fill="#9ee3e1">平台</text>
+<text x="569" y="490" text-anchor="start" font-size="20" fill="#f3d391">3F   员工层    /    +7.2 m</text>
+<rect x="569" y="508" width="468" height="312" fill="#203035" stroke="#9badab" stroke-width="1.5"/>
+<text x="803" y="669" text-anchor="middle" font-size="14" fill="#bfd0cc">横廊   ·   净宽 4 m</text>
+<rect x="569" y="508" width="52" height="130" fill="#58482e" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="595.0" y="577" text-anchor="middle" font-size="12" fill="#eceddf">勤务梯</text>
+<path d="M585.9 638 L604.1 638" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="621" y="508" width="117" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="679.5" y="577" text-anchor="middle" font-size="14" fill="#eceddf">值班室</text>
+<path d="M670.4 638 L688.6 638" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="738" y="508" width="143" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="809.5" y="577" text-anchor="middle" font-size="14" fill="#eceddf">宿舍</text>
+<path d="M800.4 638 L818.6 638" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="881" y="508" width="156" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="959.0" y="577" text-anchor="middle" font-size="14" fill="#eceddf">弱电间</text>
+<path d="M949.9000000000001 638 L968.0999999999999 638" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="569" y="690" width="143" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="640.5" y="759" text-anchor="middle" font-size="14" fill="#eceddf">监控室</text>
+<path d="M631.4 690 L649.6 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="712" y="690" width="143" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="783.5" y="759" text-anchor="middle" font-size="14" fill="#eceddf">档案室</text>
+<path d="M774.4 690 L792.6 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="855" y="690" width="130" height="130" fill="#2c4348" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="920.0" y="759" text-anchor="middle" font-size="14" fill="#eceddf">经理室</text>
+<path d="M910.9000000000001 690 L929.0999999999999 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<rect x="985" y="690" width="52" height="130" fill="#58482e" stroke="#a4b1a8" stroke-width="1.5"/>
+<text x="1011.0" y="759" text-anchor="middle" font-size="12" fill="#eceddf">前厅梯</text>
+<path d="M1001.9 690 L1020.1 690" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M881 563.9 L881 582.1" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M712 745.9 L712 764.0999999999999" fill="none" stroke="#f3d391" stroke-width="5"/>
+<path d="M947 508 L971 508" fill="none" stroke="#83dcd8" stroke-width="5"/>
+<text x="959" y="526" text-anchor="middle" font-size="11" fill="#9ee3e1">W1</text>
+</g></svg>

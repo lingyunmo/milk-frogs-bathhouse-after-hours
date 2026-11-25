@@ -1,6 +1,8 @@
 # 奶娃浴场：打烊后
 
-*Milk Frog’s Bathhouse: After Hours* 是一款开发中的第一人称恐怖游戏。这是独立的 Unity 工程。当前阶段为恐怖奶娃的角色美术制作。
+*Milk Frog’s Bathhouse: After Hours* 是一款开发中的第一人称恐怖游戏。这是独立的 Unity 工程。项目现已包含恐怖奶娃角色源文件和首夜关卡设计。
+
+[查看第一夜总场景设计、四层平面图与室外路线](Docs/World/first-night.md)。
 
 ## 打开工程
 
