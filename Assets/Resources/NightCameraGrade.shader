@@ -56,7 +56,8 @@ Shader "Hidden/AfterHours/NightCameraGrade"
                 tex2D(_MainTex, input.uv + float2(offset.x, -offset.y)).rgb +
                 tex2D(_MainTex, input.uv + float2(-offset.x, offset.y)).rgb) * .25;
             float level = Luma(scene);
-            float gain = smoothstep(.42, .91, level);
+            // Start at practical lamp luminance in this low-key exposure range.
+            float gain = smoothstep(.13, .54, level);
             return float4(min(scene, 4) * gain, 1);
         }
 
