@@ -9,7 +9,12 @@ namespace AfterHours
         readonly Dictionary<string,AudioClip> clips=new();
         readonly AudioSource[] emitters=new AudioSource[10];
         readonly AudioSource generator, entrance;
+        readonly AudioSource captureLaugh, menu;
+        readonly AudioClip menuClick, menuTick;
+        float nextMenuTick;
         int index;
+
+        internal float CaptureDuration => captureLaugh.clip ? captureLaugh.clip.length : 2.35f;
 
         internal NightAudio(Transform root)
         {
@@ -24,7 +29,6 @@ namespace AfterHours
             clips["signal"]=Clip("signal",.8f,426,.025f,16);
             clips["drone"]=Clip("drone",3.4f,104,.14f,119);
             clips["truck"]=Clip("truck",2.3f,43,.24f,78);
-            clips["laugh"]=Laugh();
             for(int i=0;i<emitters.Length;i++)emitters[i]=Source(root);
             generator=Source(root);
             generator.loop=true;
@@ -36,6 +40,35 @@ namespace AfterHours
             entrance.loop = true;
             entrance.clip = TitleTone();
             entrance.volume = .38f;
+
+            captureLaugh = Source(root, "Hunter capture laugh");
+            captureLaugh.clip = Resources.Load<AudioClip>("Audio/haunted-laugh-v1");
+            captureLaugh.volume = .72f;
+            captureLaugh.ignoreListenerPause = true;
+
+            menu = Source(root, "Menu feedback");
+            menu.spatialBlend = 0;
+            menu.ignoreListenerPause = true;
+            menuClick = Clip("Menu confirm", .105f, 268, .57f, 62);
+            menuTick = Clip("Menu adjustment", .05f, 630, .66f, 95);
+        }
+
+        internal void PlayCaptureLaugh(Vector3 position)
+        {
+            if (!captureLaugh.clip) return;
+            captureLaugh.transform.position = position;
+            captureLaugh.Play();
+        }
+
+        internal void StopCaptureLaugh() => captureLaugh.Stop();
+
+        internal void PlayMenuSound() => menu.PlayOneShot(menuClick, .75f);
+
+        internal void PlayMenuTick()
+        {
+            if (Time.unscaledTime < nextMenuTick) return;
+            nextMenuTick = Time.unscaledTime + .075f;
+            menu.PlayOneShot(menuTick, .47f);
         }
 
         internal void SetTitle(bool visible)
@@ -66,9 +99,9 @@ namespace AfterHours
 
         internal void Tick(bool powered) => generator.volume=powered?.22f:0;
 
-        static AudioSource Source(Transform root)
+        static AudioSource Source(Transform root, string name = "Spatial sound")
         {
-            var go=new GameObject("Spatial sound");
+            var go=new GameObject(name);
             go.transform.SetParent(root);
             var a=go.AddComponent<AudioSource>();
             a.spatialBlend=1;
@@ -106,23 +139,6 @@ namespace AfterHours
                 data[i]=envelope*(.37f*(1-grit)*wave+grit*low);
             }
             return Ready(name,data,rate);
-        }
-
-        static AudioClip Laugh()
-        {
-            const int rate=24000;
-            var data=new float[rate*2];
-            float phase=0;
-            for(int i=0;i<data.Length;i++)
-            {
-                float t=(float)i/rate;
-                float frequency=102+33*Mathf.Sin(t*4)+13*Mathf.Sin(2*Mathf.PI*t*3.25f);
-                phase+=2*Mathf.PI*frequency/rate;
-                float breath=Mathf.Pow(Mathf.Max(0,Mathf.Sin(2*Mathf.PI*t*3.25f)),.7f);
-                data[i]=Mathf.Min(t/.03f,1)*Mathf.Min((2-t)/.16f,1)*breath*
-                    (.22f*Mathf.Sin(phase)+.14f*Mathf.Sin(phase*3)+.066f*Mathf.Sin(phase*7));
-            }
-            return Ready("hunter laugh",data,rate);
         }
 
         static AudioClip Ready(string name,float[] samples,int hz)

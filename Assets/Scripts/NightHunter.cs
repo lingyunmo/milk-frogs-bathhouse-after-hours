@@ -12,14 +12,22 @@ namespace AfterHours
             public float[] weights, biases;
         }
         internal Vector3 Position => actor.position;
+        internal Vector3 LaughSource => Position + actor.forward * .48f + Vector3.up * (Height * .79f);
         internal bool Pursuing { get; private set; }
         readonly NightGame game;
         readonly FloorRoutes routing;
         readonly Transform actor, visual;
         readonly HunterListenRipple listenRipple;
+        readonly Vector3 fullScale, fullOffset;
+        readonly Light captureFill;
+        Camera captureCamera;
+        Vector3 captureOffset;
+        float playFieldOfView, silhouette = 1;
+        const float Height = 2.24f;
         const float ListenPoseDuration = .48f;
         const float ListenCooldown = 4.5f;
         const int EnvironmentMask = ~(1 << NightPlayer.PlayerLayer);
+        const int ClearanceMask = EnvironmentMask & ~(1 << FloorRoutes.DoorLayer);
         Vector3 recentListenTarget;
         Vector3 listenDirection;
         float listenTime, listenCooldown;
@@ -54,6 +62,7 @@ namespace AfterHours
             this.game=game;
             routing=new FloorRoutes();
             actor=new GameObject("奶娃").transform;
+            actor.SetParent(game.transform);
             actor.position=posts[1];
             listenRipple = HunterListenRipple.Create(game.transform);
             model=JsonUtility.FromJson<Model>(Resources.Load<TextAsset>("Creature/Policy").text);
@@ -63,9 +72,21 @@ namespace AfterHours
             var renderers=visual.GetComponentsInChildren<Renderer>();
             var bounds=renderers[0].bounds;
             foreach(var r in renderers)bounds.Encapsulate(r.bounds);
-            float scale=1.50f/bounds.size.y;
-            visual.localScale*=scale;
-            visual.localPosition=-(bounds.center-actor.position)*scale+Vector3.up*.75f;
+            float scale=Height/bounds.size.y;
+            fullScale=visual.localScale*scale;
+            fullOffset=-(bounds.center-actor.position)*scale+Vector3.up*(Height*.5f);
+            visual.localScale=fullScale;
+            visual.localPosition=fullOffset;
+            captureFill=new GameObject("捕获照明").AddComponent<Light>();
+            captureFill.transform.SetParent(actor,false);
+            captureFill.type=LightType.Spot;
+            captureFill.spotAngle=96;
+            captureFill.innerSpotAngle=52;
+            captureFill.range=4.8f;
+            captureFill.color=new Color(.99f,.89f,.76f);
+            captureFill.intensity=1.46f;
+            captureFill.shadows=LightShadows.Soft;
+            captureFill.enabled=false;
             var skin=new Material(Shader.Find("Standard")){mainTexture=Resources.Load<Texture2D>("Creature/Skin"),color=Color.white};
             skin.SetFloat("_Glossiness",.24f);
             var mucosa=Resources.Load<Texture2D>("Creature/Mucosa");
@@ -112,11 +133,63 @@ namespace AfterHours
             var flat=toward-Position;
             flat.y=0;
             if(flat.sqrMagnitude>.01f)actor.rotation=Quaternion.LookRotation(flat);
-            float open=Mathf.SmoothStep(0,1,duration*3.6f);
-            float voice=.94f+.06f*Mathf.Sin(duration*13);
-            SetExpression(open*voice);
+            // The recording starts three laughs at .08, .73 and 1.38 seconds.
+            float fromFirst=duration-.08f;
+            float pulse=0;
+            if(fromFirst>=0 && fromFirst<1.88f)
+            {
+                float beat=fromFirst%.65f;
+                pulse=Mathf.SmoothStep(0,1,beat/.035f)*(1-Mathf.SmoothStep(0,1,(beat-.41f)/.17f));
+            }
+            float pose=Mathf.SmoothStep(0,1,duration/.17f)*(1-.79f*Mathf.SmoothStep(0,1,(duration-1.96f)/.35f));
+            SetExpression(pose*(.77f+.23f*pulse));
             if(gait){if(strideA>=0)gait.SetBlendShapeWeight(strideA,0);if(strideB>=0)gait.SetBlendShapeWeight(strideB,0);}
-            visual.localRotation=modelFacing*Quaternion.Euler(Mathf.Sin(duration*22)*5,0,Mathf.Sin(duration*16)*5);
+            visual.localRotation=Quaternion.Euler(pose*(2.1f+pulse*4.7f),0,pulse*Mathf.Sin(duration*16)*3)*modelFacing;
+        }
+
+        internal void FrameCapture(Transform eyes,float elapsed)
+        {
+            Vector3 target=Position+Vector3.up*(Height*.61f);
+            if (!captureCamera)
+            {
+                captureCamera=eyes.GetComponent<Camera>();
+                playFieldOfView=captureCamera.fieldOfView;
+                captureOffset=CaptureSpace(target,actor.forward);
+                if(captureOffset.sqrMagnitude<2.1f*2.1f)
+                {
+                    // A side angle can keep the face in frame when a wall is right behind the player.
+                    foreach(float angle in new[] {-28f,28f,-47f,47f})
+                    {
+                        var candidate=CaptureSpace(target,Quaternion.Euler(0,angle,0)*actor.forward);
+                        if(candidate.sqrMagnitude>captureOffset.sqrMagnitude)captureOffset=candidate;
+                    }
+                }
+            }
+            float distance=Mathf.Min(captureOffset.magnitude,Mathf.SmoothStep(2.24f,2.73f,elapsed/.60f));
+            Vector3 direction=captureOffset.normalized;
+            eyes.SetPositionAndRotation(target+direction*distance,Quaternion.LookRotation(-direction));
+            captureCamera.fieldOfView=Mathf.Lerp(84,67,Mathf.InverseLerp(1.15f,2.35f,distance));
+
+            // A short fill near the lens keeps the face and hands readable even in unpowered rooms.
+            captureFill.transform.SetPositionAndRotation(eyes.position+Vector3.up*.24f-eyes.right*.14f,
+                Quaternion.LookRotation(target-eyes.position-Vector3.up*.24f+eyes.right*.14f));
+            captureFill.enabled=true;
+        }
+
+        static Vector3 CaptureSpace(Vector3 target,Vector3 facing)
+        {
+            Vector3 offset=facing*2.72f+Vector3.up*.17f;
+            return Physics.SphereCast(target,.13f,offset.normalized,out var wall,offset.magnitude,
+                EnvironmentMask,QueryTriggerInteraction.Ignore) ?
+                offset.normalized*Mathf.Max(.04f,wall.distance-.04f) : offset;
+        }
+
+        internal void EndCapture()
+        {
+            captureFill.enabled=false;
+            if (!captureCamera) return;
+            captureCamera.fieldOfView=playFieldOfView;
+            captureCamera=null;
         }
 
         void SetExpression(float weight)
@@ -140,9 +213,13 @@ namespace AfterHours
 
         internal void Reset()
         {
+            EndCapture();
             actor.position=posts[1];
             SetExpression(0);
             visual.localRotation=modelFacing;
+            silhouette=1;
+            visual.localScale=fullScale;
+            visual.localPosition=fullOffset;
             noises.Clear();
             visits.Clear();
             path.Clear();
@@ -249,7 +326,25 @@ namespace AfterHours
                 if((checkTime-=dt)<=0){checkTime=Pursuing?.32f:.56f;game.PlayCreatureStep(Position);}
             }
             else visual.localRotation=Quaternion.Slerp(visual.localRotation,modelFacing,dt*10);
+            FitSilhouette(dt);
             if(sees&&Vector3.Distance(game.Player.Feet,Position)<.95f&&!game.Player.Vaulting)game.Captured();
+        }
+
+        void FitSilhouette(float dt)
+        {
+            // Keep the hull and route graph independent of the render mesh. In doorway-sized
+            // gaps the creature draws its shoulders in while remaining taller than the player.
+            Vector3 low=Position+Vector3.up*1.04f;
+            Vector3 high=Position+Vector3.up*1.39f;
+            float width=1;
+            if(Physics.CheckCapsule(low,high,1.01f,ClearanceMask,QueryTriggerInteraction.Ignore))
+                width=Physics.CheckCapsule(low,high,.80f,ClearanceMask,QueryTriggerInteraction.Ignore)? .63f:.80f;
+            float next=Mathf.MoveTowards(silhouette,width,dt*(width < silhouette ? 4.2f:1.7f));
+            if(next==silhouette)return;
+            silhouette=next;
+            var compression=new Vector3(silhouette,1,silhouette);
+            visual.localScale=Vector3.Scale(fullScale,compression);
+            visual.localPosition=Vector3.Scale(fullOffset,compression);
         }
 
         void Decide(bool sees)
