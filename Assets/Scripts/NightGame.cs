@@ -69,6 +69,7 @@ namespace AfterHours
         {
             Time.timeScale = 1;
             AudioListener.pause = false;
+            SyncCursor(false);
             hud?.Dispose();
             world?.Dispose();
         }
@@ -139,6 +140,11 @@ namespace AfterHours
 
         void TickPlay(float dt)
         {
+            if (!Application.isFocused)
+            {
+                SetScreen(NightScreen.Pause);
+                return;
+            }
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 if (panel != null) panel = null;
@@ -158,12 +164,18 @@ namespace AfterHours
                     return;
                 }
             }
-            if ((pauseTime -= dt) > 0) return;
             if (Cursor.lockState != CursorLockMode.Locked)
             {
-                SetScreen(NightScreen.Pause);
+#if UNITY_EDITOR
+                // The Editor uses Escape to release the Game view cursor.
+                if ((pauseTime -= dt) <= 0) SetScreen(NightScreen.Pause);
+#else
+                SyncCursor(true);
+                pauseTime = .12f;
+#endif
                 return;
             }
+            if ((pauseTime -= dt) > 0) return;
 
             if (panel == null) Player.Tick(this, dt);
             else
@@ -188,9 +200,7 @@ namespace AfterHours
             Time.timeScale = playing ? 1 : 0;
             AudioListener.pause = screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
                 or NightScreen.Caught or NightScreen.Escaped;
-            bool lockMouse = screen == NightScreen.Play || screen == NightScreen.Capture && Application.isFocused;
-            Cursor.lockState = lockMouse ? CursorLockMode.Locked : CursorLockMode.None;
-            Cursor.visible = !lockMouse;
+            SyncCursor(Application.isFocused);
             Player.Eyes.GetComponent<Camera>().enabled = screen != NightScreen.Title;
             Player.SetTorchVisible(screen == NightScreen.Play && State.torch);
             soundscape.SetTitle(screen == NightScreen.Title);
@@ -207,7 +217,20 @@ namespace AfterHours
 
         void OnApplicationFocus(bool focused)
         {
-            if (!focused && ScreenState == NightScreen.Play && hud != null) SetScreen(NightScreen.Pause);
+            if (hud == null) return;
+            if (!focused && ScreenState == NightScreen.Play)
+                SetScreen(NightScreen.Pause);
+            else
+                SyncCursor(focused);
+        }
+
+        void SyncCursor(bool focused)
+        {
+            bool capture = focused && ScreenState is (NightScreen.Play or NightScreen.Capture);
+            var mode = capture ? CursorLockMode.Locked : CursorLockMode.None;
+            if (Cursor.lockState != mode) Cursor.lockState = mode;
+            bool visible = Cursor.lockState != CursorLockMode.Locked;
+            if (Cursor.visible != visible) Cursor.visible = visible;
         }
 
         internal void Captured()
