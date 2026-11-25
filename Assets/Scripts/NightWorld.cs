@@ -51,6 +51,8 @@ namespace AfterHours
             ApplyFinish();
             foreach(Transform floor in GameObject.Find("浴场").transform)
             {
+                AddStairRamps(floor.Find("西北勤务梯段"),-18,14,1);
+                AddStairRamps(floor.Find("东南前厅梯段"),14,10,-1);
                 var hall=floor.Find("横廊");
                 AddCeiling(hall,floor.name.StartsWith("3F"));
                 foreach(Transform room in floor)
@@ -133,6 +135,28 @@ namespace AfterHours
                 var size=renderer.transform.localScale;
                 renderer.material.mainTexture=texture;
                 renderer.material.mainTextureScale=new Vector2(Mathf.Max(1,size.x/2),Mathf.Max(1,Mathf.Max(size.z,size.y)/2));
+            }
+        }
+
+        void AddStairRamps(Transform stair,float x,float entry,float direction)
+        {
+            if(!stair)return;
+            var platform=stair.Find("近廊平台");
+            if(!stair.Find("转向平台"))return;
+            foreach (Transform step in stair)
+                if(step.name=="上行"||step.name=="折返")
+                    step.GetComponent<Collider>().enabled=false;
+            float y=platform.position.y+.10f;
+            // Use one smooth collision surface per flight, while the original treads provide the silhouette.
+            foreach(bool returning in new[]{false,true})
+            {
+                float center=x+(returning?.93f:-.93f);
+                var a=new Vector3(center,y+(returning?3.6f:0),entry+direction*1.94f);
+                var b=new Vector3(center,y+1.8f,entry+direction*6.48f);
+                var rotation=Quaternion.FromToRotation(Vector3.forward,(b-a).normalized);
+                var o=Box("梯段碰撞面",(a+b)*.5f-rotation*Vector3.up*.055f,new Vector3(1.84f,.11f,Vector3.Distance(a,b)),wood);
+                o.transform.rotation=rotation;
+                o.GetComponent<Renderer>().enabled=false;
             }
         }
 
