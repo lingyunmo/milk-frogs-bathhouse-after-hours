@@ -11,16 +11,17 @@ namespace AfterHours
         static readonly Color TubeGlow = new(.43f, .53f, .48f);
         readonly List<(Light Lamp, Renderer Diffuser, float Intensity, float Delay)> circuits = new();
         readonly MaterialPropertyBlock tubeResponse = new();
-        Material litDiffuser;
+        Material litDiffuser, practicalBulb;
         Coroutine powerRestoration;
+        static Texture2D practicalProfile;
         NightState restoringState;
 
         void Lighting()
         {
             var moon = GameObject.Find("白盒照明").GetComponent<Light>();
             moon.transform.rotation = Quaternion.LookRotation(new Vector3(-.58f, -.39f, .71f), Vector3.up);
-            moon.intensity = .13f;
-            moon.color = new Color(.55f, .68f, .84f);
+            moon.intensity = .20f;
+            moon.color = new Color(.63f, .73f, .85f);
             moon.shadows = LightShadows.Soft;
             moon.shadowStrength = .97f;
             moon.shadowBias = .12f;
@@ -30,9 +31,9 @@ namespace AfterHours
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientIntensity = 1;
-            RenderSettings.ambientSkyColor = new Color(.14f, .165f, .183f);
-            RenderSettings.ambientEquatorColor = new Color(.092f, .112f, .122f);
-            RenderSettings.ambientGroundColor = new Color(.080f, .071f, .055f);
+            RenderSettings.ambientSkyColor = new Color(.175f, .188f, .204f);
+            RenderSettings.ambientEquatorColor = new Color(.120f, .139f, .150f);
+            RenderSettings.ambientGroundColor = new Color(.109f, .101f, .089f);
             RenderSettings.reflectionIntensity = .07f;
             RenderSettings.fog = true;
             RenderSettings.fogColor = new Color(.027f, .043f, .064f);
@@ -43,6 +44,7 @@ namespace AfterHours
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = RenderSettings.fogColor;
             camera.allowHDR = true;
+            camera.gameObject.AddComponent<NightCameraGrade>();
         }
 
         Light Fixture(Vector3 position, Vector3 direction, Color colour, float energy, float range, float angle)
@@ -57,12 +59,64 @@ namespace AfterHours
             lamp.spotAngle = angle;
             lamp.innerSpotAngle = angle * .52f;
             lamp.intensity = energy;
+            lamp.cookie = PracticalProfile();
             lamp.shadows = LightShadows.Soft;
             lamp.shadowStrength = .96f;
             lamp.shadowNearPlane = .06f;
             lamp.shadowBias = .08f;
             lamp.shadowNormalBias = .25f;
             return lamp;
+        }
+
+        void LightSconce(GameObject sconce)
+        {
+            foreach (var surface in sconce.GetComponentsInChildren<Renderer>())
+            {
+                var materials = surface.sharedMaterials;
+                bool changed = false;
+                for (int i = 0; i < materials.Length; ++i)
+                {
+                    var texture = materials[i]?.mainTexture;
+                    if (!texture || texture.name != "industrial_wall_sconce_bulb_diff_2k") continue;
+                    if (!practicalBulb)
+                    {
+                        practicalBulb = new Material(materials[i]) { name = "Powered amber sconce diffuser" };
+                        practicalBulb.EnableKeyword("_EMISSION");
+                        practicalBulb.SetColor("_EmissionColor", new Color(.69f, .32f, .095f));
+                    }
+                    materials[i] = practicalBulb;
+                    changed = true;
+                }
+                if (changed) surface.sharedMaterials = materials;
+            }
+        }
+
+        static Texture2D PracticalProfile()
+        {
+            if (practicalProfile) return practicalProfile;
+
+            const int size = 96;
+            practicalProfile = new Texture2D(size, size, TextureFormat.RGBA32, false, true)
+            {
+                name = "Wide diffuser lamp profile",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; ++y)
+            for (int x = 0; x < size; ++x)
+            {
+                var p = new Vector2((x + .5f) / size * 2 - 1, (y + .5f) / size * 2 - 1);
+                float radius = new Vector2(p.x * .98f, p.y * 1.12f).magnitude;
+                float edge = 1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(.30f, 1, radius));
+                float lamp = edge * Mathf.Lerp(1f, .67f, radius);
+                byte level = (byte)(Mathf.Clamp01(lamp) * 255);
+                pixels[y * size + x] = new Color32(level, level, level, level);
+            }
+            practicalProfile.SetPixels32(pixels);
+            practicalProfile.Apply(false, true);
+            return practicalProfile;
         }
 
         void AddMainsLight(Vector3 position, Color colour, float power, float range)
@@ -171,13 +225,16 @@ namespace AfterHours
             foreach (int x in new[] { -16, -7, 2, 11 })
             {
                 var mount = new Vector3(x, y + 2.67f, 13.82f);
-                Prop("industrial_wall_sconce", "走廊旧式壁灯", mount + new Vector3(0, -.19f, -.13f),
+                var sconce = Prop("industrial_wall_sconce", "走廊旧式壁灯", mount + new Vector3(0, -.19f, -.13f),
                     new Vector3(.17f, .38f, .28f), 180, false);
-                if (x is -16 or 11)
+                if (x is -16 or 11 || y < 0 && x == -7)
                 {
-                    var tint = y < 0 ? new Color(1f, .53f, .33f) : new Color(.91f, .69f, .47f);
-                    Fixture(mount + new Vector3(0, -.155f, -.28f), new Vector3(.12f, -1f, -.67f),
-                        tint, .63f, 4.75f, 90);
+                    LightSconce(sconce);
+                    // The weak basement wash marks the next bay without carrying far down the hall.
+                    bool guide = x == -7;
+                    var tint = y < 0 ? new Color(.98f, .62f, .39f) : new Color(.91f, .72f, .52f);
+                    Fixture(mount + new Vector3(0, -.155f, -.28f), new Vector3(.20f, -1f, -.58f),
+                        tint, guide ? .38f : .76f, guide ? 3.6f : 5.0f, 99);
                 }
                 AddMainsLight(new Vector3(x + 2, y + 3.06f, 12), new Color(.70f, .84f, .82f), 1.08f, 5.55f);
             }
@@ -186,7 +243,7 @@ namespace AfterHours
             {
                 var position = new Vector3(x, y + 2.42f, x < 0 ? 14.8f : 9.16f);
                 Fixture(position, new Vector3(0, -1, x < 0 ? .15f : -.15f),
-                    new Color(.96f, .66f, .41f), .72f, 5.5f, 104);
+                    new Color(.94f, .72f, .53f), .90f, 5.5f, 104);
             }
         }
     }

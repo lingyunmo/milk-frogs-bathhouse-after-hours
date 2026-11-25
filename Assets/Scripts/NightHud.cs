@@ -16,7 +16,8 @@ namespace AfterHours
         const string InterfaceFolder = "Interface/";
         Label task, location, mapFloor, mapPlace, movement, toast, life, charge, cellCount, stoneCount;
         Label promptText;
-        VisualElement prompt, progress, status, sights, repairSlot;
+        VisualElement prompt, progress, status, sights, repairSlot, titleBackdrop;
+        NightTarget previousFocus;
         Meter stamina, torch, interaction;
         NightMapView minimap;
         NightPursuitVignette pursuitVignette;
@@ -113,6 +114,8 @@ namespace AfterHours
         {
             root.Clear();
             toast = null;
+            titleBackdrop = null;
+            previousFocus = null;
             if (screen == NightScreen.Play)
             {
                 BuildHud();
@@ -168,7 +171,8 @@ namespace AfterHours
         void BuildTitle()
         {
             var theater = Area(root, "screen theater");
-            theater.style.backgroundImage = new StyleBackground(titleImage);
+            titleBackdrop = Area(theater, "screen title-backdrop");
+            titleBackdrop.style.backgroundImage = new StyleBackground(titleImage);
             var scrim = Area(theater, "title-scrim");
             var left = Area(scrim, "title-layout");
             Reveal(left);
@@ -229,6 +233,14 @@ namespace AfterHours
                     Slider(card, "镜头晃动", 0, 1, preferences.CameraMotion, preferences.SetMotion, Percent);
                     Slider(card, "视野", 50, 82, preferences.FieldOfView, preferences.SetFov, v => Mathf.RoundToInt(v) + "°");
                     Slider(card, "音量", 0, 1, preferences.Volume, preferences.SetVolume, Percent);
+                    var quality = new Toggle("灯光柔晕") { name = "practical-glow", value = preferences.PracticalGlow };
+                    quality.AddToClassList("quality-toggle");
+                    quality.RegisterValueChangedCallback(evt =>
+                    {
+                        preferences.SetPracticalGlow(evt.newValue);
+                        game.ApplyPreferences();
+                    });
+                    card.Add(quality);
                     break;
                 case "controls":
                     Type(card, "操作", "panel-heading");
@@ -323,11 +335,11 @@ namespace AfterHours
             var staminaRow = Area(equipment, "line meter-label");
             Type(staminaRow, "体力", "meter-title");
             life = Type(staminaRow, "100%", "meter-value");
-            stamina = new Meter(equipment, "meter-track", "stamina-fill");
+            stamina = new Meter(equipment, "meter-track", "stamina-fill", true);
             var batteryRow = Area(equipment, "line meter-label battery-label");
             Type(batteryRow, "手电", "meter-title");
             charge = Type(batteryRow, "", "meter-value");
-            torch = new Meter(equipment, "meter-track", "torch-fill");
+            torch = new Meter(equipment, "meter-track", "torch-fill", true);
             movement = Type(equipment, "", "movement");
 
             var shortcuts = Area(layer, "shortcuts");
@@ -381,7 +393,11 @@ namespace AfterHours
             fullMap = new NightMapView(game, false);
             card.Add(fullMap);
             var footer = Area(card, "line atlas-footer");
-            Type(footer, "浅色区域已探索　·　箭头标出当前位置", "muted");
+            Type(footer, "滚轮缩放 · 拖动地图", "muted");
+            var zoom = Area(footer, "atlas-tools");
+            Act(zoom, "−", () => fullMap.Zoom(1 / 1.26f), "atlas-control", "map-zoom-out");
+            Act(zoom, "+", () => fullMap.Zoom(1.26f), "atlas-control", "map-zoom-in");
+            Act(zoom, "复位", fullMap.ResetView, "atlas-control", "map-reset");
             Type(footer, "N ↑", "map-north");
             OpenFloor(game.Atlas.Floor);
         }
@@ -429,6 +445,11 @@ namespace AfterHours
                 Copy(toast, message);
                 Visible(toast, message.Length > 0);
             }
+            if (screen == NightScreen.Title && titleBackdrop != null)
+            {
+                float motion = game.Preferences.CameraMotion * (.5f + .5f * Mathf.Sin(Time.unscaledTime * .19f));
+                titleBackdrop.style.scale = new Scale(Vector3.one * (1 + motion * .034f));
+            }
             if (screen != NightScreen.Play) return;
 
             var player = game.Player;
@@ -454,10 +475,12 @@ namespace AfterHours
             Visible(prompt, focus != null);
             if (focus != null)
             {
+                if (focus != previousFocus) Reveal(prompt);
                 Copy(promptText, focus.Label);
                 Visible(progress, focus.Hold > 0);
                 interaction.Set(game.Hold);
             }
+            previousFocus = focus;
             DrawRepair(repair);
 
             if (Time.unscaledTime >= nextMapDraw)
@@ -499,10 +522,26 @@ namespace AfterHours
             readonly VisualElement fill;
             float last = -1;
 
-            internal Meter(VisualElement parent, string track, string fillStyle)
+            internal Meter(VisualElement parent, string track, string fillStyle, bool graduated = false)
             {
                 Track = Area(parent, track);
                 fill = Area(Track, "meter-fill " + fillStyle);
+                if (!graduated) return;
+                var ruling = Area(Track, "screen meter-ruling");
+                ruling.generateVisualContent += context =>
+                {
+                    var painter = context.painter2D;
+                    painter.strokeColor = new Color(.047f, .064f, .051f, .72f);
+                    painter.lineWidth = 1;
+                    for (int mark = 1; mark < 10; ++mark)
+                    {
+                        float x = ruling.contentRect.width * mark / 10f;
+                        painter.BeginPath();
+                        painter.MoveTo(new Vector2(x, 0));
+                        painter.LineTo(new Vector2(x, ruling.contentRect.height));
+                        painter.Stroke();
+                    }
+                };
             }
 
             internal void Set(float fraction, bool low = false)

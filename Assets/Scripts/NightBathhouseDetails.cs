@@ -7,6 +7,7 @@ namespace AfterHours
     {
         void SetDressingDetails()
         {
+            DressArchitecturalDetails();
             Prop("worn_metal_rack","开放式更衣架",new Vector3(2.85f,3.60f,22.45f),new Vector3(1.46f,2.02f,.56f),0);
             Prop("cardboard_box_01","未拆封拖鞋",new Vector3(2.78f,3.61f,22.44f),new Vector3(.51f,.40f,.40f),4,false);
             Prop("cardboard_box_01","储藏架布草箱",new Vector3(-5.6f,.72f,22.5f),new Vector3(.59f,.41f,.43f),-5,false);

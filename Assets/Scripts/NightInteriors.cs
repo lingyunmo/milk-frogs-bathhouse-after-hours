@@ -47,6 +47,7 @@ namespace AfterHours
         {
             var shader = Resources.Load<Shader>("WornArchitecture");
             var wearTexture = Resources.Load<Texture2D>(NightFinish + "CementColor");
+            var grainNormal = Resources.Load<Texture2D>(NightFinish + "CementNormal");
 
             Material Worn(string name, string color, string normal, string finish, Color tint,
                 float bump, float smoothness, Vector3 wear)
@@ -55,7 +56,9 @@ namespace AfterHours
                 material.SetFloat("_BumpScale", bump);
                 material.SetFloat("_GlossMapScale", smoothness);
                 material.SetTexture("_StainTex", wearTexture);
-                material.SetVector("_Wear", new Vector4(wear.x, wear.y, wear.z, 0));
+                material.SetTexture("_GrainNormal", grainNormal);
+                float grain = name == "返潮釉面小砖" ? .15f : .26f;
+                material.SetVector("_Wear", new Vector4(wear.x, wear.y, wear.z, grain));
                 return material;
             }
 
@@ -113,6 +116,21 @@ namespace AfterHours
                 var bounds = renderer.bounds;
                 var properties = new MaterialPropertyBlock();
                 properties.SetVector("_FloorBounds", new Vector4(bounds.center.x, bounds.center.z, bounds.extents.x, bounds.extents.z));
+                if (obj.name == "横廊")
+                {
+                    if (bounds.center.y < -.2f)
+                    {
+                        properties.SetVector("_WetSourceA", new Vector4(-6.80f, 12.80f, 2.24f, .93f));
+                        properties.SetVector("_WetSourceB", new Vector4(2.10f, 13.03f, 1.96f, .88f));
+                    }
+                    else if (bounds.center.y < 1f)
+                        properties.SetVector("_WetSourceA", new Vector4(6.46f, 12.50f, 1.39f, .79f));
+                }
+                else if (obj.transform.parent && obj.transform.parent.name == "淋浴间")
+                {
+                    properties.SetVector("_WetSourceA", new Vector4(9.03f, 21.64f, 1.92f, 1.24f));
+                    properties.SetVector("_WetSourceB", new Vector4(13.9f, 19.95f, 1.52f, 2.09f));
+                }
                 renderer.SetPropertyBlock(properties);
             }
         }
@@ -203,10 +221,10 @@ namespace AfterHours
                     if (asset is "locker-room-tall-lockers" or "metal_office_desk")
                     {
                         var paintedMetal = materials[i];
-                        paintedMetal.SetTexture("_DetailAlbedoMap", Resources.Load<Texture2D>(NightFinish + "CementColor"));
-                        paintedMetal.SetTexture("_DetailNormalMap", Resources.Load<Texture2D>(NightFinish + "CementNormal"));
-                        paintedMetal.SetTextureScale("_DetailAlbedoMap", new Vector2(1.75f, 1.45f));
-                        paintedMetal.SetFloat("_DetailNormalMapScale", .31f);
+                        paintedMetal.SetTexture("_DetailAlbedoMap", Resources.Load<Texture2D>("Finishes/Service/SteelColor"));
+                        paintedMetal.SetTexture("_DetailNormalMap", Resources.Load<Texture2D>("Finishes/Service/SteelNormal"));
+                        paintedMetal.SetTextureScale("_DetailAlbedoMap", new Vector2(1.18f, 1.34f));
+                        paintedMetal.SetFloat("_DetailNormalMapScale", .38f);
                         paintedMetal.SetFloat("_GlossMapScale", .73f);
                         paintedMetal.EnableKeyword("_DETAIL_MULX2");
                     }

@@ -406,3 +406,159 @@
 .toast.duty-entrance {
     translate: -50% 9px;
 }
+
+
+.title-backdrop {
+    background-size: cover;
+    background-position: center;
+    transform-origin: 71% 53%;
+}
+.theater {
+    overflow: hidden;
+}
+.title-scrim {
+    position: relative;
+}
+.item-orbit {
+    position: absolute;
+    left: 3%;
+    right: 3%;
+    top: 2%;
+    bottom: 25px;
+    overflow: hidden;
+    transition-property: opacity, translate;
+    transition-duration: .20s;
+}
+.item-orbit:focus {
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(191, 156, 107, .45);
+}
+.orbit-caption {
+    position: absolute;
+    bottom: 3px;
+    left: 0;
+    right: 0;
+    margin: 0;
+    -unity-text-align: middle-center;
+    color: #c3b395;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+.atlas-card {
+    width: 1180px;
+    height: 790px;
+    max-width: 91%;
+    max-height: 89%;
+}
+.map-drawing, .minimap-drawing {
+    background-image: url("AtlasPaper.png");
+    -unity-background-image-tint-color: #aab6a4;
+    border-width: 1px;
+    border-color: rgba(145, 157, 133, .58);
+}
+.map-dragging {
+    border-color: #bba276;
+}
+.map-label {
+    color: #e1ddc5;
+    -unity-text-outline-color: #111b14;
+    -unity-text-outline-width: 1px;
+}
+.map-label--here {
+    color: #f5cd92;
+}
+.map-ruler {
+    position: absolute;
+    bottom: 18px;
+    left: 22px;
+    margin: 0;
+    color: #c5c7ae;
+    font-size: 12px;
+}
+.atlas-tools {
+    flex-direction: row;
+}
+.atlas-control {
+    margin: 0 0 0 5px;
+    height: 32px;
+    min-width: 42px;
+    background-color: rgba(13, 22, 17, .84);
+    color: #e5d4b1;
+    border-radius: 0;
+    border-color: rgba(151, 146, 120, .46);
+    transition-property: color, background-color;
+    transition-duration: .16s;
+}
+.atlas-control:hover, .atlas-control:focus {
+    background-color: #3f3928;
+    color: #ffdfab;
+}
+.quality-toggle {
+    margin: 3px 0 13px;
+    padding: 8px 0;
+    font-size: 18px;
+    color: #e4d6b9;
+    border-top-width: 1px;
+    border-top-color: rgba(175, 154, 112, .32);
+}
+.quality-toggle .unity-toggle__checkmark {
+    background-color: #b69058;
+    border-color: #c9a874;
+}
+.atlas-card .muted {
+    color: #d6c8ad;
+}
+.mission, .equipment {
+    background-image: url("AtlasPaper.png");
+    background-size: cover;
+    -unity-background-image-tint-color: rgba(96, 107, 88, .68);
+}
+.mission {
+    min-width: 228px;
+    padding: 10px 13px 11px;
+}
+.meter-track {
+    height: 7px;
+    background-color: #252e24;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(192, 176, 131, .29);
+}
+.item-row {
+    background-image: url("AtlasPaper.png");
+    background-size: cover;
+    -unity-background-image-tint-color: rgba(97, 108, 89, .63);
+    background-color: rgba(8, 13, 10, .80);
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(169, 146, 111, .48);
+    padding: 0 6px;
+}
+.item-slot {
+    width: 90px;
+    margin: 0;
+    padding: 8px 8px 6px;
+    min-height: 69px;
+    background-image: none;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-left-width: 1px;
+    border-left-color: rgba(173, 156, 117, .16);
+}
+.quick-art {
+    width: 45px;
+    height: 39px;
+    right: 3px;
+}
+.prompt {
+    transition-property: opacity, translate;
+    transition-duration: .18s;
+    -unity-background-image-tint-color: rgba(147, 153, 126, .88);
+}
+.prompt.duty-entrance {
+    translate: -50% 6px;
+}
+.compact .atlas-tools {
+    flex-shrink: 0;
+}
+.compact .item-slot {
+    width: 62px;
+}
