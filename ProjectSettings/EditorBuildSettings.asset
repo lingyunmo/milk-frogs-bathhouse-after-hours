@@ -4,6 +4,9 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/AfterHours_Blockout.unity
+    guid: cacefbef2b952ae43a4f5a7c4fe36b62
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
