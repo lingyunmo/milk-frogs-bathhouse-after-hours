@@ -1,12 +1,12 @@
 # 第一夜试玩版
 
-Windows 本地输出在 `Builds/WindowInputFix/AfterHours.exe`，从浴场标题画面进入《第一夜》。也可以用 Unity 6000.3.29f1 打开 `Assets/Scenes/AfterHours_Blockout.unity`，按 Play 进入同一个标题菜单。游戏会在用户数据目录建立单人存档，维修和拾取会记录进度。F5 记录当前位置和朝向。被抓后从存档恢复。
+Windows 本地输出在 `Builds/HudAudio/AfterHours.exe`，从浴场标题画面进入《第一夜》。也可以用 Unity 6000.3.29f1 打开 `Assets/Scenes/AfterHours_Blockout.unity`，按 Play 进入同一个标题菜单。游戏会在用户数据目录建立单人存档，维修和拾取会记录进度。F5 记录当前位置和朝向。被抓后从存档恢复。
 
 窗口模式可拖拽边缘调整大小，也可最大化。`Alt + Enter` 或「选项 → 全屏」切换全屏。进局和继续游戏时，鼠标锁在窗口中央用于转动视角。暂停、背包和地图会释放鼠标。切到其他应用时游戏自动暂停，返回后可手动继续。
 
-- WASD 移动，鼠标观察。步行 1.9 米/秒，按住 Shift 可跑到 3.55 米/秒。持续奔跑会耗尽体力，停下来恢复更快。C 切换蹲行，可钻到沙发、检修台或床架下。站起来需要足够的净空。
+- WASD 移动，鼠标观察。步行 1.9 米/秒，按住 Shift 可跑到 3.55 米/秒。屏幕下方居中的长条随体力变化，持续奔跑消耗体力，停下来恢复更快。C 切换蹲行，可钻到沙发、检修台或床架下。站起来需要足够的净空。
 - E 推门、拾取、翻窗和操作设备。维修条走满后完成当前步骤。飞轮和上行线路有独立面板，A / D 选择，空格确认，Esc 松手。
-- F 开关手电，R 使用一节备用电池。只有灯亮着才耗电，一节充满后可持续照明约 6 分钟。G 抛石子，可借石子落地或维修的声响引开奶娃。
+- F 开关手电，电量显示在同一个键位内。R 使用一节备用电池。只有灯亮着才耗电，一节充满后可持续照明约 6 分钟。G 抛石子，可借石子落地或维修的声响引开奶娃。
 - B 打开随身背包，查看装备、零件和已读故障单，可在背包内开关手电或换电池。在检视区拖动可以转动实物，双击可以复位。Tab 也能打开背包，在背包内用于移动焦点。收起前暂停追击和耗电。
 - 右上角的小地图显示所在楼层、房间和朝向。M 打开四层与街区的地图，滚轮缩放，按住左键可拖动。已探索区域会记入存档。Esc 打开独立的暂停菜单，可保存并调整灵敏度、镜头晃动、视野、音量和灯具柔晕。
 - B1 修发电机并配电，3F 接线路并打开路由器，1F 发出求援。随后在东端站牌翻开反光板，等车到站后从路肩登车。电线可以先接。修水槽和申请空投各自可选。
@@ -27,4 +27,4 @@ Windows 本地输出在 `Builds/WindowInputFix/AfterHours.exe`，从浴场标题
 
 - 瓷砖、墙面与柏油使用 ambientCG 的原始 2K 色彩图，CC0。[Tiles074](https://ambientcg.com/a/Tiles074) · [Concrete034](https://ambientcg.com/a/Concrete034) · [Asphalt017](https://ambientcg.com/a/Asphalt017) · [ambientCG 许可](https://docs.ambientcg.com/license/)
 - 局内字使用 Noto Sans SC，标题使用 Noto Serif SC。两套字体均为 SIL OFL 1.1 的静态子集。[Noto Sans SC](https://github.com/google/fonts/tree/main/ofl/notosanssc) · [Noto Serif SC](https://github.com/google/fonts/tree/main/ofl/notoserifsc)
-- 奶娃来自本项目的 Blender 源工程。4096 像素肤色图和源文件的 SHA‑256 一致。脚步、设备声与笑声由项目代码合成。
+- 奶娃来自本项目的 Blender 源工程。4096 像素肤色图和源文件的 SHA‑256 一致。脚步、设备声和菜单音效由项目代码合成。抓捕中的三声怪笑使用网页版合成的原始 `haunted-laugh-v1.mp3`，演出时长跟随录音。 [网页版音频说明](https://github.com/lingyunmo/nwaxz/blob/main/docs/AUDIO.md)

@@ -14,9 +14,9 @@ namespace AfterHours
         readonly Texture2D titleImage;
         readonly VisualElement root;
         const string InterfaceFolder = "Interface/";
-        Label task, location, mapFloor, mapPlace, movement, toast, life, charge, cellCount, stoneCount;
+        Label task, location, mapFloor, mapPlace, toast, charge, cellCount, stoneCount;
         Label promptText;
-        VisualElement prompt, progress, status, sights, repairSlot, titleBackdrop;
+        VisualElement prompt, progress, status, sights, repairSlot, titleBackdrop, torchSlot, runHint, crouchHint;
         NightTarget previousFocus;
         Meter stamina, torch, interaction;
         NightMapView minimap;
@@ -86,9 +86,13 @@ namespace AfterHours
             foreach (string name in classes.Split(' ', StringSplitOptions.RemoveEmptyEntries)) element.AddToClassList(name);
         }
 
-        static Button Act(VisualElement parent, string title, Action run, string classes, string name = "")
+        Button Act(VisualElement parent, string title, Action run, string classes, string name = "")
         {
-            var button = new Button(run) { text = title, name = name };
+            var button = new Button(() =>
+            {
+                game.PlayMenuSound();
+                run();
+            }) { text = title, name = name };
             Classes(button, classes);
             parent.Add(button);
             return button;
@@ -154,7 +158,7 @@ namespace AfterHours
                 Type(card, "暂停", "panel-heading");
                 Act(card, "继续游戏", Resume, "menu-action primary", "resume");
                 Act(card, "保存进度", game.SaveHere, "menu-action", "save");
-                Act(card, "选项", () => Open("settings"), "menu-action");
+                Act(card, "选项", () => Open("settings"), "menu-action", "options");
                 Act(card, "操作", () => Open("controls"), "menu-action");
                 Act(card, "返回标题", () => Open("leave"), "menu-action");
                 toast = Type(card, "", "menu-notice");
@@ -204,7 +208,7 @@ namespace AfterHours
             }, game.ResumableSave == null ? "title-action primary" : "title-action", "new-night");
 
             var row = Area(left, "title-links");
-            Act(row, "选项", () => Open("settings"), "text-button");
+            Act(row, "选项", () => Open("settings"), "text-button", "options");
             Act(row, "操作", () => Open("controls"), "text-button");
             Act(row, "退出", () => Open("quit"), "text-button");
         }
@@ -241,12 +245,14 @@ namespace AfterHours
                     {
                         preferences.SetPracticalGlow(evt.newValue);
                         game.ApplyPreferences();
+                        game.PlayMenuSound();
                     });
                     card.Add(quality);
                     fullscreen = new Toggle("全屏") { name = "fullscreen", value = Screen.fullScreen };
                     fullscreen.AddToClassList("quality-toggle");
                     fullscreen.RegisterValueChangedCallback(evt =>
                     {
+                        game.PlayMenuSound();
                         Screen.fullScreenMode = evt.newValue ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
                     });
                     card.Add(fullscreen);
@@ -301,6 +307,7 @@ namespace AfterHours
             {
                 set(e.newValue);
                 game.ApplyPreferences();
+                game.PlayMenuTick();
                 Copy(number, format(e.newValue));
             });
         }
@@ -340,47 +347,43 @@ namespace AfterHours
             repairRow = repairOption = -1;
             Visible(repairSlot, false);
 
-            var equipment = Area(layer, "equipment");
-            var staminaRow = Area(equipment, "line meter-label");
-            Type(staminaRow, "体力", "meter-title");
-            life = Type(staminaRow, "100%", "meter-value");
-            stamina = new Meter(equipment, "meter-track", "stamina-fill", true);
-            var batteryRow = Area(equipment, "line meter-label battery-label");
-            Type(batteryRow, "手电", "meter-title");
-            charge = Type(batteryRow, "", "meter-value");
-            torch = new Meter(equipment, "meter-track", "torch-fill", true);
-            movement = Type(equipment, "", "movement");
+            stamina = new Meter(layer, "stamina-track", "stamina-fill");
+            stamina.Track.name = "stamina-meter";
 
             var shortcuts = Area(layer, "shortcuts");
             var items = Area(shortcuts, "item-row");
-            Slot(items, "F", "手电");
-            cellCount = Slot(items, "R", "电池", counts: true);
-            stoneCount = Slot(items, "G", "石子", counts: true);
+            torchSlot = Slot(items, "F", "手电", "torch", out charge);
+            torchSlot.AddToClassList("torch-slot");
+            charge.name = "torch-charge";
+            torch = new Meter(torchSlot, "torch-track", "torch-fill", 5);
+            Slot(items, "R", "电池", "cell", out cellCount);
+            Slot(items, "G", "石子", "stone", out stoneCount);
             var input = Area(shortcuts, "hotkey-row");
-            Bind(input, "Shift", "奔跑");
-            Bind(input, "C", "蹲行");
+            runHint = Bind(input, "Shift", "奔跑");
+            crouchHint = Bind(input, "C", "蹲行");
             Bind(input, "B", "背包");
             Bind(input, "Esc", "暂停");
             nextMapDraw = 0;
         }
 
-        Label Slot(VisualElement row, string key, string label, bool counts = false)
+        VisualElement Slot(VisualElement row, string key, string label, string icon, out Label value)
         {
             var box = Area(row, "item-slot");
-            string icon = key == "F" ? "torch" : key == "R" ? "cell" : "stone";
-            SetItemArt(Area(box, "quick-art"), icon);
-            var top = Area(box, "line");
+            var face = Area(box, "quick-face");
+            SetItemArt(Area(face, "quick-art"), icon);
+            var top = Area(face, "line");
             Type(top, key, "key");
-            var count = counts ? Type(top, "", "item-count") : null;
-            Type(box, label, "item-name");
-            return count;
+            value = Type(top, "", "item-count");
+            Type(face, label, "item-name");
+            return box;
         }
 
-        static void Bind(VisualElement row, string key, string label)
+        static VisualElement Bind(VisualElement row, string key, string label)
         {
             var item = Area(row, "hotkey");
             Type(item, key, "key");
             Type(item, label, "hotkey-name");
+            return item;
         }
 
         void BuildMap(VisualElement veil)
@@ -472,12 +475,13 @@ namespace AfterHours
             bool pursuing = game.InPursuit;
             Visible(status, pursuing);
             pursuitVignette.Tick(pursuing);
-            stamina.Set(player.Stamina, player.Exhausted);
-            Copy(life, Percent(player.Stamina));
-            float amount = Mathf.Clamp01(state.charge / NightState.FullTorchCharge);
+            stamina.Set(player.Stamina, player.Exhausted || player.Stamina < .20f);
+            float amount = state.torch ? Mathf.Clamp01(state.charge / NightState.FullTorchCharge) : 0f;
             torch.Set(amount, state.torch && amount < .11f);
-            Copy(charge, state.torch ? Percent(amount) : "未拾取");
-            Copy(movement, player.Crouched ? "蹲行" : player.Sprinting ? "奔跑" : player.Exhausted ? "喘息" : "步行");
+            Copy(charge, state.torch ? Percent(amount) : "—");
+            torchSlot.EnableInClassList("torch-slot--lit", state.torch && player.TorchOn);
+            runHint.EnableInClassList("hotkey--active", player.Sprinting);
+            crouchHint.EnableInClassList("hotkey--active", player.Crouched);
             Copy(cellCount, state.cells.ToString());
             Copy(stoneCount, state.stones.ToString());
             var focus = game.Focus;
@@ -533,20 +537,20 @@ namespace AfterHours
             readonly VisualElement fill;
             float last = -1;
 
-            internal Meter(VisualElement parent, string track, string fillStyle, bool graduated = false)
+            internal Meter(VisualElement parent, string track, string fillStyle, int segments = 0)
             {
                 Track = Area(parent, track);
                 fill = Area(Track, "meter-fill " + fillStyle);
-                if (!graduated) return;
+                if (segments <= 1) return;
                 var ruling = Area(Track, "screen meter-ruling");
                 ruling.generateVisualContent += context =>
                 {
                     var painter = context.painter2D;
                     painter.strokeColor = new Color(.047f, .064f, .051f, .72f);
                     painter.lineWidth = 1;
-                    for (int mark = 1; mark < 10; ++mark)
+                    for (int mark = 1; mark < segments; ++mark)
                     {
-                        float x = ruling.contentRect.width * mark / 10f;
+                        float x = ruling.contentRect.width * mark / segments;
                         painter.BeginPath();
                         painter.MoveTo(new Vector2(x, 0));
                         painter.LineTo(new Vector2(x, ruling.contentRect.height));

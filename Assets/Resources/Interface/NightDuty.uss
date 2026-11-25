@@ -311,7 +311,7 @@
     background-color: #694e32;
     border-color: var(--duty-copper);
 }
-.mission, .equipment, .minimap {
+.mission, .minimap {
     background-image: url("DutyDesk.png");
     background-size: cover;
     -unity-background-image-tint-color: rgba(165, 164, 133, .84);
@@ -327,13 +327,6 @@
     background-image: url("DutyPaper.png");
     background-size: cover;
     -unity-background-image-tint-color: #606e5b;
-}
-.equipment {
-    padding: 12px 14px 10px;
-}
-.meter-track {
-    height: 6px;
-    background-color: #374034;
 }
 .item-slot {
     min-height: 72px;
@@ -508,20 +501,46 @@
 .atlas-card .muted {
     color: #d6c8ad;
 }
-.mission, .equipment {
+.mission {
     background-image: url("AtlasPaper.png");
     background-size: cover;
     -unity-background-image-tint-color: rgba(96, 107, 88, .68);
-}
-.mission {
     min-width: 228px;
     padding: 10px 13px 11px;
 }
-.meter-track {
-    height: 7px;
-    background-color: #252e24;
+.stamina-track {
+    position: absolute;
+    left: 50%;
+    bottom: 40px;
+    translate: -50% 0;
+    width: 33%;
+    max-width: 442px;
+    height: 12px;
+    padding: 2px;
+    overflow: hidden;
+    background-color: rgba(9, 17, 15, .90);
+    border-width: 1px;
+    border-color: rgba(196, 200, 173, .48);
+}
+.stamina-track .stamina-fill {
+    background-color: #c6d0a8;
+    transition-property: width, background-color;
+    transition-duration: .12s;
+    transition-timing-function: ease-out;
+}
+.stamina-track .meter-fill--low {
+    background-color: #de8066;
+}
+.torch-track {
+    flex-shrink: 0;
+    height: 6px;
+    margin-top: 5px;
+    background-color: rgba(7, 12, 10, .93);
     border-bottom-width: 1px;
-    border-bottom-color: rgba(192, 176, 131, .29);
+    border-bottom-color: rgba(189, 171, 130, .46);
+}
+.torch-slot--lit .torch-track {
+    border-bottom-color: #d6b57c;
 }
 .item-row {
     background-image: url("AtlasPaper.png");
@@ -543,10 +562,26 @@
     border-left-width: 1px;
     border-left-color: rgba(173, 156, 117, .16);
 }
+.quick-face {
+    flex-shrink: 0;
+    height: 51px;
+    justify-content: space-between;
+}
+.torch-slot {
+    width: 122px;
+}
+.torch-slot--lit {
+    background-color: rgba(184, 132, 62, .19);
+}
+.hotkey--active .key {
+    border-color: #c1c5a0;
+    background-color: #484b34;
+}
 .quick-art {
     width: 45px;
     height: 39px;
-    right: 3px;
+    right: 0;
+    bottom: 0;
 }
 .prompt {
     transition-property: opacity, translate;
@@ -561,4 +596,15 @@
 }
 .compact .item-slot {
     width: 62px;
+}
+.compact .torch-slot {
+    width: 99px;
+}
+.compact .quick-art {
+    width: 32px;
+    height: 28px;
+}
+.compact .stamina-track {
+    bottom: 137px;
+    width: 56%;
 }

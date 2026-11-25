@@ -80,6 +80,9 @@ namespace AfterHours
             AudioListener.volume = Preferences.Volume;
         }
 
+        internal void PlayMenuSound() => soundscape.PlayMenuSound();
+        internal void PlayMenuTick() => soundscape.PlayMenuTick();
+
         static NightState LoadUnfinished()
         {
             var saved = NightSave.Read();
@@ -114,22 +117,24 @@ namespace AfterHours
             if (ScreenState == NightScreen.Capture)
             {
                 caughtTime += Time.deltaTime;
-                if (caughtTime >= 1.65f)
+                if (caughtTime >= soundscape.CaptureDuration)
                 {
                     ResumableSave = LoadUnfinished();
+                    hunter.EndCapture();
                     SetScreen(NightScreen.Caught);
                 }
                 else
                 {
                     hunter.LaughAt(Player.Feet, caughtTime);
-                    var look = hunter.Position + Vector3.up * 1.10f - Player.Eyes.position;
-                    Player.Eyes.rotation = Quaternion.Slerp(Player.Eyes.rotation, Quaternion.LookRotation(look), Time.deltaTime * 11);
+                    hunter.FrameCapture(Player.Eyes, caughtTime);
                 }
             }
             else if (ScreenState == NightScreen.Play) TickPlay(Time.deltaTime);
             else if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if (!hud.CloseSubpage() && ScreenState is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory)
+                if (hud.CloseSubpage())
+                    PlayMenuSound();
+                else if (ScreenState is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory)
                     SetScreen(NightScreen.Play);
             }
             else if ((ScreenState == NightScreen.Map && Input.GetKeyDown(KeyCode.M)) ||
@@ -204,6 +209,7 @@ namespace AfterHours
             Player.Eyes.GetComponent<Camera>().enabled = screen != NightScreen.Title;
             Player.SetTorchVisible(screen == NightScreen.Play && State.torch);
             soundscape.SetTitle(screen == NightScreen.Title);
+            if (screen is not (NightScreen.Capture or NightScreen.Caught)) soundscape.StopCaptureLaugh();
             if (screen == NightScreen.Play) pauseTime = .12f;
             if (screen == NightScreen.Title)
             {
@@ -236,10 +242,10 @@ namespace AfterHours
         internal void Captured()
         {
             if (ScreenState != NightScreen.Play) return;
-            soundscape.Play(hunter.Position + Vector3.up * 1.2f, "laugh", .9f);
             panel = null;
             caughtTime = 0;
             SetScreen(NightScreen.Capture);
+            soundscape.PlayCaptureLaugh(hunter.LaughSource);
         }
 
         internal void RecoverPlayer() => Player.ResetPosition(WalkableSavePosition(State.spawn),State.yaw);
