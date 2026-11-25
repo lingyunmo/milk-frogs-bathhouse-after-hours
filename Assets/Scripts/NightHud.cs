@@ -23,6 +23,7 @@ namespace AfterHours
         NightPursuitVignette pursuitVignette;
         Button[] mapTabs;
         NightMapView fullMap;
+        Toggle fullscreen;
         NightGame.RepairPanel shownRepair;
         int repairRow = -1, repairOption = -1;
         string subpage = "";
@@ -115,6 +116,7 @@ namespace AfterHours
             root.Clear();
             toast = null;
             titleBackdrop = null;
+            fullscreen = null;
             previousFocus = null;
             if (screen == NightScreen.Play)
             {
@@ -241,6 +243,13 @@ namespace AfterHours
                         game.ApplyPreferences();
                     });
                     card.Add(quality);
+                    fullscreen = new Toggle("全屏") { name = "fullscreen", value = Screen.fullScreen };
+                    fullscreen.AddToClassList("quality-toggle");
+                    fullscreen.RegisterValueChangedCallback(evt =>
+                    {
+                        Screen.fullScreenMode = evt.newValue ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
+                    });
+                    card.Add(fullscreen);
                     break;
                 case "controls":
                     Type(card, "操作", "panel-heading");
@@ -249,7 +258,7 @@ namespace AfterHours
                     {
                         ("W A S D", "移动"), ("鼠标", "观察"), ("Shift", "按住奔跑"), ("C", "切换蹲行"),
                         ("E", "拾取 / 交互 / 翻窗"), ("F", "开关手电"), ("R", "更换电池"), ("G", "投掷石子"),
-                        ("B", "背包"), ("M", "地图"), ("F5", "保存"), ("Esc", "暂停")
+                        ("B", "背包"), ("M", "地图"), ("F5", "保存"), ("Esc", "暂停"), ("Alt + Enter", "切换全屏")
                     })
                     {
                         var row = Area(controls, "control-row");
@@ -438,6 +447,8 @@ namespace AfterHours
         internal void Tick()
         {
             var screen = game.ScreenState;
+            if (fullscreen != null && fullscreen.value != Screen.fullScreen)
+                fullscreen.SetValueWithoutNotify(Screen.fullScreen);
             if (toast != null)
             {
                 string message = game.Message;
