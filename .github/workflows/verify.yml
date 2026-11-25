@@ -1,0 +1,23 @@
+name: Project checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          lfs: true
+          persist-credentials: false
+      - name: Check Git LFS and Unity project metadata
+        run: |
+          git lfs fsck
+          python3 -m json.tool Packages/manifest.json > /dev/null
+          python3 -m json.tool Packages/packages-lock.json > /dev/null
+          grep -Eq '^m_EditorVersion: [0-9]+\.[0-9]+\.[0-9]+f[0-9]+$' ProjectSettings/ProjectVersion.txt
+          grep -q 'm_Mode: Visible Meta Files' ProjectSettings/VersionControlSettings.asset
+          grep -q 'm_SerializationMode: 2' ProjectSettings/EditorSettings.asset
+          test -d Assets
+          git diff --exit-code
