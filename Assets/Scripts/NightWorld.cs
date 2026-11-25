@@ -17,7 +17,6 @@ namespace AfterHours
         internal readonly List<Door> Doors=new();
         internal GameObject Crate, Rescue;
         readonly List<(string id,GameObject model)> pickups=new();
-        readonly List<Light> workLights = new();
         readonly NightGame game;
         readonly Material wood, brass, olive, red, ceiling;
         readonly Transform root;
@@ -236,7 +235,7 @@ namespace AfterHours
                 bool open=door.Fire?s.firstFireDoor:s.openDoors.Contains(door.Name);
                 door.Leaf.SetActive(!open);
             }
-            foreach (var lamp in workLights)lamp.enabled=s.power;
+            SetPowerLighting(s.power);
             foreach(var (id,model) in pickups)model.SetActive(id=="torch"?!s.torch:!s.collected.Contains(id));
             AnimateArrival();
         }

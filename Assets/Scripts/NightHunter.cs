@@ -16,6 +16,13 @@ namespace AfterHours
         readonly NightGame game;
         readonly FloorRoutes routing;
         readonly Transform actor, visual;
+        readonly HunterListenRipple listenRipple;
+        const float ListenPoseDuration = .48f;
+        const float ListenCooldown = 4.5f;
+        const int EnvironmentMask = ~(1 << NightPlayer.PlayerLayer);
+        Vector3 recentListenTarget;
+        Vector3 listenDirection;
+        float listenTime, listenCooldown;
         readonly List<(SkinnedMeshRenderer mesh,int index)> laughShapes=new();
         SkinnedMeshRenderer gait;
         int strideA=-1,strideB=-1;
@@ -48,6 +55,7 @@ namespace AfterHours
             routing=new FloorRoutes();
             actor=new GameObject("奶娃").transform;
             actor.position=posts[1];
+            listenRipple = HunterListenRipple.Create(game.transform);
             model=JsonUtility.FromJson<Model>(Resources.Load<TextAsset>("Creature/Policy").text);
             if(model.weights.Length!=664 || model.biases.Length!=41)
                 throw new InvalidOperationException("The hunter neural policy has an incompatible shape.");
@@ -99,6 +107,8 @@ namespace AfterHours
 
         internal void LaughAt(Vector3 toward,float duration)
         {
+            listenTime = 0;
+            listenRipple?.Stop();
             var flat=toward-Position;
             flat.y=0;
             if(flat.sqrMagnitude>.01f)actor.rotation=Quaternion.LookRotation(flat);
@@ -141,6 +151,9 @@ namespace AfterHours
             retry=0;
             nextDecision=0;
             Pursuing=false;
+            listenTime = listenCooldown = 0;
+            recentListenTarget = new Vector3(float.PositiveInfinity, 0, 0);
+            listenRipple?.Stop();
         }
 
         internal void Hear(Vector3 place,float volume)
@@ -186,6 +199,8 @@ namespace AfterHours
         internal void Tick(float dt)
         {
             sinceSeen+=dt;
+            listenCooldown -= dt;
+            listenRipple?.Tick(dt);
             for(int i=noises.Count-1;i>=0;i--)
             {
                 var cue=noises[i];
@@ -197,7 +212,7 @@ namespace AfterHours
             Vector3 sight=game.Player.Eyes.position-eyes;
             bool clear=sight.magnitude<1.35f || Vector3.Dot(actor.forward,sight.normalized)>.39f;
             bool sees=sight.magnitude<(game.Player.TorchOn?21:game.Player.Crouched?7:12) && clear &&
-                !Physics.Raycast(eyes,sight.normalized,out _,Mathf.Max(0,sight.magnitude-.2f),~(1 << NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore);
+                !Physics.Raycast(eyes,sight.normalized,out _,Mathf.Max(0,sight.magnitude-.2f),EnvironmentMask,QueryTriggerInteraction.Ignore);
             if(sees){sinceSeen=0;lastSeen=game.Player.Feet;}
             // Finish the current physical stair flight before recalculating a new route.
             bool onStairs=Mathf.Abs(Position.y/3.6f-Mathf.Round(Position.y/3.6f))>.07f&&waypoint<path.Count;
@@ -206,7 +221,13 @@ namespace AfterHours
                 nextDecision=.32f;
                 Decide(sees);
             }
-            if(waypoint<path.Count)
+            if (Pursuing && listenTime > 0)
+            {
+                listenTime = 0;
+                listenRipple?.Stop();
+            }
+            if (listenTime > 0) HoldListenPose(dt);
+            else if(waypoint<path.Count)
             {
                 Vector3 target=path[waypoint];
                 Vector3 forward=target-Position;
@@ -268,6 +289,41 @@ namespace AfterHours
             destination=choice;
             waypoint=0;
             if(post>=0){lastPost=post;visits[post]=Time.time;}
+            if (action == 1 && !sees && listenCooldown <= 0 &&
+                (choice - recentListenTarget).sqrMagnitude > 2.0f * 2.0f)
+                BeginListening(choice);
+        }
+
+        void BeginListening(Vector3 toward)
+        {
+            recentListenTarget = toward;
+            listenDirection = Vector3.ProjectOnPlane(toward - Position, Vector3.up);
+            listenTime = ListenPoseDuration;
+            listenCooldown = ListenCooldown;
+            if (gait)
+            {
+                if (strideA >= 0) gait.SetBlendShapeWeight(strideA, 0);
+                if (strideB >= 0) gait.SetBlendShapeWeight(strideB, 0);
+            }
+
+            var eye = game.Player.Eyes.position;
+            var visibleChest = Position + Vector3.up * .92f - eye;
+            float distance = visibleChest.magnitude;
+            if (listenRipple && distance < 8.5f &&
+                !Physics.Raycast(eye, visibleChest.normalized, distance, EnvironmentMask, QueryTriggerInteraction.Ignore) &&
+                Physics.Raycast(Position + Vector3.up * .29f, Vector3.down, out var ground, .65f,
+                    EnvironmentMask, QueryTriggerInteraction.Ignore) && ground.normal.y > .85f)
+                listenRipple.PlayAt(ground);
+        }
+
+        void HoldListenPose(float dt)
+        {
+            listenTime = Mathf.Max(0, listenTime - dt);
+            float phase = 1 - listenTime / ListenPoseDuration;
+            float lean = Mathf.SmoothStep(0, 1, phase * 3) * (1 - Mathf.SmoothStep(0, 1, (phase - .56f) / .44f));
+            if (listenDirection.sqrMagnitude > .04f)
+                actor.rotation = Quaternion.RotateTowards(actor.rotation, Quaternion.LookRotation(listenDirection), dt * 248);
+            visual.localRotation = modelFacing * Quaternion.Euler(-6f * lean, 0, 12f * lean);
         }
     }
 }

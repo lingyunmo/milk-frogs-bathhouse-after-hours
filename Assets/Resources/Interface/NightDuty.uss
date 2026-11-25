@@ -1,0 +1,408 @@
+
+/* Dark canvas, smoke-stained paper and worn copper from the bathhouse duty desk. */
+:root {
+    --duty-paper: #e2d8be;
+    --duty-quiet: #bfb49b;
+    --duty-copper: #bf9c6b;
+    --duty-dark: #111914;
+    --duty-line: rgba(159, 133, 91, .43);
+    --duty-rust: #8f4b37;
+}
+.after-hours {
+    color: var(--duty-paper);
+}
+.duty-menu, .atlas-card, .inventory-workspace, .item-preview, .title-layout {
+    transition-property: opacity, translate;
+    transition-duration: .22s;
+    transition-timing-function: ease-out;
+}
+.duty-entrance {
+    opacity: 0;
+    translate: 0 9px;
+}
+.inventory-veil {
+    background-image: url("DutyDesk.png");
+    background-size: cover;
+    background-position: center;
+    background-color: #0d120f;
+}
+.inventory-workspace {
+    width: 86%;
+    max-width: 1420px;
+    height: 83%;
+    max-height: 790px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: var(--duty-line);
+    padding: 22px 33px 12px;
+    background-color: rgba(11, 15, 11, .30);
+}
+.inventory-header {
+    padding: 4px 0 17px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--duty-line);
+}
+.inventory-heading {
+    margin: 0;
+    font-size: 48px;
+    letter-spacing: 6px;
+    -unity-font-style: bold;
+}
+.duty-close {
+    margin: 0;
+    padding: 0 18px;
+    height: 45px;
+    background-color: rgba(11, 16, 13, .65);
+    border-width: 1px;
+    border-color: var(--duty-line);
+    border-radius: 0;
+    font-size: 16px;
+    color: var(--duty-paper);
+}
+.duty-close:hover, .duty-close:focus {
+    background-color: #393427;
+    border-color: var(--duty-copper);
+}
+.inventory-work {
+    flex-grow: 1;
+    flex-direction: row;
+    min-height: 0;
+}
+.inventory-library {
+    padding: 17px 25px 10px 0;
+    width: 56%;
+    min-width: 0;
+}
+.inventory-tabs {
+    flex-direction: row;
+    height: 45px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--duty-line);
+}
+.inventory-tab {
+    margin: 0 22px 0 0;
+    padding: 0 7px;
+    min-width: 106px;
+    font-size: 18px;
+    background-color: rgba(10, 12, 9, .22);
+    border-width: 0;
+    border-bottom-width: 2px;
+    border-bottom-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+    color: var(--duty-quiet);
+}
+.inventory-tab:hover, .inventory-tab:focus {
+    color: #f1e5c5;
+    background-color: rgba(172, 129, 77, .13);
+}
+.inventory-tab--active {
+    color: #f1e5c5;
+    border-bottom-color: var(--duty-copper);
+    -unity-font-style: bold;
+}
+.inventory-scroll {
+    flex-grow: 1;
+    min-height: 0;
+    margin: 15px 0 0;
+}
+.inventory-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    padding: 8px 0 2px;
+}
+.inventory-item {
+    position: relative;
+    width: 30%;
+    min-width: 138px;
+    height: 167px;
+    margin: 0 2.5% 13px 0;
+    padding: 0;
+    background-color: rgba(33, 38, 28, .77);
+    background-image: url("DutyPaper.png");
+    background-size: cover;
+    -unity-background-image-tint-color: rgba(126, 111, 83, .65);
+    border-width: 1px;
+    border-color: rgba(155, 135, 99, .38);
+    border-bottom-color: rgba(0, 0, 0, .68);
+    border-radius: 0;
+    color: var(--duty-paper);
+    transition-property: border-color, translate, background-color;
+    transition-duration: .16s;
+}
+.inventory-item:hover, .inventory-item:focus {
+    translate: 0 -3px;
+    border-color: #a98a5d;
+    -unity-background-image-tint-color: #847655;
+}
+.inventory-item--selected {
+    border-color: #d5b480;
+    border-left-width: 3px;
+    background-color: rgba(92, 68, 38, .80);
+    -unity-background-image-tint-color: #ad9061;
+}
+.inventory-item-art {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 6px;
+    bottom: 32px;
+    background-size: contain;
+    background-position: center;
+}
+.inventory-item-name {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    bottom: 7px;
+    height: 25px;
+    margin: 0;
+    font-size: 16px;
+    color: #f1e5c5;
+    -unity-text-align: middle-center;
+    -unity-text-outline-width: 0.4px;
+    -unity-text-outline-color: #16130e;
+}
+.inventory-count {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    margin: 0;
+    font-size: 14px;
+    color: #ebdcac;
+    -unity-text-outline-width: 1px;
+    -unity-text-outline-color: #1a160f;
+}
+.inventory-empty {
+    margin: 10px 0 0;
+    font-size: 18px;
+    color: var(--duty-quiet);
+}
+.item-inspection {
+    width: 44%;
+    min-width: 0;
+    padding: 13px 0 8px 25px;
+    border-left-width: 1px;
+    border-left-color: var(--duty-line);
+}
+.item-stand {
+    flex-grow: 1;
+    min-height: 125px;
+    max-height: 346px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.item-preview {
+    width: 100%;
+    height: 100%;
+    scale: 1.19 1.19;
+    background-size: contain;
+    background-position: center;
+}
+.item-details {
+    padding: 16px 21px 16px;
+    background-color: rgba(13, 18, 14, .79);
+    background-image: url("DutyPaper.png");
+    background-size: cover;
+    -unity-background-image-tint-color: rgba(58, 62, 46, .72);
+    border-top-width: 1px;
+    border-top-color: var(--duty-line);
+}
+.item-kind {
+    margin: 0 0 2px;
+    font-size: 15px;
+    letter-spacing: 3px;
+    color: #d5b37d;
+}
+.inspection-title {
+    margin: 0 0 7px;
+    font-size: 32px;
+    -unity-font-style: bold;
+}
+.inspection-status {
+    margin: 0 0 8px;
+    color: #e4c79a;
+    font-size: 16px;
+}
+.inspection-copy {
+    margin: 0 0 12px;
+    white-space: normal;
+    color: var(--duty-paper);
+    font-size: 17px;
+}
+.inventory-use {
+    align-self: flex-start;
+    min-width: 142px;
+}
+.inventory-use:disabled {
+    opacity: .53;
+}
+.inventory-footer {
+    margin-top: 7px;
+    min-height: 33px;
+    border-top-width: 1px;
+    border-top-color: var(--duty-line);
+    justify-content: flex-end;
+}
+.inventory-feedback {
+    flex-grow: 1;
+    margin: 0;
+    color: #e7be89;
+}
+.pause-veil {
+    align-items: flex-start;
+    padding-left: 8%;
+    background-color: rgba(5, 9, 7, .52);
+}
+.duty-menu {
+    background-image: url("DutyDesk.png");
+    background-size: cover;
+    background-position: center;
+    border-color: var(--duty-line);
+    border-top-color: var(--duty-copper);
+    padding: 29px 30px;
+}
+.duty-menu .panel-heading {
+    letter-spacing: 5px;
+}
+.title-action, .menu-action {
+    background-color: rgba(23, 27, 20, .72);
+    border-color: var(--duty-line);
+    border-left-width: 2px;
+    transition-property: translate, background-color, border-color, color;
+}
+.title-action:hover, .title-action:focus, .menu-action:hover, .menu-action:focus {
+    translate: 4px 0;
+    background-color: #343329;
+    border-color: var(--duty-copper);
+}
+.title-action.primary, .menu-action.primary {
+    color: #f4e7c9;
+    background-color: #58392a;
+    background-image: url("DutyPaper.png");
+    background-size: cover;
+    -unity-background-image-tint-color: rgba(111, 69, 47, .74);
+    border-color: #b18b58;
+}
+.title-action.primary:hover, .title-action.primary:focus,
+.menu-action.primary:hover, .menu-action.primary:focus {
+    color: #fff4d6;
+    background-color: #6b5031;
+    border-color: #d9b87f;
+}
+.atlas-card {
+    background-image: url("DutyDesk.png");
+    background-size: cover;
+    border-color: var(--duty-line);
+    border-top-color: var(--duty-copper);
+}
+.map-drawing {
+    background-image: url("DutyPaper.png");
+    background-size: cover;
+    -unity-background-image-tint-color: #767e67;
+}
+.floor-tab {
+    background-color: rgba(24, 31, 24, .76);
+    border-color: var(--duty-line);
+}
+.floor-tab--selected {
+    color: #f6e6c2;
+    background-color: #694e32;
+    border-color: var(--duty-copper);
+}
+.mission, .equipment, .minimap {
+    background-image: url("DutyDesk.png");
+    background-size: cover;
+    -unity-background-image-tint-color: rgba(165, 164, 133, .84);
+    border-color: var(--duty-line);
+}
+.mission {
+    border-left-color: var(--duty-copper);
+}
+.minimap {
+    padding: 9px;
+}
+.minimap-drawing {
+    background-image: url("DutyPaper.png");
+    background-size: cover;
+    -unity-background-image-tint-color: #606e5b;
+}
+.equipment {
+    padding: 12px 14px 10px;
+}
+.meter-track {
+    height: 6px;
+    background-color: #374034;
+}
+.item-slot {
+    min-height: 72px;
+    border-width: 0;
+    border-bottom-width: 1px;
+    border-color: var(--duty-line);
+    background-color: rgba(9, 14, 11, .70);
+    background-image: url("DutyDesk.png");
+    background-size: cover;
+    -unity-background-image-tint-color: rgba(150, 147, 113, .78);
+}
+.quick-art {
+    position: absolute;
+    width: 39px;
+    height: 39px;
+    right: 4px;
+    bottom: 7px;
+    background-size: contain;
+    background-position: center;
+}
+.item-name {
+    font-size: 14px;
+    -unity-text-outline-width: 0.35px;
+    -unity-text-outline-color: #10130e;
+}
+.item-count {
+    font-size: 16px;
+}
+.key {
+    background-color: rgba(35, 37, 26, .83);
+    border-color: var(--duty-line);
+}
+.prompt, .toast, .repair {
+    background-image: url("DutyDesk.png");
+    background-size: cover;
+    border-color: var(--duty-line);
+}
+.toast {
+    transition-property: opacity, translate;
+    transition-duration: .22s;
+}
+.danger {
+    color: #d99477;
+}
+.compact .inventory-workspace {
+    width: 92%;
+    padding: 15px 19px 9px;
+}
+.compact .inventory-item {
+    min-width: 103px;
+    height: 132px;
+}
+.compact .inventory-heading {
+    font-size: 41px;
+}
+.compact .item-details {
+    padding: 11px 12px;
+}
+.compact .inventory-library {
+    padding-right: 12px;
+}
+.compact .item-inspection {
+    padding-left: 12px;
+}
+.compact .quick-art {
+    display: none;
+}
+
+
+.toast.duty-entrance {
+    translate: -50% 9px;
+}
