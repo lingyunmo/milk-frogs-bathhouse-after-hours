@@ -1,10 +1,10 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace AfterHours
 {
-    internal sealed class NightWorld
+    internal sealed partial class NightWorld
     {
         internal sealed class Door
         {
@@ -21,6 +21,8 @@ namespace AfterHours
         readonly NightGame game;
         readonly Material wood, brass, olive, red, ceiling;
         readonly Transform root;
+        Font signFont;
+        Material signInk;
         internal NightWorld(NightGame game)
         {
             this.game=game;
@@ -32,6 +34,10 @@ namespace AfterHours
             ceiling=Material(new Color(.32f,.34f,.34f));
             ceiling.mainTexture=Resources.Load<Texture2D>("Surfaces/Concrete034");
             ceiling.mainTextureScale=new Vector2(4,4);
+            signFont=Resources.Load<Font>("Typeface/AfterHours");
+            signInk=new Material(Resources.Load<Shader>("DepthLabel"));
+            RefreshSignAtlas(signFont);
+            Font.textureRebuilt+=RefreshSignAtlas;
         }
 
         static Material Material(Color color) => new(Shader.Find("Standard")) { color=color };
@@ -48,13 +54,16 @@ namespace AfterHours
 
         internal void Build()
         {
-            ApplyFinish();
+            Lighting();
+            CreateSurfaces();
+            SkinArchitecture();
             foreach(Transform floor in GameObject.Find("浴场").transform)
             {
                 AddStairRamps(floor.Find("西北勤务梯段"),-18,14,1);
                 AddStairRamps(floor.Find("东南前厅梯段"),14,10,-1);
                 var hall=floor.Find("横廊");
                 AddCeiling(hall,floor.name.StartsWith("3F"));
+                if(hall)CorridorLighting(hall.position.y+.10f);
                 foreach(Transform room in floor)
                 {
                     Transform slab=room.Find("地坪");
@@ -66,8 +75,7 @@ namespace AfterHours
                     if (!new HashSet<string>{"门厅","茶座","大浴池","更衣室","沙发厅"}.Contains(room.name))
                         AddDoor(room.name,entry);
                     LabelRoom(room.name,entry,p.z>12);
-                    AddLamp(new Vector3(p.x,y+2.85f,p.z),false,.65f,8);
-                    AddLamp(new Vector3(p.x,y+2.95f,12),true,1.45f,8);
+                    InteriorLight(new Vector3(p.x,y+3.16f,p.z),room.name);
                 }
             }
             AddDoor("地下防火门",new Vector3(14,-3.6f,10),true);
@@ -76,7 +84,8 @@ namespace AfterHours
                 var p=new Vector3(x,0,-14);
                 Box("路灯杆",p+Vector3.up*2.2f,new Vector3(.13f,4.4f,.13f),wood);
                 Box("路灯灯罩",p+new Vector3(0,4.4f,-.28f),new Vector3(.3f,.16f,.8f),brass);
-                AddLamp(p+new Vector3(0,4.25f,-.55f),false,2.4f,15);
+                Fixture(p+new Vector3(0,4.19f,-.55f),new Vector3(0,-1,-.33f),
+                    new Color(1,.77f,.47f),4.9f,15,111);
             }
             Box("卡座背板",new Vector3(-10,0.55f,5.1f),new Vector3(4,.98f,.2f),wood);
             Box("卡座座面",new Vector3(-10,.37f,4.6f),new Vector3(4,.14f,.86f),wood);
@@ -108,34 +117,8 @@ namespace AfterHours
                 Box("轮胎",new Vector3(x,.32f,z),new Vector3(.72f,.64f,.23f),wood,Rescue.transform);
             Box("车顶警示灯",new Vector3(161.0f,2.22f,-20),new Vector3(.82f,.19f,.3f),red,Rescue.transform);
             Rescue.SetActive(false);
+            DressRooms();
             Physics.SyncTransforms();
-        }
-
-        void ApplyFinish()
-        {
-            var sun=GameObject.Find("白盒照明").GetComponent<Light>();
-            sun.intensity=.25f;
-            sun.color=new Color(.63f,.74f,1);
-            RenderSettings.ambientLight=new Color(.24f,.25f,.29f);
-            RenderSettings.fog=true;
-            RenderSettings.fogColor=new Color(.038f,.050f,.066f);
-            RenderSettings.fogMode=FogMode.ExponentialSquared;
-            RenderSettings.fogDensity=.012f;
-            Camera.main.clearFlags=CameraClearFlags.SolidColor;
-            Camera.main.backgroundColor=RenderSettings.fogColor;
-            var finishes=new Dictionary<string,Texture2D>
-            {
-                {"瓷砖地坪",Resources.Load<Texture2D>("Surfaces/Tiles074")},
-                {"室内墙",Resources.Load<Texture2D>("Surfaces/Concrete034")},
-                {"柏油",Resources.Load<Texture2D>("Surfaces/Asphalt017")}
-            };
-            foreach(var renderer in UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
-            {
-                if (!finishes.TryGetValue(renderer.sharedMaterial.name,out var texture)||!texture) continue;
-                var size=renderer.transform.localScale;
-                renderer.material.mainTexture=texture;
-                renderer.material.mainTextureScale=new Vector2(Mathf.Max(1,size.x/2),Mathf.Max(1,Mathf.Max(size.z,size.y)/2));
-            }
         }
 
         void AddStairRamps(Transform stair,float x,float entry,float direction)
@@ -164,9 +147,15 @@ namespace AfterHours
         {
             if(!slab)return;
             var dimensions=slab.localScale;
-            var height=topFloor?3.51f:-.119f;
-            var cover=Box("抹灰顶面",slab.position+Vector3.up*height,new Vector3(dimensions.x,.037f,dimensions.z),ceiling);
-            if(!topFloor)cover.GetComponent<Collider>().enabled=false;
+            var width=new Vector3(dimensions.x,.042f,dimensions.z);
+            var cover=Box("抹灰顶面",slab.position-Vector3.up*.129f,width,ceiling);
+            cover.GetComponent<Collider>().enabled=false;
+            Surface(cover,ceiling,2.5f);
+            if(topFloor)
+            {
+                var roof=Box("屋顶",slab.position+Vector3.up*3.51f,width,ceiling);
+                Surface(roof,ceiling,2.5f);
+            }
         }
 
         void LabelRoom(string name,Vector3 entry,bool north)
@@ -181,30 +170,39 @@ namespace AfterHours
             caption.transform.rotation=Quaternion.Euler(0,north?0:180,0);
             caption.anchor=TextAnchor.MiddleCenter;
             caption.alignment=TextAlignment.Center;
-            caption.font=Resources.Load<Font>("Typeface/AfterHours");
+            caption.font=signFont;
             caption.fontSize=42;
-            caption.characterSize=.125f;
+            caption.characterSize=.095f;
             caption.color=new Color(.82f,.78f,.66f);
             caption.text=name;
-            caption.GetComponent<Renderer>().sharedMaterial=caption.font.material;
+            var renderer=caption.GetComponent<Renderer>();
+            renderer.sharedMaterial=signInk;
+            renderer.shadowCastingMode=ShadowCastingMode.Off;
+            renderer.receiveShadows=false;
+            FitLetters(caption,.85f,.117f);
         }
 
-        void AddLamp(Vector3 p,bool switched,float intensity,float range)
+        void RefreshSignAtlas(Font font)
         {
-            var lamp=new GameObject("灯").AddComponent<Light>();
-            lamp.transform.SetParent(root);
-            lamp.transform.position=p;
-            lamp.type=LightType.Point;
-            lamp.range=range;
-            lamp.color=switched?new Color(1,.84f,.62f):new Color(.66f,.81f,1);
-            lamp.intensity=intensity;
-            if(switched){ workLights.Add(lamp); lamp.enabled=false; }
+            if(font==signFont)signInk.mainTexture=font.material.mainTexture;
+        }
+
+        internal void Dispose()
+        {
+            Font.textureRebuilt-=RefreshSignAtlas;
         }
 
         void AddDoor(string name,Vector3 p,bool fire=false)
         {
             var leaf=Box(name+" 门",p+new Vector3(0,1.21f,0),new Vector3(fire?1.91f:1.36f,2.42f,.10f),fire?red:wood);
+            Surface(leaf,fire?red:planks,1.25f);
             leaf.layer=FloorRoutes.DoorLayer;
+            foreach(float direction in new[]{-1f,1f})
+            {
+                var handle=Box("门把",p+new Vector3(.44f,1.10f,.073f*direction),new Vector3(.135f,.055f,.092f),brass);
+                handle.transform.SetParent(leaf.transform,true);
+                handle.GetComponent<Collider>().enabled=false;
+            }
             var door=new Door{Name=name,Leaf=leaf,Position=p,Fire=fire};
             Doors.Add(door);
             game.Target(p+Vector3.up*1.08f,fire?"推开地下防火门":"推门 · "+name,0,()=>game.ToggleDoor(door));

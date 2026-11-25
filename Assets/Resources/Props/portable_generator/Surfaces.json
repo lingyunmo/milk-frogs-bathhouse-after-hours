@@ -1,0 +1,16 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "portable_generator_diff_2k",
+      "normal": "portable_generator_nor_gl_2k",
+      "arm": "portable_generator_arm_2k_Unity"
+    },
+    {
+      "name": "Surface_1",
+      "color": "portable_generator_diff_2k",
+      "normal": "portable_generator_nor_gl_2k",
+      "arm": "portable_generator_arm_2k_Unity"
+    }
+  ]
+}

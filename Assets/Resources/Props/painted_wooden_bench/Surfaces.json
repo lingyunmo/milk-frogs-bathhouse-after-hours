@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "painted_wooden_bench_diff_2k",
+      "normal": "painted_wooden_bench_nor_gl_2k",
+      "arm": "painted_wooden_bench_arm_2k_Unity"
+    }
+  ]
+}

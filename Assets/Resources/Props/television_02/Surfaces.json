@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "television_02_diff_2k",
+      "normal": "television_02_nor_gl_2k",
+      "arm": "television_02_arm_2k_Unity"
+    }
+  ]
+}

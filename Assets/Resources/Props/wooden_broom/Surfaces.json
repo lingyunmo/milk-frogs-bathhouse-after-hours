@@ -1,0 +1,16 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "wooden_broom_bristles_diff_2k",
+      "normal": "",
+      "arm": ""
+    },
+    {
+      "name": "Surface_1",
+      "color": "wooden_broom_diff_2k",
+      "normal": "wooden_broom_nor_gl_2k",
+      "arm": "wooden_broom_arm_2k_Unity"
+    }
+  ]
+}

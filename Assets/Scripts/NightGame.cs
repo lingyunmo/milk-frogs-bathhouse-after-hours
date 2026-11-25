@@ -49,6 +49,8 @@ namespace AfterHours
             SetupHud();
         }
 
+        void OnDestroy() => world?.Dispose();
+
         void Begin(NightState save)
         {
             State=save??new NightState();

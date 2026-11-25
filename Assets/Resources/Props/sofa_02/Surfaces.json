@@ -1,0 +1,18 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "sofa_02_diff_2k",
+      "normal": "sofa_02_nor_gl_2k",
+      "arm": "sofa_02_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

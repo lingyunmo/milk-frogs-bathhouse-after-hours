@@ -29,17 +29,48 @@ namespace AfterHours
             if (!camera.GetComponent<AudioListener>()) camera.gameObject.AddComponent<AudioListener>();
             camera.nearClipPlane=.035f;
             camera.fieldOfView=72;
-            torch=Eyes.gameObject.AddComponent<Light>();
+            var flashlight=new GameObject("Hand torch beam");
+            flashlight.transform.SetParent(Eyes,false);
+            flashlight.transform.localPosition=new Vector3(.10f,-.13f,.075f);
+            flashlight.transform.localRotation=Quaternion.Euler(-1.5f,-.55f,0);
+            torch=flashlight.AddComponent<Light>();
             torch.type=LightType.Spot;
-            torch.spotAngle=59;
-            torch.innerSpotAngle=32;
-            torch.range=23;
-            torch.intensity=3;
-            torch.shadows=LightShadows.Hard;
+            torch.spotAngle=63;
+            torch.innerSpotAngle=19;
+            torch.range=17;
+            torch.intensity=2.9f;
+            torch.renderMode=LightRenderMode.ForcePixel;
+            torch.shadows=LightShadows.Soft;
+            torch.shadowStrength=.92f;
+            torch.shadowBias=.07f;
+            torch.shadowNormalBias=.19f;
+            torch.cookie=SoftBeam();
             torch.shadowNearPlane=.10f;
             torch.color=new Color(1,.92f,.76f);
             torch.enabled=false;
             ApplyHeight(1.7f);
+        }
+
+        static Texture2D SoftBeam()
+        {
+            const int size=128;
+            var texture=new Texture2D(size,size,TextureFormat.RGBA32,false,true);
+            texture.wrapMode=TextureWrapMode.Clamp;
+            texture.filterMode=FilterMode.Bilinear;
+            var pixels=new Color32[size*size];
+            for (int y=0;y<size;y++)
+            for (int x=0;x<size;x++)
+            {
+                var p=new Vector2((x+.5f)*2/size-1,(y+.5f)*2/size-1);
+                float r=p.magnitude;
+                float beam=.64f*(1-Mathf.SmoothStep(.0f,1.0f,Mathf.InverseLerp(.18f,.97f,r)))
+                    +.28f*Mathf.Exp(-r*r*5.9f);
+                byte luma=(byte)(Mathf.Clamp01(beam)*255);
+                pixels[y*size+x]=new Color32(luma,luma,luma,luma);
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false,true);
+            return texture;
         }
 
         internal void Tick(NightGame game,float dt)

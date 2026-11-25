@@ -1,0 +1,32 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "bathroom_vanity_color",
+      "normal": "bathroom_vanity_normal",
+      "arm": "bathroom_vanity_orm_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "",
+      "normal": "",
+      "arm": "",
+      "tint": [
+        0.8500000238418579,
+        0.8500000238418579,
+        0.8399999737739563,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.3499999940395355
+    }
+  ]
+}

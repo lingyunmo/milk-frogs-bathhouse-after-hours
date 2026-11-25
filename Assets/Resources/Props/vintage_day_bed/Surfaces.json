@@ -1,0 +1,10 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "vintage_day_bed_diff_2k",
+      "normal": "vintage_day_bed_nor_gl_2k",
+      "arm": "vintage_day_bed_arm_2k_Unity"
+    }
+  ]
+}
