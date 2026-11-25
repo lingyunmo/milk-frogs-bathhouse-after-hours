@@ -56,3 +56,17 @@ Create a single premium photorealistic overhead background plate for the charact
 ```text
 One horizontal game material plate, macro tabletop scan of a densely fibrous, worn Chinese municipal maintenance logbook's blank cardstock liner from the late 1990s. Uniform warm gray-olive and smoked tobacco, medium-dark at midtones (about RGB 107 100 80, not white), with finely visible pressed paper fibers, tiny creases, restrained greasy stains and a subtle folded shadow down one horizontal side. Full-bleed rectangular material region without any other props or background. Fine believable high-resolution paper texture usable as an asset under typography and architectural floor-plan linework. No writing, no lines, no grid, no letters, no symbols, no borders, no book frame, no large color blocks, no vignette stronger than 10%. Looks like a direct photo of a real worn stock sheet under diffuse warm studio lighting.
 ```
+
+
+## 第一夜视觉细化
+
+- 走廊、设备层和更衣室的建筑表面保留实拍底图。附加的微细法线、跨墙段的水渍和沿地漏分布的湿区随场景光源变化。门框、门锁、蒸汽管、法兰、电箱和地漏是实体渲染网格。
+- 管路使用 Amal Kumar 的 2K 色彩和法线，粗糙度、金属度及遮蔽图按 Unity Standard 通道打包。[Poly Haven Rusty Metal Sheet](https://polyhaven.com/a/rusty_metal_sheet)
+- 背包的六件实物使用离屏相机。手电沿用场景中的 Poly Haven 模型，其他五件沿用背包 2D 图标的 Blender 网格。材质在独立灯光中呈现，可拖动检查细节。
+- [地图纸纹](../../Assets/Resources/Interface/AtlasPaper.png)使用内置 ImageGen 生成。楼层轮廓、开口、当前位置与比例尺仍从游戏状态实时画出。
+
+地图纸纹提示词
+
+```text
+Create a single game-ready material plate as an original photograph/scan. 16:9 landscape from straight overhead, entire frame filled with a single very dark antique smoked gray-green archival drafting paper from a forgotten 1990s Chinese public bathhouse. This is for readable floor-plan geometry to be drawn over it in the game. Low contrast black olive fiber board (luminance roughly RGB 66 to 96, no white), graphite scuffing with nearly invisible pencil-eraser smudges in the center, tiny water tide marks at two outside corners, gently worn deckled fibers and one faint crease at the very edge. Central 90 percent absolutely quiet, evenly lit. Fine large realistic texture, authentic and old, premium tactile film production prop, nearly matte fibrous material with a faint natural horizontal grain. Full-bleed material only, entire image usable, no objects or background framing, no pre-drawn geometry or grid, no words/letters/numbers, no maps, no colored marks, no UI, no artwork, no borders or thick edges. Cold and muted, dynamic range reserved for use over black green UI.
+```

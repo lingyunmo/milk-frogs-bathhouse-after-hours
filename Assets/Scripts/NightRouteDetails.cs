@@ -66,11 +66,14 @@ namespace AfterHours
                 ("industrial_wall_sconce", "货门旧式玻璃壁灯", new(-15.33f,2.18f,24.17f), new(.17f,.40f,.28f), 180, false)
             };
             foreach (var (asset, label, at, size, yaw, solid) in props)
-                Prop(asset, label, at, size, yaw, solid);
+            {
+                var prop = Prop(asset, label, at, size, yaw, solid);
+                if (label == "更衣室北墙壁灯") LightSconce(prop);
+            }
 
             var changingSconce = new Vector3(-4.92f, 5.82f, 23.36f);
             Fixture(changingSconce, new Vector3(-2f, 4.12f, 20.99f) - changingSconce,
-                new Color(.97f, .75f, .52f), 1.38f, 5.55f, 52);
+                new Color(.97f, .77f, .57f), 1.72f, 5.65f, 66);
             WallSign("前厅梯", new Vector3(11.75f, 5.83f, 9.86f), 180, new Vector2(1.08f, .24f), .12f);
             WallSign("干衣布草", new Vector3(-10.7f, 5.78f, 23.87f), 0, new Vector2(1.32f, .33f), .13f);
             WallSign("机房重地", new Vector3(-12.23f, -.96f, 14.12f), 180, new Vector2(1.28f, .29f), .12f);

@@ -91,9 +91,20 @@ namespace AfterHours
         void BuildInspection(NightInventoryItem item, string art)
         {
             var stand = Area(itemInspection, "item-stand");
-            var preview = Area(stand, "item-preview");
-            SetItemArt(preview, art);
-            Reveal(preview);
+            var interactive = NightItemPreview.TryCreate(game.transform, item.Id);
+            if (interactive == null)
+            {
+                var preview = Area(stand, "item-preview");
+                SetItemArt(preview, art);
+                Reveal(preview);
+            }
+            else
+            {
+                interactive.AddToClassList("item-orbit");
+                stand.Add(interactive);
+                Reveal(interactive);
+                Type(stand, "拖动旋转 · 双击复位", "orbit-caption");
+            }
 
             var details = Area(itemInspection, "item-details");
             Type(details, item.Kind, "item-kind");

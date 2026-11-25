@@ -12,8 +12,8 @@ namespace AfterHours
         const float CrouchSpeed = 1.10f;
         const float StandingHeight = 1.70f;
         const float CrouchHeight = .54f;
-        const float TorchStrength = 2.25f;
-        const float TorchBeamAngle = 63;
+        const float TorchStrength = 2.64f;
+        const float TorchBeamAngle = 65;
         const float TorchWarmup = .15f;
 
         internal CharacterController Body { get; private set; }
@@ -54,16 +54,16 @@ namespace AfterHours
             torch = flashlight.gameObject.AddComponent<Light>();
             torch.type = LightType.Spot;
             torch.spotAngle = TorchBeamAngle;
-            torch.innerSpotAngle = 19;
+            torch.innerSpotAngle = 21;
             torch.range = 17;
             torch.intensity = TorchStrength;
             torch.renderMode = LightRenderMode.ForcePixel;
             torch.shadows = LightShadows.Soft;
-            torch.shadowStrength = .92f;
+            torch.shadowStrength = .96f;
             torch.shadowBias = .07f;
             torch.shadowNormalBias = .19f;
             torch.shadowNearPlane = .10f;
-            torch.color = new Color(1, .92f, .76f);
+            torch.color = new Color(1, .946f, .825f);
             torch.cullingMask &= ~(1 << ViewModelLayer);
             torch.cookie = SoftBeam();
             torch.enabled = false;
@@ -91,7 +91,7 @@ namespace AfterHours
             fill.type = LightType.Point;
             fill.color = new Color(.88f, .94f, 1);
             fill.range = 1.15f;
-            fill.intensity = .44f;
+            fill.intensity = .38f;
             fill.cullingMask = 1 << ViewModelLayer;
             heldTorch.SetParent(mount, false);
             SetTorchVisible(false);
@@ -104,7 +104,9 @@ namespace AfterHours
 
         internal void ApplyPreferences(NightPreferences preferences)
         {
-            Eyes.GetComponent<Camera>().fieldOfView = preferences.FieldOfView;
+            var camera = Eyes.GetComponent<Camera>();
+            camera.fieldOfView = preferences.FieldOfView;
+            if (camera.TryGetComponent<NightCameraGrade>(out var grade)) grade.SetGlow(preferences.PracticalGlow);
         }
 
         static Texture2D SoftBeam()
@@ -119,9 +121,13 @@ namespace AfterHours
             for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
             {
-                float radius = new Vector2((x + .5f) * 2 / size - 1, (y + .5f) * 2 / size - 1).magnitude;
-                float beam = .64f * (1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(.18f, .97f, radius)))
-                    + .28f * Mathf.Exp(-radius * radius * 5.9f);
+                var lens = new Vector2((x + .5f) * 2 / size - 1, (y + .5f) * 2 / size - 1);
+                float radius = new Vector2(lens.x * 1.045f, lens.y * .985f).magnitude;
+                float edge = 1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(.45f, .985f, radius));
+                float core = .61f * Mathf.Exp(-radius * radius * 8.35f);
+                float spill = .30f * Mathf.Exp(-radius * radius * 1.53f);
+                float lensRim = .028f * Mathf.Exp(-Mathf.Pow((radius - .295f) * 13f, 2));
+                float beam = (core + spill + lensRim) * edge;
                 byte light = (byte)(Mathf.Clamp01(beam) * 255);
                 pixels[y * size + x] = new Color32(light, light, light, light);
             }

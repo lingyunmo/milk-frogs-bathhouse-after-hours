@@ -10,6 +10,13 @@ namespace AfterHours
         internal float CameraMotion { get; private set; } = Read("camera-motion", .72f, 0, 1);
         internal float FieldOfView { get; private set; } = Read("field-of-view", 61, 50, 82);
         internal float Volume { get; private set; } = Read("volume", .85f, 0, 1);
+        internal bool PracticalGlow { get; private set; } = PlayerPrefs.GetInt(Prefix + "practical-glow", 1) != 0;
+
+        internal void SetPracticalGlow(bool value)
+        {
+            PracticalGlow = value;
+            PlayerPrefs.SetInt(Prefix + "practical-glow", value ? 1 : 0);
+        }
 
         static float Read(string name, float fallback, float min, float max) =>
             Mathf.Clamp(PlayerPrefs.GetFloat(Prefix + name, fallback), min, max);
