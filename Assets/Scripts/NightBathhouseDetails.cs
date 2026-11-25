@@ -25,7 +25,7 @@ namespace AfterHours
             WallSign("营业登记",new Vector3(8.95f,2.08f,1.12f),180,new Vector2(1.61f,.35f),.143f);
             WallSign("水疗区",new Vector3(5.63f,2.02f,23.88f),0,new Vector2(1.15f,.30f),.116f);
             WallSign("备餐与茶水",new Vector3(-10.79f,1.45f,.12f),180,new Vector2(1.81f,.27f),.113f);
-            WallSign("更衣与拖鞋",new Vector3(-2.1f,5.49f,23.88f),0,new Vector2(1.78f,.31f),.132f);
+            WallSign("更衣与拖鞋",new Vector3(-1.02f,6.01f,23.88f),0,new Vector2(1.78f,.31f),.132f);
             WallSign("夜班发车",new Vector3(100,2.29f,-10.34f),0,new Vector2(2.94f,.37f),.17f);
             WallSign("救援接应",new Vector3(160,1.84f,-14.923f),0,new Vector2(.78f,.42f),.101f);
             Prop("metal_trash_can","门外金属废物筒",new Vector3(2.84f,0,-.98f),new Vector3(.45f,.74f,.45f),-8,true);
@@ -39,13 +39,14 @@ namespace AfterHours
             Fixture(new Vector3(-9.7f,2.4f,2.25f),new Vector3(-.23f,-1,-.49f),new Color(.98f,.78f,.55f),1.85f,4,90);
             Fixture(new Vector3(101,2.23f,-9.04f),new Vector3(0,-1,.42f),new Color(.79f,.88f,1),1.9f,6,109);
 
-            for(int i=0;i<5;i++)
+            foreach (float x in new[] { -11f, 48f, 108f, 168f })
+                Prop("public-housing-slab", "路对面老式住宅", new Vector3(x,-.4f,-45.3f),
+                    new Vector3(54,15.8f,12.4f), 0, false);
+            for (int i = 0; i < 5; i++)
             {
-                float x=28+i*32;
-                var mass=Box("街对面建筑",new Vector3(x,3.31f,-36.9f),new Vector3(25,6.62f,2.0f),brick);
-                Surface(mass,brick,2.35f);
-                var plinth=Box("路肩石台",new Vector3(x,.22f,-33.0f),new Vector3(25,.44f,1.4f),plaster);
-                Surface(plinth,plaster,2.7f);
+                float x = 28 + i * 32;
+                var plinth = Box("路肩石台", new Vector3(x,.22f,-33), new Vector3(25,.44f,1.4f),plaster);
+                Surface(plinth, plaster, 2.7f);
             }
         }
 

@@ -1,0 +1,32 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "wall_clock_diff_2k",
+      "normal": "wall_clock_nor_gl_2k",
+      "arm": "wall_clock_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "",
+      "normal": "",
+      "arm": "wall_clock_glass_arm_2k_Unity",
+      "tint": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929,
+        0.4000000059604645
+      ],
+      "metal": 0,
+      "rough": 1
+    }
+  ]
+}

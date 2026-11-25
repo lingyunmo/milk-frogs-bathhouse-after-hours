@@ -1,0 +1,18 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "painted_wooden_chair_02_diff_2k",
+      "normal": "painted_wooden_chair_02_nor_gl_2k",
+      "arm": "painted_wooden_chair_02_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 0,
+      "rough": 1
+    }
+  ]
+}

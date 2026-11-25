@@ -1,0 +1,18 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "ceiling_fan_diff_2k",
+      "normal": "ceiling_fan_nor_gl_2k",
+      "arm": "ceiling_fan_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

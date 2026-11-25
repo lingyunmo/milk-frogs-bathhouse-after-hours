@@ -12,6 +12,7 @@ namespace AfterHours
                 State.torch=true;
                 State.charge=360;
                 Player.SetTorch(true);
+                world.Refresh();
                 Notify("手电 · F 开关，R 换电");
                 SaveProgress();
             },()=>!State.torch);
@@ -87,7 +88,7 @@ namespace AfterHours
             {
                 State.escaped=true;
                 SaveProgress();
-                SetMenu(true);
+                SetScreen(NightScreen.Escaped);
             },()=>State.rescueTime==0,2.3f);
 
             Vault("翻出弱电间北窗",new Vector3(10,8.46f,23.9f),new Vector3(10,5.47f,25.3f),.68f);
@@ -96,17 +97,17 @@ namespace AfterHours
             Vault("沿雨棚下到西通道",new Vector3(-21.7f,2.55f,5),new Vector3(-23,0.07f,5),.39f);
             Vault("翻过折叠间北窗",new Vector3(-11.5f,4.82f,23.9f),new Vector3(-11.5f,1.87f,25.2f),.70f);
             Vault("下到卸货区",new Vector3(-11.5f,2.64f,26.35f),new Vector3(-11.5f,.07f,27.6f),.54f);
-            Vault("翻出淋浴间东窗",new Vector3(15.91f,1.34f,19),new Vector3(16.90f,.07f,19),.43f);
-            Vault("翻进淋浴间",new Vector3(16.09f,1.34f,19),new Vector3(15.01f,.07f,19),.29f);
+            Vault("翻出淋浴间东窗",new Vector3(15.91f,1.34f,19),new Vector3(16.90f,.07f,19),.43f, () => Player.Feet.x < 16);
+            Vault("翻进淋浴间",new Vector3(16.09f,1.34f,19),new Vector3(15.01f,.07f,19),.29f, () => Player.Feet.x >= 16);
         }
 
-        void Vault(string label,Vector3 from,Vector3 to,float sound)
+        void Vault(string label, Vector3 from, Vector3 to, float sound, Func<bool> available = null)
         {
             Target(from,label,0,()=>
             {
-                LandingNoise=sound;
-                Player.Vault(to);
-            },null,1.48f);
+                if (Player.Vault(to)) LandingNoise = sound;
+                else Notify("落脚处被挡住了。");
+            }, available, 1.48f);
         }
 
         void Repair(Vector3 point,float noise,Action advance,string sound="tool")
@@ -123,6 +124,7 @@ namespace AfterHours
             {
                 State.collected.Add(id);
                 collect();
+                world.Refresh();
                 SaveProgress();
             },()=>!State.collected.Contains(id));
         }
