@@ -1,0 +1,32 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "vintage_radio_transceiver_diff_2k",
+      "normal": "vintage_radio_transceiver_nor_gl_2k",
+      "arm": "vintage_radio_transceiver_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "vintage_radio_transceiver_accessories_diff_2k",
+      "normal": "vintage_radio_transceiver_accessories_nor_gl_2k",
+      "arm": "vintage_radio_transceiver_accessories_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

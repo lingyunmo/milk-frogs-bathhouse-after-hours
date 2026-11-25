@@ -1,0 +1,32 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "small_plastic_torch_diff_2k",
+      "normal": "small_plastic_torch_nor_gl_2k",
+      "arm": "small_plastic_torch_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "small_plastic_torch_diff_2k",
+      "normal": "",
+      "arm": "small_plastic_torch_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

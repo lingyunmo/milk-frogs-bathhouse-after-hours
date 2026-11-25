@@ -11,6 +11,7 @@ namespace AfterHours
         public int schema=1;
         public List<string> collected=new();
         public List<string> openDoors=new();
+        public List<string> explored=new();
         public int cells=0, stones=3;
         public float charge;
         public bool torch, motorPart, seal, firstFireDoor, power, pump, uplink, contacted, beacon, escaped;
@@ -18,8 +19,8 @@ namespace AfterHours
         public float dropTime=-1, rescueTime=-1;
         public bool rearDrop, dropTaken;
         public Vector3 spawn=NewSpawn;
-        public float yaw=180;
-        internal static readonly Vector3 NewSpawn=new(-3,3.67f,19);
+        public float yaw=24;
+        internal static readonly Vector3 NewSpawn=new(-3.28f,3.67f,18.25f);
     }
 
     internal static class NightSave
@@ -43,8 +44,12 @@ namespace AfterHours
                 {
                     if (!File.Exists(path)) continue;
                     var save=JsonUtility.FromJson<NightState>(File.ReadAllText(path));
-                    if(save!=null&&save.schema==1&&save.collected!=null&&save.openDoors!=null&&
-                        float.IsFinite(save.spawn.y)&&save.spawn.y>=-4&&save.spawn.y<=8) return save;
+                    if (save == null || save.schema != 1 || save.collected == null || save.openDoors == null)
+                        continue;
+                    save.explored ??= new List<string>();
+                    if (!NightWorld.ContainsPlayable(save.spawn)) save.spawn = NightState.NewSpawn;
+                    if (!float.IsFinite(save.yaw)) save.yaw = 24;
+                    return save;
                 }
                 catch(Exception ex) when (ex is IOException or ArgumentException or UnauthorizedAccessException)
                 {

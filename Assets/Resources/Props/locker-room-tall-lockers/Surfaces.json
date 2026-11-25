@@ -1,0 +1,18 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "locker-room-tall-lockers_color",
+      "normal": "locker-room-tall-lockers_normal",
+      "arm": "locker-room-tall-lockers_orm_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "housing1_color",
+      "normal": "housing1_normal",
+      "arm": "housing1_orm_Unity",
+      "tint": [
+        0.2199999988079071,
+        0.2199999988079071,
+        0.2199999988079071,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "housing1_color",
+      "normal": "housing1_normal",
+      "arm": "housing1_orm_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

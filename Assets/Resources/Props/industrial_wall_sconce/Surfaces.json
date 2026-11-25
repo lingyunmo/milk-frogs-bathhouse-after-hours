@@ -1,0 +1,32 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "industrial_wall_sconce_diff_2k",
+      "normal": "industrial_wall_sconce_nor_gl_2k",
+      "arm": "industrial_wall_sconce_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "industrial_wall_sconce_bulb_diff_2k",
+      "normal": "",
+      "arm": "industrial_wall_sconce_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 0,
+      "rough": 1
+    }
+  ]
+}

@@ -214,7 +214,7 @@ namespace AfterHours
                 if(forward.sqrMagnitude>.009f)
                     actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(forward),dt*430);
                 game.OpenDoorsForHunter(Position);
-                float speed=Pursuing?3.95f:1.62f;
+                float speed=Pursuing?3.22f:1.46f;
                 actor.position=Vector3.MoveTowards(Position,target,speed*dt);
                 if(Vector3.Distance(Position,target)<.075f)waypoint++;
                 stride+=dt*(Pursuing?16:8);

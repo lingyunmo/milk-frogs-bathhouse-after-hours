@@ -50,15 +50,16 @@ for path in sorted(source.glob("*/*.gltf")):
         low = min((obj.matrix_world @ v.co).z for obj in meshes for v in obj.data.vertices)
         high = max((obj.matrix_world @ v.co).z for obj in meshes for v in obj.data.vertices)
         frame_height = (high-low)*.23
+        frame_clearance, seat_back = .60, .60
         for obj in meshes:
             matrix, inverse = obj.matrix_world.copy(), obj.matrix_world.inverted()
             for vertex in obj.data.vertices:
                 point = matrix @ vertex.co
                 rise = point.z-low
                 if rise <= frame_height:
-                    point.z = low + rise/frame_height * .86
+                    point.z = low + rise/frame_height * frame_clearance
                 else:
-                    point.z = low + .86 + (rise-frame_height)/(high-low-frame_height)*.63
+                    point.z = low + frame_clearance + (rise-frame_height)/(high-low-frame_height)*seat_back
                 vertex.co = inverse @ point
         bpy.ops.export_scene.fbx(filepath=str(out/"Raised.fbx"),use_selection=True,
                                 object_types={"MESH","EMPTY"},mesh_smooth_type="FACE",bake_anim=False,add_leaf_bones=False)

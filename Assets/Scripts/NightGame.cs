@@ -6,20 +6,32 @@ using UnityEngine.SceneManagement;
 
 namespace AfterHours
 {
+    internal enum NightScreen { Title, Play, Map, Pause, Capture, Caught, Escaped }
+
     internal sealed partial class NightGame : MonoBehaviour
     {
         internal NightState State { get; private set; }
         internal NightPlayer Player { get; private set; }
         internal float LandingNoise { get; private set; }
-        readonly List<NightTarget> targets=new();
+        internal NightScreen ScreenState { get; private set; }
+        internal NightPreferences Preferences { get; private set; }
+        internal NightAtlas Atlas { get; private set; }
+        internal NightTarget Focus => panel == null ? focus : null;
+        internal RepairPanel RepairView => panel;
+        internal float Hold => held != null && held.Hold > 0 ? Mathf.Clamp01(holdTime / held.Hold) : 0;
+        internal bool InPursuit => hunter.Pursuing;
+        internal string Message => messageTime > 0 ? message : "";
+        internal NightState ResumableSave { get; private set; }
+
+        readonly List<NightTarget> targets = new();
+        readonly List<ThrownStone> stones = new();
         NightWorld world;
-        NightAudio audio;
+        NightAudio soundscape;
         NightHunter hunter;
+        NightInterface hud;
         NightTarget focus, held;
         float holdTime, messageTime, pauseTime, caughtTime;
-        string message="";
-        bool running, menu=true, caught;
-        readonly List<ThrownStone> stones=new();
+        string message = "";
         struct ThrownStone
         {
             internal GameObject Object;
@@ -29,109 +41,171 @@ namespace AfterHours
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
         {
-            if(SceneManager.GetActiveScene().name=="AfterHours_Blockout")
+            if (SceneManager.GetActiveScene().name == "AfterHours_Blockout")
                 new GameObject("After Hours").AddComponent<NightGame>();
         }
 
         void Awake()
         {
-            State=new NightState();
-            audio=new NightAudio(transform);
-            Player=new GameObject("玩家").AddComponent<NightPlayer>();
+            State = new NightState();
+            Preferences = new NightPreferences();
+            soundscape = new NightAudio(transform);
+            Player = new GameObject("玩家").AddComponent<NightPlayer>();
             Player.SetUp(Camera.main);
-            Player.ResetPosition(State.spawn,State.yaw);
-            world=new NightWorld(this);
+            Player.ResetPosition(State.spawn, State.yaw);
+            world = new NightWorld(this);
             world.Build();
             BuildObjectives();
             Physics.SyncTransforms();
-            hunter=new NightHunter(this);
+            hunter = new NightHunter(this);
             world.Refresh();
-            SetupHud();
+            Atlas = new NightAtlas();
+            hud = new NightInterface(this);
+            ApplyPreferences();
+            SetScreen(NightScreen.Title);
         }
 
-        void OnDestroy() => world?.Dispose();
+        void OnDestroy()
+        {
+            Time.timeScale = 1;
+            AudioListener.pause = false;
+            hud?.Dispose();
+            world?.Dispose();
+        }
+
+        internal void ApplyPreferences()
+        {
+            Player.ApplyPreferences(Preferences);
+            AudioListener.volume = Preferences.Volume;
+        }
+
+        static NightState LoadUnfinished()
+        {
+            var saved = NightSave.Read();
+            return saved != null && !saved.escaped ? saved : null;
+        }
+
+        internal void NewNight() => Begin(null);
+        internal void ContinueNight() => Begin(LoadUnfinished());
 
         void Begin(NightState save)
         {
-            State=save??new NightState();
-            foreach(var stone in stones)Destroy(stone.Object);
+            State = save ?? new NightState();
+            foreach (var stone in stones) Destroy(stone.Object);
             stones.Clear();
             world.Refresh();
             hunter.Reset();
             Physics.SyncTransforms();
-            State.spawn=WalkableSavePosition(State.spawn);
-            Player.ResetPosition(State.spawn,State.yaw);
+            State.spawn = WalkableSavePosition(State.spawn);
+            Player.ResetPosition(State.spawn, State.yaw);
+            if (save == null) Player.LookDown(8);
             Player.SetTorch(false);
-            menu=false;
-            caught=false;
-            caughtTime=0;
-            running=true;
-            focus=held=null;
-            panel=null;
-            holdTime=0;
-            messageTime=0;
-            pauseTime=.2f;
-            Cursor.lockState=CursorLockMode.Locked;
-            Cursor.visible=false;
-            if(save==null)Notify("更衣凳上有手电。下楼去前台看看。",6);
+            caughtTime = 0;
+            panel = null;
+            messageTime = 0;
+            Atlas.Track(State, Player.Feet);
+            SetScreen(NightScreen.Play);
         }
 
         void Update()
         {
-            if(!running||State.escaped)return;
-            if(caught)
+            messageTime -= Time.unscaledDeltaTime;
+            if (ScreenState == NightScreen.Capture)
             {
-                if(!menu && (caughtTime+=Time.deltaTime)<1.55f)
+                caughtTime += Time.deltaTime;
+                if (caughtTime >= 1.65f)
                 {
-                    hunter.LaughAt(Player.Feet,caughtTime);
-                    var looking=Quaternion.LookRotation(hunter.Position+Vector3.up*1.10f-Player.Eyes.position);
-                    Player.Eyes.rotation=Quaternion.Slerp(Player.Eyes.rotation,looking,Time.deltaTime*11);
+                    ResumableSave = LoadUnfinished();
+                    SetScreen(NightScreen.Caught);
                 }
-                else if(!menu)SetMenu(true);
-                return;
+                else
+                {
+                    hunter.LaughAt(Player.Feet, caughtTime);
+                    var look = hunter.Position + Vector3.up * 1.10f - Player.Eyes.position;
+                    Player.Eyes.rotation = Quaternion.Slerp(Player.Eyes.rotation, Quaternion.LookRotation(look), Time.deltaTime * 11);
+                }
             }
-            if(Input.GetKeyDown(KeyCode.Escape))
+            else if (ScreenState == NightScreen.Play) TickPlay(Time.deltaTime);
+            else if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if(panel!=null)panel=null;
-                else SetMenu(!menu);
-                return;
+                if (!hud.CloseSubpage() && ScreenState is NightScreen.Pause or NightScreen.Map)
+                    SetScreen(NightScreen.Play);
             }
-            if(menu)return;
-            if(Cursor.lockState!=CursorLockMode.Locked)
-            {
-                SetMenu(true);
-                return;
-            }
-            if((pauseTime-=Time.deltaTime)>0)return;
-            float dt=Time.deltaTime;
-            messageTime-=dt;
-            if(panel==null)Player.Tick(this,dt);
-            else ReadRepairInput();
-            hunter.Tick(dt);
-            if(caught)return;
-            TickWorld(dt);
-            if(Input.GetKeyDown(KeyCode.G))ThrowStone();
-            if(Input.GetKeyDown(KeyCode.F5))SaveHere();
-            if(panel==null)FocusTarget(dt);
+            else if (ScreenState == NightScreen.Map && Input.GetKeyDown(KeyCode.M)) SetScreen(NightScreen.Play);
+            hud.Tick();
         }
 
-        void SetMenu(bool visible)
+        void TickPlay(float dt)
         {
-            menu=visible;
-            Cursor.lockState=visible?CursorLockMode.None:CursorLockMode.Locked;
-            Cursor.visible=visible;
-            holdTime=0;
-            held=null;
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (panel != null) panel = null;
+                else SetScreen(NightScreen.Pause);
+                return;
+            }
+            if (Input.GetKeyDown(KeyCode.M) && panel == null)
+            {
+                SetScreen(NightScreen.Map);
+                return;
+            }
+            if ((pauseTime -= dt) > 0) return;
+            if (Cursor.lockState != CursorLockMode.Locked)
+            {
+                SetScreen(NightScreen.Pause);
+                return;
+            }
+
+            if (panel == null) Player.Tick(this, dt);
+            else
+            {
+                Player.AdvanceTorch(this, dt);
+                ReadRepairInput();
+            }
+            Atlas.Track(State, Player.Feet);
+            hunter.Tick(dt);
+            if (ScreenState != NightScreen.Play) return;
+            TickWorld(dt);
+            if (panel != null) return;
+            if (Input.GetKeyDown(KeyCode.G)) ThrowStone();
+            if (Input.GetKeyDown(KeyCode.F5)) SaveHere();
+            FocusTarget(dt);
+        }
+
+        internal void SetScreen(NightScreen screen)
+        {
+            ScreenState = screen;
+            bool playing = screen is NightScreen.Play or NightScreen.Capture;
+            Time.timeScale = playing ? 1 : 0;
+            AudioListener.pause = screen is NightScreen.Pause or NightScreen.Map or NightScreen.Caught or NightScreen.Escaped;
+            bool lockMouse = screen == NightScreen.Play || screen == NightScreen.Capture && Application.isFocused;
+            Cursor.lockState = lockMouse ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !lockMouse;
+            Player.Eyes.GetComponent<Camera>().enabled = screen != NightScreen.Title;
+            Player.SetTorchVisible(screen == NightScreen.Play && State.torch);
+            soundscape.SetTitle(screen == NightScreen.Title);
+            if (screen == NightScreen.Play) pauseTime = .12f;
+            if (screen == NightScreen.Title)
+            {
+                Player.SetTorch(false);
+                ResumableSave = LoadUnfinished();
+            }
+            focus = held = null;
+            holdTime = 0;
+            hud.Show(screen);
+        }
+
+        void OnApplicationFocus(bool focused)
+        {
+            if (!focused && ScreenState == NightScreen.Play && hud != null) SetScreen(NightScreen.Pause);
         }
 
         internal void Captured()
         {
-            if(caught)return;
-            audio.Play(hunter.Position+Vector3.up*1.2f,"laugh",.9f);
-            caught=true;
-            panel=null;
-            focus=held=null;
-            caughtTime=0;
+            if (ScreenState != NightScreen.Play) return;
+            soundscape.Play(hunter.Position + Vector3.up * 1.2f, "laugh", .9f);
+            panel = null;
+            caughtTime = 0;
+            SetScreen(NightScreen.Capture);
         }
 
         internal void RecoverPlayer() => Player.ResetPosition(WalkableSavePosition(State.spawn),State.yaw);
@@ -140,9 +214,11 @@ namespace AfterHours
         static Vector3 WalkableSavePosition(Vector3 position)
         {
             const int scene = ~(1 << NightPlayer.PlayerLayer);
-            static bool Clear(Vector3 p) => !Physics.CheckCapsule(p+Vector3.up*.29f,
-                p+Vector3.up*1.44f,.24f,scene,QueryTriggerInteraction.Ignore);
-            if(Clear(position))return position;
+            static bool Clear(Vector3 p) => NightWorld.ContainsPlayable(p) &&
+                !Physics.CheckCapsule(p + Vector3.up * .29f, p + Vector3.up * 1.44f, .24f, scene, QueryTriggerInteraction.Ignore);
+            if (!NightWorld.ContainsPlayable(position)) return NightState.NewSpawn;
+            if (Clear(position) && Physics.Raycast(position + Vector3.up * .08f, Vector3.down, .38f, scene,
+                QueryTriggerInteraction.Ignore)) return position;
             for(int ring=1;ring<=4;ring++)
             for(int direction=0;direction<8;direction++)
             {
@@ -156,7 +232,7 @@ namespace AfterHours
             return NightState.NewSpawn;
         }
 
-        void Notify(string text,float time=3.4f)
+        internal void Notify(string text,float time=3.4f)
         {
             message=text;
             messageTime=time;
@@ -166,14 +242,14 @@ namespace AfterHours
         {
             if(State.power && Vector3.Distance(point,new Vector3(-10,-3.6f,20))<10 && sound=="step")
                 volume*=.58f;
-            audio.Play(point+Vector3.up*.25f,sound,volume);
+            soundscape.Play(point+Vector3.up*.25f,sound,volume);
             hunter?.Hear(point,volume);
         }
-        internal void PlayCreatureStep(Vector3 point) => audio.Play(point,"hunter",.55f);
+        internal void PlayCreatureStep(Vector3 point) => soundscape.Play(point,"hunter",.55f);
 
         void TickWorld(float dt)
         {
-            audio.Tick(State.power);
+            soundscape.Tick(State.power);
             if(State.dropTime>0)
             {
                 State.dropTime=Mathf.Max(0,State.dropTime-dt);
@@ -225,7 +301,8 @@ namespace AfterHours
 
         internal void ReplaceCell()
         {
-            if(!State.torch||State.cells==0){Notify("没有备用电池");return;}
+            if(!State.torch){Notify("还没拿手电");return;}
+            if(State.cells==0){Notify("没有备用电池");return;}
             if(State.charge>=344){Notify("当前电池电量充足");return;}
             State.charge=360;
             State.cells--;
@@ -271,6 +348,7 @@ namespace AfterHours
             held=null;
             chosen.Use();
             holdTime=0;
+            focus = null;
         }
 
         internal void ToggleDoor(NightWorld.Door door)
@@ -296,11 +374,11 @@ namespace AfterHours
                 if(door.Fire)State.firstFireDoor=true;
                 else State.openDoors.Add(door.Name);
                 door.Leaf.SetActive(false);
-                audio.Play(door.Position,"tool",.7f);
+                soundscape.Play(door.Position,"tool",.7f);
             }
         }
 
-        void SaveHere()
+        internal void SaveHere()
         {
             if(Player.Vaulting||!Player.Body.isGrounded||Player.Crouched||
                (hunter.Pursuing && Vector3.Distance(hunter.Position,Player.Feet)<13))

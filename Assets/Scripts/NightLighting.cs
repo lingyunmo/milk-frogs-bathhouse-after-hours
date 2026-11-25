@@ -62,10 +62,8 @@ namespace AfterHours
             foreach(int x in new[]{-16,-7,2,11})
             {
                 var mount=new Vector3(x,y+2.67f,13.82f);
-                var plate=Box("走廊灯底座",mount,new Vector3(.25f,.36f,.13f),steel);
-                plate.GetComponent<Collider>().enabled=false;
-                var glass=Box("走廊应急灯",mount+new Vector3(0,-.055f,-.08f),new Vector3(.19f,.20f,.07f),emergencyGlass);
-                glass.GetComponent<Collider>().enabled=false;
+                Prop("industrial_wall_sconce", "走廊旧式壁灯", mount + new Vector3(0,-.19f,-.13f),
+                    new Vector3(.17f,.38f,.28f), 180, false);
                 Fixture(mount+new Vector3(0,-.15f,-.25f),new Vector3(.13f,-1,-.58f),
                     y<0 ? new Color(1,.55f,.30f) : new Color(.88f,.71f,.46f),2.15f,6.7f,114);
                 var overhead=Fixture(new Vector3(x+2,y+3.11f,12),Vector3.down,

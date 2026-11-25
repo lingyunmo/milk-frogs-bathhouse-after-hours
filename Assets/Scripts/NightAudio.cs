@@ -8,7 +8,7 @@ namespace AfterHours
     {
         readonly Dictionary<string,AudioClip> clips=new();
         readonly AudioSource[] emitters=new AudioSource[10];
-        readonly AudioSource generator;
+        readonly AudioSource generator, entrance;
         int index;
 
         internal NightAudio(Transform root)
@@ -28,6 +28,37 @@ namespace AfterHours
             generator.clip=Clip("motor",2,46,.077f,6,true);
             generator.transform.position=new Vector3(-10,-2.5f,20);
             generator.Play();
+            entrance = Source(root);
+            entrance.spatialBlend = 0;
+            entrance.loop = true;
+            entrance.clip = TitleTone();
+            entrance.volume = .38f;
+        }
+
+        internal void SetTitle(bool visible)
+        {
+            if (visible)
+            {
+                generator.volume = 0;
+                if (!entrance.isPlaying) entrance.Play();
+            }
+            else entrance.Stop();
+        }
+
+        static AudioClip TitleTone()
+        {
+            const int rate = 24000;
+            const int length = 12;
+            var wave = new float[rate * length];
+            for (int i = 0; i < wave.Length; i++)
+            {
+                float t = (float)i / rate;
+                float phase = t * 2 * Mathf.PI;
+                float tide = .54f + .22f * Mathf.Sin(phase / length);
+                wave[i] = tide * (.18f * Mathf.Sin(phase * 43) + .066f * Mathf.Sin(phase * 47.5f) +
+                    .023f * Mathf.Sin(phase * 86 + .38f * Mathf.Sin(phase / 3)));
+            }
+            return Ready("Old ventilation", wave, rate);
         }
 
         internal void Tick(bool powered) => generator.volume=powered?.22f:0;

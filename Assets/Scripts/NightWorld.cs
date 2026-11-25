@@ -85,7 +85,7 @@ namespace AfterHours
                 Box("路灯杆",p+Vector3.up*2.2f,new Vector3(.13f,4.4f,.13f),wood);
                 Box("路灯灯罩",p+new Vector3(0,4.4f,-.28f),new Vector3(.3f,.16f,.8f),brass);
                 Fixture(p+new Vector3(0,4.19f,-.55f),new Vector3(0,-1,-.33f),
-                    new Color(1,.77f,.47f),4.9f,15,111);
+                    new Color(.96f,.81f,.62f),2.35f,14,115);
             }
             Box("卡座背板",new Vector3(-10,0.55f,5.1f),new Vector3(4,.98f,.2f),wood);
             Box("卡座座面",new Vector3(-10,.37f,4.6f),new Vector3(4,.14f,.86f),wood);
@@ -94,13 +94,8 @@ namespace AfterHours
             Box("二楼露台护栏",new Vector3(10,4.02f,28.50f),new Vector3(5.4f,.8f,.12f),wood);
             Box("露台左护栏",new Vector3(7.25f,4.02f,26.25f),new Vector3(.12f,.8f,4.4f),wood);
             Box("露台右护栏",new Vector3(12.75f,4.02f,26.25f),new Vector3(.12f,.8f,4.4f),wood);
-            // Continuous path around the building and parking pit, filling the whitebox's east apron gaps.
-            Box("后巷东段",new Vector3(53,-.11f,13.5f),new Vector3(14,.2f,21),wood);
-            Box("停车棚南沿",new Vector3(53,-.11f,.0f),new Vector3(14,.2f,.1f),wood);
-
             Crate=Box("支援补给箱",Vector3.zero,new Vector3(.92f,.54f,.64f),olive);
             Crate.SetActive(false);
-            Pickup("torch",new Vector3(-2,4.13f,21),new Vector3(.29f,.09f,.10f),brass);
             Pickup("receipt",new Vector3(9,1.00f,3.74f),new Vector3(.26f,.014f,.22f),brass);
             Pickup("motor",new Vector3(-14,-2.42f,4.12f),new Vector3(.19f,.13f,.18f),brass);
             Pickup("seal",new Vector3(8,4.80f,4.45f),new Vector3(.13f,.10f,.12f),brass);
@@ -118,6 +113,9 @@ namespace AfterHours
             Box("车顶警示灯",new Vector3(161.0f,2.22f,-20),new Vector3(.82f,.19f,.3f),red,Rescue.transform);
             Rescue.SetActive(false);
             DressRooms();
+            BoundTheStreet();
+            DressRoute();
+            game.Player.AttachHeldTorch(HeldFlashlight());
             Physics.SyncTransforms();
         }
 

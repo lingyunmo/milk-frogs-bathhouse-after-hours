@@ -88,6 +88,7 @@ namespace AfterHours
 
         void SkinArchitecture()
         {
+            var street = GameObject.Find("街区").transform;
             foreach (var renderer in UnityEngine.Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None))
             {
                 GameObject obj = renderer.gameObject;
@@ -96,6 +97,11 @@ namespace AfterHours
                 switch (renderer.sharedMaterial.name)
                 {
                     case "瓷砖地坪":
+                        if (obj.transform.IsChildOf(street))
+                        {
+                            Surface(obj, plaster, 3.8f);
+                            break;
+                        }
                         bool lodge = obj.name=="地坪" && (obj.transform.parent.name is "沙发厅" or "宿舍" or "经理室" or "前台室" or "茶座" or "值班室");
                         bool serviceOrWet=p.y<-.2f || p.z<0 || obj.transform.parent.name is "更衣室" or "洗衣房" or "淋浴间";
                         Surface(obj,lodge?planks:serviceOrWet?plaster:tiles,lodge?2.2f:2.1f);
@@ -239,10 +245,18 @@ namespace AfterHours
             Replace("求援终端台","metal_office_desk","前台接待桌",new Vector3(9,0,3.5f),new Vector3(2.4f,.94f,.77f));
             Replace("密封圈备品架","worn_metal_rack","毛巾库钢架",new Vector3(8,3.60f,4),new Vector3(2,1.40f,.65f));
             Replace("出生点旁的手电长凳","painted_wooden_bench","更衣长凳",new Vector3(-2,3.60f,21),new Vector3(3,.48f,.75f));
-            foreach(var part in GameObject.Find("沙发厅 长沙发").GetComponentsInChildren<Renderer>())
-                part.enabled=false;
+            var sofa = GameObject.Find("沙发厅 长沙发").transform;
+            foreach (Transform part in sofa)
+            {
+                part.GetComponent<Renderer>().enabled = false;
+                var center = part.position;
+                center.y = part.name == "上沿" ? 4.33f : 3.90f;
+                part.position = center;
+                if (part.name != "上沿")
+                    part.localScale = new Vector3(.18f, .60f, .18f);
+            }
             GameObject.Find("宿舍 床架").transform.Find("上沿").GetComponent<Renderer>().enabled=false;
-            Prop("sofa_02","高脚长椅上的旧布沙发",new Vector3(-15,3.60f,5),new Vector3(3.4f,1.49f,1.50f),0,false,"Raised");
+            Prop("sofa_02","有布裙的旧沙发",new Vector3(-15,3.60f,5),new Vector3(3.4f,1.20f,1.50f),0,false,"Raised");
             Fixture(new Vector3(-17.5f,5.96f,7.35f),new Vector3(.7f,-.46f,-.68f),new Color(1,.77f,.56f),1.85f,7,105);
             Fixture(new Vector3(-.46f,5.8f,19),new Vector3(-.65f,-.61f,.6f),new Color(.75f,.87f,1),1.5f,7,103);
             Prop("vintage_day_bed","铁架宿舍床",new Vector3(-3,8.02f,20),new Vector3(2.3f,.75f,1.50f),90,false);
