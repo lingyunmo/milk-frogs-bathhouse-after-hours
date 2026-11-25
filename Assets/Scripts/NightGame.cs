@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 
 namespace AfterHours
 {
-    internal enum NightScreen { Title, Play, Map, Pause, Capture, Caught, Escaped }
+    internal enum NightScreen { Title, Play, Map, Inventory, Pause, Capture, Caught, Escaped }
 
     internal sealed partial class NightGame : MonoBehaviour
     {
@@ -128,10 +128,12 @@ namespace AfterHours
             else if (ScreenState == NightScreen.Play) TickPlay(Time.deltaTime);
             else if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if (!hud.CloseSubpage() && ScreenState is NightScreen.Pause or NightScreen.Map)
+                if (!hud.CloseSubpage() && ScreenState is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory)
                     SetScreen(NightScreen.Play);
             }
-            else if (ScreenState == NightScreen.Map && Input.GetKeyDown(KeyCode.M)) SetScreen(NightScreen.Play);
+            else if ((ScreenState == NightScreen.Map && Input.GetKeyDown(KeyCode.M)) ||
+                (ScreenState == NightScreen.Inventory && Input.GetKeyDown(KeyCode.B)))
+                SetScreen(NightScreen.Play);
             hud.Tick();
         }
 
@@ -143,10 +145,18 @@ namespace AfterHours
                 else SetScreen(NightScreen.Pause);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.M) && panel == null)
+            if (panel == null)
             {
-                SetScreen(NightScreen.Map);
-                return;
+                if (Input.GetKeyDown(KeyCode.M))
+                {
+                    SetScreen(NightScreen.Map);
+                    return;
+                }
+                if (Input.GetKeyDown(KeyCode.B) || Input.GetKeyDown(KeyCode.Tab))
+                {
+                    SetScreen(NightScreen.Inventory);
+                    return;
+                }
             }
             if ((pauseTime -= dt) > 0) return;
             if (Cursor.lockState != CursorLockMode.Locked)
@@ -176,7 +186,8 @@ namespace AfterHours
             ScreenState = screen;
             bool playing = screen is NightScreen.Play or NightScreen.Capture;
             Time.timeScale = playing ? 1 : 0;
-            AudioListener.pause = screen is NightScreen.Pause or NightScreen.Map or NightScreen.Caught or NightScreen.Escaped;
+            AudioListener.pause = screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
+                or NightScreen.Caught or NightScreen.Escaped;
             bool lockMouse = screen == NightScreen.Play || screen == NightScreen.Capture && Application.isFocused;
             Cursor.lockState = lockMouse ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !lockMouse;
@@ -297,17 +308,6 @@ namespace AfterHours
             body.linearVelocity=(Player.Eyes.forward+Vector3.up*.09f)*12;
             stone.AddComponent<StoneNoise>().Landed=pos=>Emit(pos,.88f,"land");
             stones.Add(new ThrownStone{Object=stone,TTL=5});
-        }
-
-        internal void ReplaceCell()
-        {
-            if(!State.torch){Notify("还没拿手电");return;}
-            if(State.cells==0){Notify("没有备用电池");return;}
-            if(State.charge>=344){Notify("当前电池电量充足");return;}
-            State.charge=360;
-            State.cells--;
-            Player.SetTorch(false);
-            Notify("已换电池。按 F 开手电。");
         }
 
         internal void Target(Vector3 position,string label,float seconds,Action action,Func<bool> available=null,float radius=2.15f)

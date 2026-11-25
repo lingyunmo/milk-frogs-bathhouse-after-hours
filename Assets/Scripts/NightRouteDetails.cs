@@ -68,8 +68,9 @@ namespace AfterHours
             foreach (var (asset, label, at, size, yaw, solid) in props)
                 Prop(asset, label, at, size, yaw, solid);
 
-            Fixture(new Vector3(-4.92f, 5.82f, 23.36f), new Vector3(.34f,-.52f,-.67f),
-                new Color(1,.79f,.58f), 1.85f, 6.3f, 105);
+            var changingSconce = new Vector3(-4.92f, 5.82f, 23.36f);
+            Fixture(changingSconce, new Vector3(-2f, 4.12f, 20.99f) - changingSconce,
+                new Color(.97f, .75f, .52f), 1.38f, 5.55f, 52);
             WallSign("前厅梯", new Vector3(11.75f, 5.83f, 9.86f), 180, new Vector2(1.08f, .24f), .12f);
             WallSign("干衣布草", new Vector3(-10.7f, 5.78f, 23.87f), 0, new Vector2(1.32f, .33f), .13f);
             WallSign("机房重地", new Vector3(-12.23f, -.96f, 14.12f), 180, new Vector2(1.28f, .29f), .12f);

@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 
 namespace AfterHours
 {
-    internal sealed class NightInterface
+    internal sealed partial class NightInterface
     {
         readonly NightGame game;
         readonly UIDocument document;
@@ -19,6 +19,7 @@ namespace AfterHours
         VisualElement prompt, progress, status, sights, repairSlot;
         Meter stamina, torch, interaction;
         NightMapView minimap;
+        NightPursuitVignette pursuitVignette;
         Button[] mapTabs;
         NightMapView fullMap;
         NightGame.RepairPanel shownRepair;
@@ -45,6 +46,7 @@ namespace AfterHours
             canvas.SetActive(true);
             root = document.rootVisualElement;
             root.styleSheets.Add(Resources.Load<StyleSheet>(InterfaceFolder + "AfterHours"));
+            root.styleSheets.Add(Resources.Load<StyleSheet>(InterfaceFolder + "NightDuty"));
             var font = Resources.Load<Font>("Typeface/AfterHours");
             root.style.unityFont = font;
             root.style.unityFontDefinition = FontDefinition.FromFont(font);
@@ -125,13 +127,21 @@ namespace AfterHours
             }
 
             var veil = Area(root, "screen veil");
+            if (screen == NightScreen.Inventory)
+            {
+                BuildInventory(veil);
+                return;
+            }
             if (screen == NightScreen.Map)
             {
+                veil.AddToClassList("atlas-veil");
                 BuildMap(veil);
                 return;
             }
 
-            var card = Area(veil, "menu-card");
+            var card = Area(veil, "menu-card duty-menu");
+            Reveal(card);
+            if (screen == NightScreen.Pause) veil.AddToClassList("pause-veil");
             if (BuildSubpage(card)) return;
             if (screen == NightScreen.Pause)
             {
@@ -161,6 +171,7 @@ namespace AfterHours
             theater.style.backgroundImage = new StyleBackground(titleImage);
             var scrim = Area(theater, "title-scrim");
             var left = Area(scrim, "title-layout");
+            Reveal(left);
             Type(left, "奶娃浴场", "title-brand");
             var logotype = Type(left, "打烊后", "title-name");
             if (displayFont)
@@ -173,7 +184,7 @@ namespace AfterHours
 
             if (subpage.Length != 0)
             {
-                BuildSubpage(Area(scrim, "menu-card title-dialog"));
+                BuildSubpage(Area(scrim, "menu-card title-dialog duty-menu"));
                 return;
             }
 
@@ -226,7 +237,7 @@ namespace AfterHours
                     {
                         ("W A S D", "移动"), ("鼠标", "观察"), ("Shift", "按住奔跑"), ("C", "切换蹲行"),
                         ("E", "拾取 / 交互 / 翻窗"), ("F", "开关手电"), ("R", "更换电池"), ("G", "投掷石子"),
-                        ("M", "地图"), ("F5", "保存"), ("Esc", "暂停")
+                        ("B", "背包"), ("M", "地图"), ("F5", "保存"), ("Esc", "暂停")
                     })
                     {
                         var row = Area(controls, "control-row");
@@ -276,6 +287,9 @@ namespace AfterHours
         void BuildHud()
         {
             var layer = Area(root, "screen play-hud");
+            pursuitVignette = new NightPursuitVignette();
+            pursuitVignette.AddToClassList("screen");
+            layer.Add(pursuitVignette);
             var mission = Area(layer, "mission");
             location = Type(mission, "", "location");
             task = Type(mission, "", "objective");
@@ -324,14 +338,16 @@ namespace AfterHours
             var input = Area(shortcuts, "hotkey-row");
             Bind(input, "Shift", "奔跑");
             Bind(input, "C", "蹲行");
-            Bind(input, "F5", "保存");
+            Bind(input, "B", "背包");
             Bind(input, "Esc", "暂停");
             nextMapDraw = 0;
         }
 
-        static Label Slot(VisualElement row, string key, string label, bool counts = false)
+        Label Slot(VisualElement row, string key, string label, bool counts = false)
         {
             var box = Area(row, "item-slot");
+            string icon = key == "F" ? "torch" : key == "R" ? "cell" : "stone";
+            SetItemArt(Area(box, "quick-art"), icon);
             var top = Area(box, "line");
             Type(top, key, "key");
             var count = counts ? Type(top, "", "item-count") : null;
@@ -349,6 +365,7 @@ namespace AfterHours
         void BuildMap(VisualElement veil)
         {
             var card = Area(veil, "atlas-card");
+            Reveal(card);
             var header = Area(card, "line atlas-header");
             var left = Area(header, "atlas-title");
             Type(left, "位置 · " + LocationName(), "overline");
@@ -373,6 +390,12 @@ namespace AfterHours
         {
             for (int i = 0; i < mapTabs.Length; ++i) mapTabs[i].EnableInClassList("floor-tab--selected", i == floor);
             fullMap.SetSheet(floor);
+        }
+
+        static void Reveal(VisualElement element)
+        {
+            element.AddToClassList("duty-entrance");
+            element.schedule.Execute(() => element.RemoveFromClassList("duty-entrance")).StartingIn(24);
         }
 
         void DrawRepair(NightGame.RepairPanel current)
@@ -401,8 +424,10 @@ namespace AfterHours
             var screen = game.ScreenState;
             if (toast != null)
             {
-                Copy(toast, game.Message);
-                Visible(toast, game.Message.Length > 0);
+                string message = game.Message;
+                if (screen == NightScreen.Play && message.Length > 0 && toast.text != message) Reveal(toast);
+                Copy(toast, message);
+                Visible(toast, message.Length > 0);
             }
             if (screen != NightScreen.Play) return;
 
@@ -412,10 +437,12 @@ namespace AfterHours
             Copy(location, LocationName());
             Copy(mapFloor, NightAtlas.FloorNames[game.Atlas.Floor]);
             Copy(mapPlace, game.Atlas.Place);
-            Visible(status, game.InPursuit);
+            bool pursuing = game.InPursuit;
+            Visible(status, pursuing);
+            pursuitVignette.Tick(pursuing);
             stamina.Set(player.Stamina, player.Exhausted);
             Copy(life, Percent(player.Stamina));
-            float amount = Mathf.Clamp01(state.charge / 360);
+            float amount = Mathf.Clamp01(state.charge / NightState.FullTorchCharge);
             torch.Set(amount, state.torch && amount < .11f);
             Copy(charge, state.torch ? Percent(amount) : "未拾取");
             Copy(movement, player.Crouched ? "蹲行" : player.Sprinting ? "奔跑" : player.Exhausted ? "喘息" : "步行");

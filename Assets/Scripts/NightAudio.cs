@@ -18,6 +18,9 @@ namespace AfterHours
             clips["land"]=Clip("land",.28f,76,.55f,63);
             clips["tool"]=Clip("tool",.36f,314,.53f,52);
             clips["switch"]=Clip("switch",.44f,118,.62f,12);
+            clips["torch-click"]=Clip("torch-click",.093f,310,.61f,102);
+            clips["pickup"]=Clip("pickup",.17f,185,.83f,203);
+            clips["paper"]=Clip("paper",.14f,570,.96f,191);
             clips["signal"]=Clip("signal",.8f,426,.025f,16);
             clips["drone"]=Clip("drone",3.4f,104,.14f,119);
             clips["truck"]=Clip("truck",2.3f,43,.24f,78);
@@ -76,12 +79,13 @@ namespace AfterHours
             return a;
         }
 
-        internal void Play(Vector3 position,string sound,float gain)
+        internal void Play(Vector3 position,string sound,float gain,bool duringPause=false)
         {
             var source=emitters[index++%emitters.Length];
             source.Stop();
             source.transform.position=position;
             source.volume=Mathf.Clamp01(gain);
+            source.ignoreListenerPause = duringPause;
             source.pitch=sound=="step"?UnityEngine.Random.Range(.86f,1.12f):1;
             source.clip=clips[sound];
             source.Play();

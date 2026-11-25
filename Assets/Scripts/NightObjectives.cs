@@ -7,25 +7,25 @@ namespace AfterHours
     {
         void BuildObjectives()
         {
-            Target(new Vector3(-2,4.12f,21),"拿起手电",0,()=>
+            Vector3 torchBench = new(-2,4.12f,21);
+            Target(torchBench,"拿起手电",0,()=>
             {
                 State.torch=true;
-                State.charge=360;
+                State.charge=NightState.FullTorchCharge;
                 Player.SetTorch(true);
                 world.Refresh();
-                Notify("手电 · F 开关，R 换电");
+                PickupFeedback(torchBench, "手电筒 · F 开关");
                 SaveProgress();
             },()=>!State.torch);
 
-            Supply("receipt",new Vector3(9,1.05f,3.92f),"读夜班故障单",()=>
-                Notify("地下设备层恢复供电。三楼接好线路。回前台呼叫。",8));
-            Supply("motor",new Vector3(-14,-2.43f,4.13f),"取发电机启动件",()=>State.motorPart=true);
-            Supply("seal",new Vector3(8,4.8f,4.43f),"取回水接头密封圈",()=>State.seal=true);
-            Supply("cell-reception",new Vector3(10,.99f,4.1f),"取电池 · 前台",()=>State.cells++);
-            Supply("cell-storage",new Vector3(-2,-2.53f,5),"取电池 · 备品库",()=>State.cells++);
-            Supply("cell-staff",new Vector3(-9,8.15f,18),"取电池 · 值班室",()=>State.cells++);
-            Supply("cell-parking",new Vector3(49,.17f,4.8f),"取电池 · 停车棚",()=>State.cells++);
-            Supply("stones",new Vector3(24,.13f,-10),"捡三颗石子",()=>State.stones+=3);
+            Supply(FaultNoteId, new(9,1.05f,3.92f), "读夜班故障单", "故障单 · B 查看", sound: "paper");
+            Supply("motor", new(-14,-2.43f,4.13f), "取发电机启动件", "发电机启动件", () => State.motorPart = true);
+            Supply("seal", new(8,4.8f,4.43f), "取回水接头密封圈", "回水密封圈", () => State.seal = true);
+            Cell("cell-reception", new(10,.99f,4.1f), "前台");
+            Cell("cell-storage", new(-2,-2.53f,5), "备品库");
+            Cell("cell-staff", new(-9,8.15f,18), "值班室");
+            Cell("cell-parking", new(49,.17f,4.8f), "停车棚");
+            Supply("stones", new(24,.13f,-10), "捡三颗石子", "石子 × 3", () => State.stones += 3);
 
             Vector3 motor=new(-10,-2.57f,18.92f);
             Target(motor,"安装启动件",3.2f,()=>Repair(motor,.48f,()=>{State.motorStage++;State.motorPart=false;}),()=>State.motorStage==0&&State.motorPart);
@@ -34,7 +34,11 @@ namespace AfterHours
                 new[]{1,0,2},()=>Repair(motor,.30f,()=>State.motorStage++)),()=>State.motorStage==1);
             Target(motor,"点动发电机",4.6f,()=>Repair(motor,1.25f,()=>State.motorStage++,"switch"),()=>State.motorStage==2);
             Vector3 breaker=new(8,-2.45f,3.38f);
-            Target(breaker,"给前台和弱电间送电",2.2f,()=>Repair(breaker,.70f,()=>State.power=true,"switch"),()=>State.motorStage==3&&!State.power);
+            Target(breaker,"给前台和弱电间送电",2.2f,()=>Repair(breaker,.70f,()=>
+            {
+                State.power=true;
+                world.StartPowerRestoration();
+            },"switch"),()=>State.motorStage==3&&!State.power);
 
             Vector3 sink=new(1,4.36f,2.46f);
             Target(sink,"关掉水槽进水阀",2.5f,()=>Repair(sink,.44f,()=>State.sinkStage++),()=>State.sinkStage==0);
@@ -71,7 +75,7 @@ namespace AfterHours
                     State.cells+=2;
                     State.stones+=2;
                     world.Refresh();
-                    Notify("电池 × 2　石子 × 2");
+                    PickupFeedback(point, "电池 × 2　石子 × 2");
                     SaveProgress();
                 },()=>State.dropTime==0&&!State.dropTaken&&State.rearDrop==rear);
             }
@@ -118,15 +122,25 @@ namespace AfterHours
             SaveProgress();
         }
 
-        void Supply(string id,Vector3 p,string label,Action collect)
+        void Cell(string id, Vector3 position, string location) =>
+            Supply(id, position, "取电池 · " + location, "备用电池 × 1", () => State.cells++);
+
+        void Supply(string id, Vector3 position, string label, string feedback, Action collect = null, string sound = "pickup")
         {
-            Target(p,label,0,()=>
+            Target(position, label, 0, () =>
             {
                 State.collected.Add(id);
-                collect();
+                collect?.Invoke();
                 world.Refresh();
+                PickupFeedback(position, feedback, sound);
                 SaveProgress();
-            },()=>!State.collected.Contains(id));
+            }, () => !State.collected.Contains(id));
+        }
+
+        void PickupFeedback(Vector3 position, string feedback, string sound = "pickup")
+        {
+            soundscape.Play(position, sound, .58f);
+            Notify(feedback, 2.75f);
         }
     }
 }

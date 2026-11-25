@@ -95,15 +95,15 @@ namespace AfterHours
 
     internal sealed class NightMapView : VisualElement
     {
-        static readonly Color Ink = new(.047f, .061f, .057f);
-        static readonly Color Grid = new(.17f, .20f, .17f, .35f);
-        static readonly Color Seen = new(.23f, .30f, .27f);
-        static readonly Color Unknown = new(.10f, .14f, .12f);
+        static readonly Color Ink = new(.045f, .063f, .052f, .26f);
+        static readonly Color Grid = new(.71f, .67f, .51f, .15f);
+        static readonly Color Seen = new(.26f, .34f, .27f, .77f);
+        static readonly Color Unknown = new(.10f, .15f, .12f, .73f);
         static readonly Color Edge = new(.51f, .57f, .49f);
         static readonly Color Faint = new(.31f, .36f, .30f);
         static readonly Color Stair = new(.52f, .42f, .29f);
         static readonly Color Amber = new(.93f, .72f, .43f);
-        static readonly Color Current = new(.32f, .39f, .32f);
+        static readonly Color Current = new(.44f, .45f, .32f, .81f);
         readonly NightGame game;
         readonly bool small;
         readonly List<Label> names = new();
@@ -237,7 +237,7 @@ namespace AfterHours
             p.ClosePath();
             p.fillColor = Amber;
             p.Fill();
-            p.strokeColor = Ink;
+            p.strokeColor = new Color(.08f, .085f, .058f);
             p.lineWidth = 1.5f;
             p.Stroke();
         }

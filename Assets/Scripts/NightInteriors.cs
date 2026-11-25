@@ -15,11 +15,13 @@ namespace AfterHours
             public float metal, rough;
         }
         readonly Dictionary<string, Material[]> propMaterials = new();
-        Material plaster, paint, glazed, brick, tiles, planks, asphalt, steel, emergencyGlass;
+        const string NightFinish = "Finishes/Night/";
+        Material plaster, paint, glazed, brick, tiles, terrazzo, planks, asphalt, steel, emergencyGlass;
 
-        static Material Pbr(string name, string color, string normal, string finish, Color tint, float shine, bool ao = false)
+        static Material Pbr(string name, string color, string normal, string finish, Color tint, float shine,
+            bool ao = false, Shader shader = null)
         {
-            var material = Material(tint);
+            var material = shader ? new Material(shader) { color = tint } : Material(tint);
             material.name = name;
             material.mainTexture = Resources.Load<Texture2D>(color);
             var bump = Resources.Load<Texture2D>(normal);
@@ -43,23 +45,44 @@ namespace AfterHours
 
         void CreateSurfaces()
         {
-            plaster = Pbr("旧抹灰", "Surfaces/Concrete034", "Finishes/PlasterNormal", "Finishes/PlasterFinish", new Color(.72f,.70f,.60f), .11f);
-            paint = Pbr("走廊斑驳灰泥", "Finishes/PaintColor","Finishes/PaintNormal","Finishes/PaintFinish",new Color(.65f,.72f,.68f),.14f);
-            glazed = Pbr("釉面壁砖","Finishes/GlazedColor","Finishes/GlazedNormal","Finishes/GlazedFinish",new Color(.49f,.65f,.60f),.53f);
-            brick = Pbr("外墙砖","Finishes/BrickColor","Finishes/BrickNormal","Finishes/BrickFinish",new Color(.73f,.68f,.61f),.20f);
-            tiles = Pbr("浴场地砖","Surfaces/Tiles074","Finishes/FloorNormal","Finishes/FloorFinish",new Color(.65f,.68f,.66f),.31f);
-            planks = Pbr("磨损木地板","Finishes/WoodColor","Finishes/WoodNormal","Finishes/WoodFinish",new Color(.75f,.66f,.54f),.23f);
-            asphalt = Pbr("湿柏油","Surfaces/Asphalt017","Finishes/RoadNormal","Finishes/RoadFinish",new Color(.61f,.65f,.68f),.43f);
-            steel = Material(new Color(.32f,.39f,.37f));
-            steel.SetFloat("_Metallic",.35f);
-            steel.SetFloat("_Glossiness",.43f);
-            emergencyGlass = Material(new Color(.75f,.71f,.56f));
-            emergencyGlass.EnableKeyword("_EMISSION");
-            emergencyGlass.SetColor("_EmissionColor",new Color(.33f,.28f,.17f));
+            var shader = Resources.Load<Shader>("WornArchitecture");
+            var wearTexture = Resources.Load<Texture2D>(NightFinish + "CementColor");
+
+            Material Worn(string name, string color, string normal, string finish, Color tint,
+                float bump, float smoothness, Vector3 wear)
+            {
+                var material = Pbr(name, color, normal, finish, tint, smoothness, true, shader);
+                material.SetFloat("_BumpScale", bump);
+                material.SetFloat("_GlossMapScale", smoothness);
+                material.SetTexture("_StainTex", wearTexture);
+                material.SetVector("_Wear", new Vector4(wear.x, wear.y, wear.z, 0));
+                return material;
+            }
+
+            Material Photographed(string name, string source, Color tint, float bump, float smoothness, Vector3 wear)
+            {
+                string path = NightFinish + source;
+                return Worn(name, path + "Color", path + "Normal", path + "Finish", tint, bump, smoothness, wear);
+            }
+
+            plaster = Photographed("磨损水泥", "Cement", new Color(.69f, .69f, .65f), .96f, .58f, new(.57f, 0, .03f));
+            paint = Worn("剥落灰泥", "Finishes/PaintColor", "Finishes/PaintNormal", "Finishes/PaintFinish",
+                new Color(.60f, .63f, .58f), .95f, .48f, new(.76f, .88f, .04f));
+            glazed = Photographed("返潮釉面小砖", "Ceramic", new Color(.50f, .67f, .62f), 1.12f, .84f, new(.52f, .78f, .20f));
+            brick = Pbr("外墙砖", "Finishes/BrickColor", "Finishes/BrickNormal", "Finishes/BrickFinish", new Color(.63f, .60f, .58f), .20f);
+            tiles = Photographed("冲洗区旧地砖", "Ceramic", new Color(.74f, .79f, .74f), 1.10f, .79f, new(.58f, 0, .12f));
+            terrazzo = Photographed("更衣区磨石地坪", "Terrazzo", new Color(.69f, .72f, .67f), .94f, .66f, new(.47f, 0, .08f));
+            planks = Worn("磨损旧木地板", "Finishes/WoodColor", "Finishes/WoodNormal", "Finishes/WoodFinish",
+                new Color(.61f, .53f, .44f), .82f, .51f, new(.65f, 0, 0));
+            asphalt = Pbr("湿柏油", "Surfaces/Asphalt017", "Finishes/RoadNormal", "Finishes/RoadFinish", new Color(.54f, .59f, .60f), .43f);
+            steel = Material(new Color(.27f, .32f, .31f));
+            steel.SetFloat("_Metallic", .35f);
+            steel.SetFloat("_Glossiness", .34f);
+            emergencyGlass = Material(new Color(.24f, .27f, .24f));
         }
 
         // World-sized UVs keep grout and wood grain consistent across wall segments and pieces of floor.
-        static void Surface(GameObject obj, Material material, float metres, bool keepBelowFloor = false)
+        static void Surface(GameObject obj, Material material, float metres, bool keepBelowFloor = false, bool floor = false)
         {
             var filter = obj.GetComponent<MeshFilter>();
             if (!filter) return;
@@ -83,7 +106,15 @@ namespace AfterHours
             mesh.RecalculateBounds();
             mesh.RecalculateTangents();
             filter.sharedMesh = mesh;
-            obj.GetComponent<Renderer>().sharedMaterial = material;
+            var renderer = obj.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            if (floor)
+            {
+                var bounds = renderer.bounds;
+                var properties = new MaterialPropertyBlock();
+                properties.SetVector("_FloorBounds", new Vector4(bounds.center.x, bounds.center.z, bounds.extents.x, bounds.extents.z));
+                renderer.SetPropertyBlock(properties);
+            }
         }
 
         void SkinArchitecture()
@@ -103,8 +134,9 @@ namespace AfterHours
                             break;
                         }
                         bool lodge = obj.name=="地坪" && (obj.transform.parent.name is "沙发厅" or "宿舍" or "经理室" or "前台室" or "茶座" or "值班室");
-                        bool serviceOrWet=p.y<-.2f || p.z<0 || obj.transform.parent.name is "更衣室" or "洗衣房" or "淋浴间";
-                        Surface(obj,lodge?planks:serviceOrWet?plaster:tiles,lodge?2.2f:2.1f);
+                        bool wet = obj.transform.parent.name is "洗衣房" or "淋浴间" or "大浴池" or "盥洗室" or "水疗区";
+                        var floor = lodge ? planks : wet ? tiles : p.y < -.2f || p.z < 0 ? plaster : terrazzo;
+                        Surface(obj, floor, lodge ? 2.2f : floor == plaster ? 1.62f : 2f, floor: true);
                         break;
                     case "室内墙" when obj.name=="墙":
                         bool outside = p.z<=.01f||p.z>=23.99f||p.x<=-19.99f||p.x>=15.99f;
@@ -128,7 +160,12 @@ namespace AfterHours
                             var band=Box("釉砖墙裙",new Vector3(p.x,baseline+bandHeight*.5f,p.z),
                                 new Vector3(size.x+.012f,bandHeight,size.z+.012f),glazed);
                             band.GetComponent<Collider>().enabled=false;
-                            Surface(band,glazed,1.43f);
+                            Surface(band, glazed, 1.12f);
+
+                            var cap = Box("深釉压条", new Vector3(p.x, baseline + bandHeight + .025f, p.z),
+                                new Vector3(size.x + .021f, .052f, size.z + .021f), glazed);
+                            cap.GetComponent<Collider>().enabled = false;
+                            Surface(cap, glazed, 1.12f);
                         }
                         break;
                     case "柏油":
@@ -163,6 +200,16 @@ namespace AfterHours
                     materials[i]=Pbr(m.name,folder+m.color,folder+m.normal,folder+m.arm,tint,
                         m.tint==null?.34f:1-m.rough,true);
                     if (!packed) materials[i].SetFloat("_Metallic", m.metal);
+                    if (asset is "locker-room-tall-lockers" or "metal_office_desk")
+                    {
+                        var paintedMetal = materials[i];
+                        paintedMetal.SetTexture("_DetailAlbedoMap", Resources.Load<Texture2D>(NightFinish + "CementColor"));
+                        paintedMetal.SetTexture("_DetailNormalMap", Resources.Load<Texture2D>(NightFinish + "CementNormal"));
+                        paintedMetal.SetTextureScale("_DetailAlbedoMap", new Vector2(1.75f, 1.45f));
+                        paintedMetal.SetFloat("_DetailNormalMapScale", .31f);
+                        paintedMetal.SetFloat("_GlossMapScale", .73f);
+                        paintedMetal.EnableKeyword("_DETAIL_MULX2");
+                    }
                 }
                 propMaterials.Add(asset,materials);
             }
@@ -257,8 +304,7 @@ namespace AfterHours
             }
             GameObject.Find("宿舍 床架").transform.Find("上沿").GetComponent<Renderer>().enabled=false;
             Prop("sofa_02","有布裙的旧沙发",new Vector3(-15,3.60f,5),new Vector3(3.4f,1.20f,1.50f),0,false,"Raised");
-            Fixture(new Vector3(-17.5f,5.96f,7.35f),new Vector3(.7f,-.46f,-.68f),new Color(1,.77f,.56f),1.85f,7,105);
-            Fixture(new Vector3(-.46f,5.8f,19),new Vector3(-.65f,-.61f,.6f),new Color(.75f,.87f,1),1.5f,7,103);
+            Fixture(new Vector3(-17.5f,5.96f,7.35f),new Vector3(.7f,-.46f,-.68f),new Color(.95f,.73f,.53f),.42f,4.5f,86);
             Prop("vintage_day_bed","铁架宿舍床",new Vector3(-3,8.02f,20),new Vector3(2.3f,.75f,1.50f),90,false);
             Prop("television_02","前台报警终端",new Vector3(9,1.0f,3.53f),new Vector3(.49f,.37f,.36f),180,false);
             Prop("television_02","走廊录像监视器",new Vector3(-14.2f,8.04f,2.2f),new Vector3(.51f,.43f,.41f),0,false);

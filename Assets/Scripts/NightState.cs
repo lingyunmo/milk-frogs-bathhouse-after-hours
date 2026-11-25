@@ -14,6 +14,7 @@ namespace AfterHours
         public List<string> explored=new();
         public int cells=0, stones=3;
         public float charge;
+        internal const float FullTorchCharge = 360;
         public bool torch, motorPart, seal, firstFireDoor, power, pump, uplink, contacted, beacon, escaped;
         public int motorStage, sinkStage, networkStage;
         public float dropTime=-1, rescueTime=-1;
