@@ -1,0 +1,130 @@
+using System;
+using UnityEngine;
+
+namespace AfterHours
+{
+    internal sealed partial class NightGame
+    {
+        void BuildObjectives()
+        {
+            Target(new Vector3(-2,4.12f,21),"拿起手电",0,()=>
+            {
+                State.torch=true;
+                State.charge=360;
+                Player.SetTorch(true);
+                Notify("手电 · F 开关，R 换电");
+                SaveProgress();
+            },()=>!State.torch);
+
+            Supply("receipt",new Vector3(9,1.05f,3.92f),"读夜班故障单",()=>
+                Notify("地下设备层恢复供电。三楼接好线路。回前台呼叫。",8));
+            Supply("motor",new Vector3(-14,-2.43f,4.13f),"取发电机启动件",()=>State.motorPart=true);
+            Supply("seal",new Vector3(8,4.8f,4.43f),"取回水接头密封圈",()=>State.seal=true);
+            Supply("cell-reception",new Vector3(10,.99f,4.1f),"取电池 · 前台",()=>State.cells++);
+            Supply("cell-storage",new Vector3(-2,-2.53f,5),"取电池 · 备品库",()=>State.cells++);
+            Supply("cell-staff",new Vector3(-9,8.15f,18),"取电池 · 值班室",()=>State.cells++);
+            Supply("cell-parking",new Vector3(49,.17f,4.8f),"取电池 · 停车棚",()=>State.cells++);
+            Supply("stones",new Vector3(24,.13f,-10),"捡三颗石子",()=>State.stones+=3);
+
+            Vector3 motor=new(-10,-2.57f,18.92f);
+            Target(motor,"安装启动件",3.2f,()=>Repair(motor,.48f,()=>{State.motorStage++;State.motorPart=false;}),()=>State.motorStage==0&&State.motorPart);
+            Target(motor,"对准飞轮刻线",0,()=>OpenRepair("飞轮校准",motor,
+                new[]{"Ⅰ","Ⅱ","Ⅲ"},new[]{"机壳刻着 Ⅱ → Ⅰ → Ⅲ。先把第二道刻线推到指针下。","回到第一道刻线。","最后对齐第三道刻线。"},
+                new[]{1,0,2},()=>Repair(motor,.30f,()=>State.motorStage++)),()=>State.motorStage==1);
+            Target(motor,"点动发电机",4.6f,()=>Repair(motor,1.25f,()=>State.motorStage++,"switch"),()=>State.motorStage==2);
+            Vector3 breaker=new(8,-2.45f,3.38f);
+            Target(breaker,"给前台和弱电间送电",2.2f,()=>Repair(breaker,.70f,()=>State.power=true,"switch"),()=>State.motorStage==3&&!State.power);
+
+            Vector3 sink=new(1,4.36f,2.46f);
+            Target(sink,"关掉水槽进水阀",2.5f,()=>Repair(sink,.44f,()=>State.sinkStage++),()=>State.sinkStage==0);
+            Target(sink,"换密封圈，拧紧回水接头",4.5f,()=>Repair(sink,.65f,()=>{State.sinkStage++;State.seal=false;}),()=>State.sinkStage==1&&State.seal);
+            Vector3 pump=new(1,-2.54f,20.08f);
+            Target(pump,"排空后场积水",3,()=>Repair(pump,1.0f,()=>State.pump=true,"switch"),()=>State.power&&State.sinkStage==2&&!State.pump);
+
+            Vector3 network=new(12,8.38f,19.47f);
+            Target(network,"检查标签，接好浴场上行线",0,()=>OpenRepair("弱电间接线",network,
+                new[]{"前台","外线","监控"},new[]{"上行插头接到写着「外线」的端口。","把浴场电话终端接回标记为「前台」的端口。"},
+                new[]{1,0},()=>Repair(network,.36f,()=>State.networkStage=1)),()=>State.networkStage==0);
+            Target(network,"打开路由器，确认链路灯",3.6f,()=>Repair(network,.42f,()=>State.uplink=true,"signal"),()=>State.power&&State.networkStage==1&&!State.uplink);
+            Vector3 terminal=new(9,1.12f,3.94f);
+            Target(terminal,"发送街名与站牌编号",3.1f,()=>Repair(terminal,.73f,()=>
+            {
+                State.contacted=true;
+                Notify("收到回执。到街道尽头翻起接应板。",7);
+            },"signal"),()=>State.power&&State.uplink&&!State.contacted);
+            Target(terminal,"请求一次补给",1.7f,()=>
+            {
+                State.dropTime=21;
+                State.rearDrop=State.pump;
+                Emit(NightWorld.DropPoint(State)+Vector3.up*6,.92f,"drone");
+                Notify(State.rearDrop?"投递点 · 后场货门":"投递点 · 东侧停车棚",6);
+                SaveProgress();
+            },()=>State.contacted&&State.dropTime<0,1.9f);
+
+            foreach(bool rear in new[]{false,true})
+            {
+                var point=NightWorld.DropPoint(new NightState{rearDrop=rear});
+                Target(point,"打开补给箱",1.2f,()=>
+                {
+                    State.dropTaken=true;
+                    State.cells+=2;
+                    State.stones+=2;
+                    world.Refresh();
+                    Notify("电池 × 2　石子 × 2");
+                    SaveProgress();
+                },()=>State.dropTime==0&&!State.dropTaken&&State.rearDrop==rear);
+            }
+
+            Vector3 pole=new(160,1.20f,-14.76f);
+            Target(pole,"阅读站牌背面的应急说明",0,()=>Notify("应急接应由浴场前台终端发出。收到回执后翻开接应板。",7),()=>!State.contacted,2.3f);
+            Target(pole,"翻起反光接应板",1.25f,()=>Repair(pole,.95f,()=>
+            {
+                State.beacon=true;
+                State.rescueTime=27;
+                Notify("接应灯已亮。救援车正在驶来。",6);
+            },"tool"),()=>State.contacted&&!State.beacon,2.3f);
+            Target(new Vector3(159.2f,1.10f,-18.76f),"登上救援车",1.15f,()=>
+            {
+                State.escaped=true;
+                SaveProgress();
+                SetMenu(true);
+            },()=>State.rescueTime==0,2.3f);
+
+            Vault("翻出弱电间北窗",new Vector3(10,8.46f,23.9f),new Vector3(10,5.47f,25.3f),.68f);
+            Vault("踩到二楼露台",new Vector3(10,6.08f,25.5f),new Vector3(10,3.67f,26.5f),.51f);
+            Vault("翻出沙发厅西窗",new Vector3(-19.9f,4.82f,5),new Vector3(-21.21f,1.87f,5),.23f);
+            Vault("沿雨棚下到西通道",new Vector3(-21.7f,2.55f,5),new Vector3(-23,0.07f,5),.39f);
+            Vault("翻过折叠间北窗",new Vector3(-11.5f,4.82f,23.9f),new Vector3(-11.5f,1.87f,25.2f),.70f);
+            Vault("下到卸货区",new Vector3(-11.5f,2.64f,26.35f),new Vector3(-11.5f,.07f,27.6f),.54f);
+            Vault("翻出淋浴间东窗",new Vector3(15.91f,1.34f,19),new Vector3(16.90f,.07f,19),.43f);
+            Vault("翻进淋浴间",new Vector3(16.09f,1.34f,19),new Vector3(15.01f,.07f,19),.29f);
+        }
+
+        void Vault(string label,Vector3 from,Vector3 to,float sound)
+        {
+            Target(from,label,0,()=>
+            {
+                LandingNoise=sound;
+                Player.Vault(to);
+            },null,1.48f);
+        }
+
+        void Repair(Vector3 point,float noise,Action advance,string sound="tool")
+        {
+            advance();
+            world.Refresh();
+            Emit(point,noise,sound);
+            SaveProgress();
+        }
+
+        void Supply(string id,Vector3 p,string label,Action collect)
+        {
+            Target(p,label,0,()=>
+            {
+                State.collected.Add(id);
+                collect();
+                SaveProgress();
+            },()=>!State.collected.Contains(id));
+        }
+    }
+}
