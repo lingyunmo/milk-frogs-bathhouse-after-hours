@@ -5,6 +5,9 @@ using UnityEngine;
 
 internal sealed class ArtTextureImporter : AssetPostprocessor
 {
+    // Bump when the rules below change so existing imports are rebuilt.
+    public override uint GetVersion() => 2;
+
     void OnPreprocessTexture()
     {
         if (!assetPath.StartsWith("Assets/Resources/Props/", StringComparison.Ordinal) &&
@@ -22,6 +25,9 @@ internal sealed class ArtTextureImporter : AssetPostprocessor
         importer.filterMode = FilterMode.Trilinear;
         importer.anisoLevel = 8;
         importer.maxTextureSize = 4096;
-        importer.textureCompression = TextureImporterCompression.Uncompressed;
+        // BC7 colour and packed maps, BC5 normals: visually lossless, and about a quarter of the video memory,
+        // which keeps the whole set resident on 4 GB laptop GPUs.
+        importer.textureCompression = TextureImporterCompression.CompressedHQ;
+        importer.crunchedCompression = false;
     }
 }

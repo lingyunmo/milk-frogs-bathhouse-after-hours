@@ -96,13 +96,18 @@ namespace AfterHours
 
     internal sealed class NightMapView : VisualElement
     {
-        static readonly Color PaperShade = new(.04f, .078f, .069f, .30f);
-        static readonly Color Grid = new(.79f, .79f, .67f, .13f);
-        static readonly Color Wall = new(.62f, .66f, .56f);
-        static readonly Color WallLight = new(.65f, .72f, .61f, .29f);
-        static readonly Color QuietWall = new(.39f, .46f, .40f);
-        static readonly Color Amber = new(.96f, .76f, .47f);
-        static readonly Color PlanShade = new(.044f, .078f, .058f, .60f);
+        // Survey-plan palette: ink lines on near-black, brass for the reader's position and doorways.
+        static readonly Color PaperShade = new(.012f, .018f, .017f, .42f);
+        static readonly Color Grid = new(.62f, .74f, .70f, .055f);
+        static readonly Color Wall = new(.83f, .80f, .71f, .86f);
+        static readonly Color WallLight = new(.86f, .83f, .74f, .12f);
+        static readonly Color QuietWall = new(.48f, .55f, .52f, .42f);
+        static readonly Color Amber = new(.95f, .79f, .53f);
+        static readonly Color PlanShade = new(.03f, .045f, .042f, .62f);
+        static readonly Color HereFill = new(.80f, .63f, .38f, .21f);
+        static readonly Color SeenFill = new(.60f, .68f, .63f, .11f);
+        static readonly Color UnknownFill = new(.05f, .07f, .065f, .40f);
+        static readonly Color Treads = new(.80f, .66f, .44f, .50f);
         readonly NightGame game;
         readonly bool small;
         readonly List<(NightAtlas.Area Area, Label Title)> captions = new();
@@ -282,8 +287,7 @@ namespace AfterHours
             {
                 bool explored = SeenBefore(area);
                 bool current = game.Atlas.Current == area;
-                Color fill = current ? new Color(.62f, .52f, .30f, .43f) :
-                    explored ? new Color(.43f, .50f, .39f, .25f) : new Color(.10f, .17f, .13f, .30f);
+                Color fill = current ? HereFill : explored ? SeenFill : UnknownFill;
                 AreaBox(paint, area.Bounds, fill, explored ? Wall : QuietWall);
                 if (!small && !street && !area.Route)
                 {
@@ -295,24 +299,36 @@ namespace AfterHours
                     for (int step = 1; step < 9; step++)
                     {
                         float z = area.Bounds.yMin + step * area.Bounds.height / 9;
-                        Line(paint, Point(area.Bounds.xMin + .28f, z), Point(area.Bounds.xMax - .28f, z),
-                            new Color(.72f, .59f, .38f, .66f));
+                        Line(paint, Point(area.Bounds.xMin + .28f, z), Point(area.Bounds.xMax - .28f, z), Treads);
                     }
             }
             foreach (var area in game.Atlas.Areas(floor))
                 if (area.Entrance is Vector2 opening)
                     Line(paint, Point(opening.x - .65f, opening.y), Point(opening.x + .65f, opening.y),
-                        SeenBefore(area) ? Amber : Wall, small ? 1.6f : 2.4f);
+                        SeenBefore(area) ? Amber : QuietWall, small ? 1.6f : 2.4f);
 
-            if (street) AreaBox(paint, NightAtlas.Building, new Color(.15f, .23f, .17f, .83f), Wall);
+            if (street) AreaBox(paint, NightAtlas.Building, new Color(.10f, .13f, .12f, .88f), Wall);
             if (!small) DrawScale(paint, street);
             if (floor != game.Atlas.Floor) return;
 
             Vector3 boots = game.Player.Feet;
             Vector2 center = Point(boots.x, boots.z);
             Vector3 yaw = game.Player.transform.forward;
-            Vector2 forward = new(yaw.x, -yaw.z);
+            Vector2 forward = new Vector2(yaw.x, -yaw.z).normalized;
             Vector2 across = new(forward.y, -forward.x);
+            // Field of view wedge, then a soft disc so the arrow reads at a glance.
+            float reach = small ? 46 : 34;
+            paint.BeginPath();
+            paint.MoveTo(center);
+            paint.LineTo(center + (forward * .87f + across * .5f) * reach);
+            paint.LineTo(center + (forward * .87f - across * .5f) * reach);
+            paint.ClosePath();
+            paint.fillColor = new Color(Amber.r, Amber.g, Amber.b, .11f);
+            paint.Fill();
+            paint.BeginPath();
+            paint.Arc(center, small ? 11 : 13, 0, 360);
+            paint.fillColor = new Color(Amber.r, Amber.g, Amber.b, .16f);
+            paint.Fill();
             paint.BeginPath();
             paint.MoveTo(center + forward * 12);
             paint.LineTo(center - forward * 6 + across * 7);

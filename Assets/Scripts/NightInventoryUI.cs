@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -17,29 +16,32 @@ namespace AfterHours
         void BuildInventory(VisualElement veil)
         {
             veil.AddToClassList("inventory-veil");
+            Area(veil, "screen menu-scrim").style.backgroundImage = new StyleBackground(NightInterfaceArt.LeftScrim);
             var workspace = Area(veil, "inventory-workspace");
             Reveal(workspace);
-            var heading = Area(workspace, "line inventory-header");
+            var heading = Area(workspace, "inventory-header");
             var titles = Area(heading, "inventory-headings");
             Type(titles, LocationName(), "overline");
-            Type(titles, "随身背包", "inventory-heading");
-            Act(heading, "B　收起", Resume, "duty-close", "inventory-close");
+            Type(titles, "随身背包", "inventory-heading serif");
+            Act(heading, "B　收起", Resume, "chip-button", "inventory-close");
 
             var work = Area(workspace, "inventory-work");
             var library = Area(work, "inventory-library");
             var tabs = Area(library, "inventory-tabs");
-            supplyTab = Act(tabs, "随身物资", () => ChangeInventoryTab(false), "inventory-tab", "inventory-tab-supplies");
-            recordTab = Act(tabs, "线索记录", () => ChangeInventoryTab(true), "inventory-tab", "inventory-tab-notes");
+            supplyTab = Act(tabs, "随身物资", () => ChangeInventoryTab(false), "inventory-tab serif", "inventory-tab-supplies");
+            recordTab = Act(tabs, "线索记录", () => ChangeInventoryTab(true), "inventory-tab serif", "inventory-tab-notes");
             var scroll = new ScrollView(ScrollViewMode.Vertical);
             scroll.AddToClassList("inventory-scroll");
             library.Add(scroll);
             inventoryGrid = Area(scroll.contentContainer, "inventory-grid");
             itemInspection = Area(work, "item-inspection");
 
-            var footer = Area(workspace, "line inventory-footer");
+            var footer = Area(workspace, "inventory-footer");
             toast = Type(footer, "", "inventory-feedback");
-            Type(footer, "Esc 返回", "muted");
-            RefreshInventory();
+            var keys = Area(footer, "key-hints");
+            Keys(keys, "Tab", "切换焦点");
+            Keys(keys, "Esc", "返回");
+            RefreshInventory(true);
         }
 
         void ChangeInventoryTab(bool notes)
@@ -61,7 +63,9 @@ namespace AfterHours
             if (items.Count == 0)
             {
                 selectedItem = null;
-                Type(inventoryGrid, showNotes ? "还没有找到线索。" : "背包是空的。", "inventory-empty");
+                var empty = Area(inventoryGrid, "inventory-empty");
+                Type(empty, showNotes ? "还没有找到线索。" : "背包是空的。", "inventory-empty-text serif");
+                Type(empty, showNotes ? "前台电话旁留着夜班故障单。" : "更衣室的长凳上放着一支手电。", "inventory-empty-hint");
                 return;
             }
 
@@ -76,6 +80,7 @@ namespace AfterHours
                     RefreshInventory(true);
                 }, "inventory-item", "inventory-item-" + item.Id);
                 button.tooltip = item.Name;
+                Area(button, "inventory-item-glow").style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
                 SetItemArt(Area(button, "inventory-item-art"), art);
                 if (item.Count > 1 || item.Id is NightItemId.Battery or NightItemId.Stone)
                     Type(button, "× " + item.Count, "inventory-count");
@@ -84,13 +89,14 @@ namespace AfterHours
                 button.EnableInClassList("inventory-item--selected", active);
                 if (!active) continue;
                 BuildInspection(item, art);
-                if (focusSelected) button.Focus();
+                if (focusSelected) Focus(button);
             }
         }
 
         void BuildInspection(NightInventoryItem item, string art)
         {
             var stand = Area(itemInspection, "item-stand");
+            Area(stand, "item-spotlight").style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
             var interactive = NightItemPreview.TryCreate(game.transform, item.Id);
             if (interactive == null)
             {
@@ -103,13 +109,15 @@ namespace AfterHours
                 interactive.AddToClassList("item-orbit");
                 stand.Add(interactive);
                 Reveal(interactive);
-                Type(stand, "拖动旋转 · 双击复位", "orbit-caption");
+                Type(stand, "拖动旋转　·　双击复位", "orbit-caption");
             }
 
             var details = Area(itemInspection, "item-details");
+            Reveal(details);
             Type(details, item.Kind, "item-kind");
-            Type(details, item.Name, "inspection-title");
+            Type(details, item.Name, "inspection-title serif");
             if (!string.IsNullOrEmpty(item.Status)) Type(details, item.Status, "inspection-status");
+            Area(details, "inspection-rule");
             Type(details, item.Description, "inspection-copy");
             if (string.IsNullOrEmpty(item.ActionLabel)) return;
 
@@ -117,12 +125,13 @@ namespace AfterHours
             {
                 game.UseInventoryItem(item.Id);
                 RefreshInventory(true);
-            }, "menu-action primary inventory-use", "inventory-use");
+            }, "sheet-action sheet-action--primary serif inventory-use", "inventory-use");
             action.SetEnabled(item.CanUse);
         }
 
         void SetItemArt(VisualElement picture, string name)
         {
+            if (string.IsNullOrEmpty(name)) return;
             if (!inventoryArt.TryGetValue(name, out var texture))
             {
                 texture = Resources.Load<Texture2D>(InterfaceFolder + "Items/" + name);

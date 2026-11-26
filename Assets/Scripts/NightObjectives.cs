@@ -14,7 +14,7 @@ namespace AfterHours
                 State.charge=NightState.FullTorchCharge;
                 Player.SetTorch(true);
                 world.Refresh();
-                PickupFeedback(torchBench, "手电筒 · F 开关");
+                PickupFeedback(torchBench, "手电筒 · F 开关", art: "torch");
                 SaveProgress();
             },()=>!State.torch);
 
@@ -75,7 +75,7 @@ namespace AfterHours
                     State.cells+=2;
                     State.stones+=2;
                     world.Refresh();
-                    PickupFeedback(point, "电池 × 2　石子 × 2");
+                    PickupFeedback(point, "电池 × 2　石子 × 2", art: "cell");
                     SaveProgress();
                 },()=>State.dropTime==0&&!State.dropTaken&&State.rearDrop==rear);
             }
@@ -132,15 +132,25 @@ namespace AfterHours
                 State.collected.Add(id);
                 collect?.Invoke();
                 world.Refresh();
-                PickupFeedback(position, feedback, sound);
+                PickupFeedback(position, feedback, sound, SupplyArt(id));
                 SaveProgress();
             }, () => !State.collected.Contains(id));
         }
 
-        void PickupFeedback(Vector3 position, string feedback, string sound = "pickup")
+        void PickupFeedback(Vector3 position, string feedback, string sound = "pickup", string art = "")
         {
             soundscape.Play(position, sound, .58f);
-            Notify(feedback, 2.75f);
+            if (string.IsNullOrEmpty(art)) Notify(feedback, 2.75f);
+            else LastPickup = (art, feedback, LastPickup.Serial + 1);
         }
+
+        static string SupplyArt(string id) => id switch
+        {
+            FaultNoteId => "receipt",
+            "motor" => "starter",
+            "seal" => "seal",
+            "stones" => "stone",
+            _ => id.StartsWith("cell", StringComparison.Ordinal) ? "cell" : ""
+        };
     }
 }

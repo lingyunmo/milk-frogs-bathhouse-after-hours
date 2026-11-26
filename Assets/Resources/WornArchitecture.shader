@@ -34,6 +34,8 @@ Shader "AfterHours/WornArchitecture"
         {
             float2 uv_MainTex;
             float3 worldPos;
+            float3 worldNormal;
+            INTERNAL_DATA
         };
 
         // A soft, irregular footprint leaves some of the concrete exposed between separate leaks.
@@ -77,6 +79,13 @@ Shader "AfterHours/WornArchitecture"
 
             half3 dry = baseColor.rgb * _Color.rgb * surface * (1 - .22 * edge);
             dry = lerp(dry, dry * .85 + half3(.031, .027, .014), residue * .58);
+
+            // Mop line and soot: walls darken where buckets and boots touched them and under the ceiling.
+            half wall = 1 - saturate(abs(WorldNormalVector(IN, half3(0, 0, 1)).y) * 1.6);
+            half skirting = 1 - smoothstep(.04, .2 + .16 * breakup, height);
+            half soot = smoothstep(2.86 + .2 * breakup, 3.42, height);
+            half grime = wall * saturate(skirting * .62 + soot * .4) * (.55 + .45 * _Wear.x);
+            dry = lerp(dry, dry * half3(.56, .53, .47), grime);
             O.Albedo = dry * (1 - .33 * wet - .14 * damp);
 
             // Finer photographed grain gives grazing light extra relief without repeating the base map.
@@ -86,7 +95,7 @@ Shader "AfterHours/WornArchitecture"
             O.Normal = BlendNormals(coarseNormal, grainNormal);
             O.Metallic = min(finish.r, .16);
             O.Occlusion = lerp(.69, 1, finish.g) * (1 - .29 * edge - .15 * damp);
-            half matte = finish.a * _GlossMapScale + _Wear.z * (.3 * islands + .5 * damp);
+            half matte = finish.a * _GlossMapScale * (1 - .45 * grime) + _Wear.z * (.3 * islands + .5 * damp);
             O.Smoothness = saturate(lerp(matte, .81, standing * .76));
             O.Alpha = 1;
         }
