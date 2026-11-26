@@ -80,4 +80,4 @@ Create a single game-ready material plate as an original photograph/scan. 16:9 l
 - 墙面在踢脚高度留有拖把和鞋底蹭出的暗带，顶角发黑。奶娃皮肤叠加程序生成的平铺毛孔法线，褶皱处更湿亮。手电光斑带反光杯纹理和灯丝阴影。
 - 美术贴图改为 BC7 压缩，法线贴图另行压缩，画面基本无损，显存约降到原来的四分之一。4 GB 显存的笔记本显卡因此能放下整套贴图。
 - 标题、菜单、目标和地点名使用 Noto Serif SC 600 的静态子集，正文仍用 Noto Sans SC 500。两套子集都由 `Tools/subset_typefaces.py` 从 Windows 11 自带的 Noto 可变字体生成，收录脚本、样式表和场景房间名里出现的全部字符。新增界面文字后重跑一次即可。
-- 截取预览图：`AfterHours.exe -screen-fullscreen 0 -screen-width 1600 -screen-height 900 -afterhours-capture <文件夹>` 会依次拍下标题、出生点、浴池、地下室、供电后的走廊、街道、暂停、背包、地图和结局，然后自动退出。截图模式不会写入存档。
+- 截取预览图：`AfterHours.exe -screen-fullscreen 0 -screen-width 1600 -screen-height 900 -afterhours-capture <文件夹>` 会依次拍下标题、出生点、浴池、地下室、供电后的走廊、街道、暂停、背包、地图和结局，然后自动退出。截图模式不会写入存档。这次改动拍下的 25 张 1600×900 预览存放在 [`ArtSource/Previews/cinematic-interface-pass/`](../../ArtSource/Previews/cinematic-interface-pass/)。
