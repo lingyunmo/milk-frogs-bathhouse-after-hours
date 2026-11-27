@@ -133,6 +133,8 @@ namespace AfterHours
             DressStreetRooms();
             DressAnnexEquipment();
             DressNightEvents();
+            RefinishFurniture();
+            FinishTrim();
             game.Player.AttachHeldTorch(HeldFlashlight());
             atmosphere.FollowTorch(game.Player.Eyes,game.Player.Beam);
             Physics.SyncTransforms();
@@ -198,8 +200,10 @@ namespace AfterHours
             Quaternion rotation = sideInward.HasValue ? Quaternion.Euler(0, 90, 0) : Quaternion.identity;
             var leaf=Box(name+" 门",p+new Vector3(0,1.21f,0),new Vector3(fire?1.91f:1.36f,2.42f,.10f),fire?red:wood);
             leaf.transform.rotation = rotation;
-            Surface(leaf,fire?red:planks,1.25f);
+            Surface(leaf,fire?red:wood,1.25f,grainUp:!fire);
             leaf.layer=FloorRoutes.DoorLayer;
+            DressDoorPanels(leaf, p, rotation, fire);
+            DoorSurround(p,!sideInward.HasValue,fire ? .955f : .68f,2.42f,.128f,fire?steel:wood);
             foreach(float direction in new[]{-1f,1f})
             {
                 var handle=Box("门把",p+rotation*new Vector3(.44f,1.10f,.073f*direction),new Vector3(.135f,.055f,.092f),brass);

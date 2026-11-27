@@ -205,6 +205,22 @@ namespace AfterHours
                 triangles.Add(a); triangles.Add(c); triangles.Add(d);
             }
 
+            // A rolled or routed lip has a rounded crest and a short bevel down to the wall.
+            internal void Moulding(Vector3 start, Vector3 end, Vector3 face, float width, float depth)
+            {
+                Vector3 axis = (end - start).normalized;
+                Vector3 across = Vector3.Cross(axis, face).normalized;
+                Vector3 last = -across * (width * .5f);
+                for (int i = 1; i <= 6; i++)
+                {
+                    float t = i / 6f;
+                    Vector3 next = across * ((t - .5f) * width) + face * (depth * Mathf.Sin(t * Mathf.PI));
+                    Vector3 normal = Vector3.Cross(next - last, axis).normalized;
+                    Quad(start + last, start + next, end + next, end + last, normal);
+                    last = next;
+                }
+            }
+
             internal void Pipe(Vector3 a, Vector3 b, float radius, int sides = 16)
             {
                 Vector3 direction = (b - a).normalized;

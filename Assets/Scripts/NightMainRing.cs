@@ -193,6 +193,8 @@ namespace AfterHours
                 Section("南翼隔墙", start, left, 0, RingWallHeight, material, .18f);
                 Section("南翼隔墙", right, end, 0, RingWallHeight, material, .18f);
                 Section("门洞上沿", left, right, RingDoorHeight, RingWallHeight, material, .18f);
+                var foot = alongX ? new Vector3(door.Value,height,axis) : new Vector3(axis,height,door.Value);
+                DoorSurround(foot,alongX,RingDoorHalf,RingDoorHeight,.12f,height>2 && height<6?wood:steel);
                 Section("旧钢门楣", left - .055f, right + .055f, RingDoorHeight, RingDoorHeight + .07f, steel, .24f);
             }
             else Section("南翼隔墙", start, end, 0, RingWallHeight, material, .18f);
@@ -205,6 +207,17 @@ namespace AfterHours
                 Vector3 position = alongX ? new(center, y, axis) : new(axis, y, center);
                 Vector3 size = alongX ? new(b - a, top - floor, thickness) : new(thickness, top - floor, b - a);
                 AnnexSurface(level, name, position, size, surface);
+                if (name == "南翼隔墙" && floor == 0)
+                {
+                    Rect plan=NightMainRing.Footprint;
+                    int side = 0;
+                    if (material==brick)
+                    {
+                        if (Mathf.Abs(axis-(alongX?plan.yMin:plan.xMin))<.02f) side=1;
+                        if (Mathf.Abs(axis-(alongX?plan.yMax:plan.xMax))<.02f) side=-1;
+                    }
+                    WallSegment(position,size,StoreyFinish(height),side);
+                }
             }
         }
 

@@ -107,11 +107,15 @@ namespace AfterHours
             red = Enamel("朱漆防火门", new(.72f, .25f, .18f));
             wood = Pbr("老榆木", "Finishes/WoodColor", "Finishes/WoodNormal", "Finishes/WoodFinish",
                 new(.66f, .56f, .45f), .40f, true);
+            paintedIron = new Material(steel) { name = "磨边灰铁", color = new(.46f,.54f,.54f) };
+            coping = new Material(glazed) { name = "墨绿釉边", color = new(.33f,.52f,.44f) };
+            linen = Pbr("粗织亚麻", "Finishes/LinenColor", "Finishes/LinenNormal", null,
+                new(.66f,.65f,.53f), .24f);
             emergencyGlass = Material(new Color(.24f, .27f, .24f));
         }
 
         // World-sized UVs keep grout and wood grain consistent across wall segments and pieces of floor.
-        void Surface(GameObject obj, Material material, float metres, bool keepBelowFloor = false, bool floor = false)
+        void Surface(GameObject obj, Material material, float metres, bool keepBelowFloor = false, bool floor = false, bool grainUp = false)
         {
             var filter = obj.GetComponent<MeshFilter>();
             if (!filter) return;
@@ -130,6 +134,8 @@ namespace AfterHours
                 uv[i] = Mathf.Abs(direction.y)>.6f ? new Vector2(point.x,point.z)/metres
                     : (Mathf.Abs(direction.x)>.6f ? new Vector2(point.z,point.y) : new Vector2(point.x,point.y))/metres;
             }
+            if (grainUp)
+                for (int i=0;i<uv.Length;i++) uv[i]=new Vector2(uv[i].y,-uv[i].x);
             mesh.vertices = vertices;
             mesh.uv = uv;
             mesh.RecalculateBounds();
@@ -229,6 +235,11 @@ namespace AfterHours
                         }
                         float baseline=p.y-size.y*.5f;
                         bool meetsFloor=Mathf.Abs(baseline-Mathf.Round(baseline/3.6f)*3.6f)<.12f;
+                        if (meetsFloor)
+                        {
+                            int inward = outside ? (size.x>size.z ? (p.z<12?1:-1) : (p.x<0?1:-1)) : 0;
+                            WallSegment(p,size,StoreyFinish(baseline),inward);
+                        }
                         if (!outside && size.y>1 && meetsFloor)
                         {
                             float bandHeight=Mathf.Min(1.27f,size.y-.12f);

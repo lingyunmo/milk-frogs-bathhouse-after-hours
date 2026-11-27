@@ -39,6 +39,13 @@ namespace AfterHours
             var divider = Box("梯段中隔墙", At(0, floor + dividerHeight * .5f, (takeoff + endOfFlight) * .5f),
                 new Vector3(.16f, dividerHeight, endOfFlight - takeoff), plaster, stair);
             Surface(divider, plaster, 1.45f);
+            // A steel nosing wraps the exposed end of the concrete spine; seams follow its
+            // actual landing height rather than running level across an open stair flight.
+            var trim = Trim(divider.transform.position,steel);
+            var tip = At(0,floor+dividerHeight*.5f,takeoff);
+            trim.Box(tip,new(.175f,dividerHeight,.042f));
+            trim.Box(At(0,floor+dividerHeight-.024f,(takeoff+endOfFlight)*.5f),
+                new(.195f,.048f,endOfFlight-takeoff+.040f));
 
             if (!landing)
             {
@@ -72,6 +79,16 @@ namespace AfterHours
                 float lane = side * FlightOffset;
                 Vector3 start = At(lane, floor + (side > 0 ? FloorRise : 0), takeoff - .06f);
                 Vector3 end = At(lane, floor + FloorRise * .5f, endOfFlight + .08f);
+                // Match the rise of each flight; mount on the continuous outer wall.
+                float wallX = entrance.position.x + side * (ShaftWidth * .5f - .12f);
+                Vector3 footA = new(wallX,start.y+.86f,start.z), footB = new(wallX,end.y+.86f,end.z);
+                var rail = Trim(footA,steel);
+                rail.Pipe(footA,footB,.038f);
+                foreach (float t in new[]{.09f,.5f,.91f})
+                {
+                    Vector3 post=Vector3.Lerp(footA,footB,t);
+                    rail.Pipe(post+Vector3.right*(side*.13f),post,.022f);
+                }
                 Vector3 run = (end - start) * direction;
                 Quaternion rotation = Quaternion.LookRotation(run, Vector3.up);
                 const float thickness = .11f;
