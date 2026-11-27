@@ -912,3 +912,36 @@
 .compact .control-row {
     width: 100%;
 }
+
+/* Night dispatch shares the copper and enamel used by the mechanical dial. */
+.station-strip {
+    position: absolute;
+    left: 50%; top: 26px; translate: -50% 0;
+    flex-direction: row;
+    padding: 5px 7px 8px;
+    background-color: rgba(12,16,15,.78);
+}
+.station-channel { width: 117px; margin: 0 5px; }
+.station-name { font-size: 14px; letter-spacing: 1px; color: #d9cbb4; margin: 0 0 4px; }
+.station-live { color: #a8ddba; }
+.station-selected { color: #ffdb97; -unity-font-style: bold; }
+.station-track { height: 6px; background-color: #484840; overflow: hidden; }
+.station-fill { height: 100%; background-color: #dcaf67; }
+.dispatch-feed {
+    position: absolute; left: 3.2%; top: 39%; max-width: 25%;
+    border-left-width: 2px; border-left-color: #b49666;
+    padding: 6px 12px 8px; background-color: rgba(12,16,14,.79);
+}
+.dispatch-heading { margin: 0 0 4px; color: #e7c792; font-size: 20px; letter-spacing: 2px; }
+.dispatch-line { margin: 2px 0; color: #ede4d4; font-size: 16px; white-space: normal; }
+.field-instrument {
+    position: absolute; left: 50%; bottom: 20%; translate: -50% 0;
+    width: 310px; padding: 13px 18px; background-color: rgba(15,21,19,.93);
+    border-top-width: 1px; border-top-color: #b99a68;
+}
+.field-instrument .station-track { margin: 4px 0 8px; }
+.instrument-reading { font-size: 20px; color: #f5dfb4; }
+.compact .station-channel { width: 82px; margin: 0 2px; }
+.compact .station-name { font-size: 12px; }
+.compact .station-strip { top: 8px; }
+.compact .dispatch-feed { left: 2%; max-width: 26%; }

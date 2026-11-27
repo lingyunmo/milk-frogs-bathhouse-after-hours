@@ -19,7 +19,7 @@ namespace AfterHours
         internal NightScreen ScreenState { get; private set; }
         internal NightPreferences Preferences { get; private set; }
         internal NightAtlas Atlas { get; private set; }
-        internal NightTarget Focus => panel == null ? focus : null;
+        internal NightTarget Focus => panel == null && !WorkingDispatch ? focus : null;
         internal RepairPanel RepairView => panel;
         internal float Hold => held != null && held.Hold > 0 ? Mathf.Clamp01(holdTime / held.Hold) : 0;
         internal bool InPursuit => hunter.Pursuing;
@@ -126,9 +126,12 @@ namespace AfterHours
         void Begin(NightState save)
         {
             State = save ?? new NightState();
+            CloseDispatch();
+            radioCallIn = 0;
             foreach (var stone in stones) Destroy(stone.Object);
             stones.Clear();
             world.Refresh();
+            RefreshLoad();
             hunter.Reset();
             Physics.SyncTransforms();
             if (State.detained) SetDetentionCheckpoint();
@@ -151,6 +154,8 @@ namespace AfterHours
         void Update()
         {
             messageTime -= Time.unscaledDeltaTime;
+            if (ScreenState == NightScreen.Detention && Application.isFocused)
+                State.dispatch.playSeconds += Time.unscaledDeltaTime;
             if (ScreenState == NightScreen.Capture)
             {
                 caughtTime += Time.deltaTime;
@@ -196,11 +201,12 @@ namespace AfterHours
             }
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if (panel != null) panel = null;
+                if (WorkingDispatch) CloseDispatch();
+                else if (panel != null) panel = null;
                 else SetScreen(NightScreen.Pause);
                 return;
             }
-            if (panel == null)
+            if (panel == null && !WorkingDispatch)
             {
                 if (Input.GetKeyDown(KeyCode.M))
                 {
@@ -226,7 +232,13 @@ namespace AfterHours
             }
             if ((pauseTime -= dt) > 0) return;
 
-            if (panel == null) Player.Tick(this, dt);
+            State.dispatch.playSeconds += dt;
+            if (WorkingDispatch)
+            {
+                Player.AdvanceTorch(this, dt);
+                TickDispatchWork(dt);
+            }
+            else if (panel == null) Player.Tick(this, dt);
             else
             {
                 Player.AdvanceTorch(this, dt);
@@ -240,7 +252,8 @@ namespace AfterHours
                 if (ScreenState != NightScreen.Play) return;
                 TickWorld(dt);
             }
-            if (panel != null) return;
+            if (panel != null || WorkingDispatch) return;
+            if (Input.GetKeyDown(KeyCode.Q) && State.dispatch.carrying) SetLoadDown();
             if (!State.detained && Input.GetKeyDown(KeyCode.G)) ThrowStone();
             if (Input.GetKeyDown(KeyCode.F5)) SaveHere();
             FocusTarget(dt);
@@ -248,6 +261,7 @@ namespace AfterHours
 
         internal void SetScreen(NightScreen screen)
         {
+            if (screen != NightScreen.Play) CloseDispatch();
             ScreenState = screen;
             bool playing = screen is NightScreen.Play or NightScreen.Capture;
             Time.timeScale = playing ? 1 : 0;
@@ -293,6 +307,7 @@ namespace AfterHours
         {
             if (ScreenState != NightScreen.Play || State.detained || releaseGrace > 0) return;
             panel = null;
+            if (State.dispatch.carrying) ReturnLoadOnCapture();
             caughtTime = 0;
             if (State.night == NightState.MaxNights) State.ended = true;
             else
@@ -348,6 +363,12 @@ namespace AfterHours
 
         void TickWorld(float dt)
         {
+            if (!State.dispatch.accepted && !State.beacon && Vector3.SqrMagnitude(Player.Feet - NightDispatch.Receiver) < 110f && (radioCallIn -= dt) <= 0)
+            {
+                soundscape.Play(NightDispatch.Receiver, "signal", .29f);
+                radioCallIn = 6.4f;
+            }
+            SoundReturnLines(dt);
             soundscape.Tick(State.power, InPursuit, dt);
             if(State.dropTime>0)
             {
@@ -398,9 +419,11 @@ namespace AfterHours
             stones.Add(new ThrownStone{Object=stone,TTL=5});
         }
 
-        internal void Target(Vector3 position,string label,float seconds,Action action,Func<bool> available=null,float radius=2.15f)
+        internal NightTarget Target(Vector3 position,string label,float seconds,Action action,Func<bool> available=null,float radius=2.15f)
         {
-            targets.Add(new NightTarget{Position=position,Label=label,Hold=seconds,Use=action,Available=available,Radius=radius});
+            var target = new NightTarget{Position=position,Label=label,Hold=seconds,Use=action,Available=available,Radius=radius};
+            targets.Add(target);
+            return target;
         }
 
         void FocusTarget(float dt)

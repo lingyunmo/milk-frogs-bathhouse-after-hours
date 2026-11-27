@@ -196,9 +196,9 @@ namespace AfterHours
             system.Play();
         }
 
-        internal void AddSteam(Vector3 center, Vector3 size, Color tint, float rate = 2.4f)
+        internal ParticleSystem AddSteam(Vector3 center, Vector3 size, Color tint, float rate = 2.4f)
         {
-            if (!steamMaterial) return;
+            if (!steamMaterial) return null;
             var go = new GameObject("Bath steam") { layer = EffectsLayer };
             go.transform.SetParent(transform, false);
             go.transform.position = center;
@@ -242,6 +242,7 @@ namespace AfterHours
             renderer.receiveShadows = false;
             renderer.maxParticleSize = 3;
             system.Play();
+            return system;
         }
 
         static Gradient Fade()

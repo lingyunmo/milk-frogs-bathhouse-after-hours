@@ -29,6 +29,7 @@ namespace AfterHours
             clips["torch-click"]=Clip("torch-click",.093f,310,.61f,102);
             clips["pickup"]=Clip("pickup",.17f,185,.83f,203);
             clips["paper"]=Clip("paper",.14f,570,.96f,191);
+            clips["pipe-leak"]=Clip("pipe-leak",.43f,790,.87f,89);
             clips["signal"]=Clip("signal",.8f,426,.025f,16);
             clips["drone"]=Clip("drone",3.4f,104,.14f,119);
             clips["truck"]=Clip("truck",2.3f,43,.24f,78);

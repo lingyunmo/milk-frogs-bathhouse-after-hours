@@ -296,6 +296,7 @@ namespace AfterHours
             visual.localScale=fullScale;
             visual.localPosition=fullOffset;
             noises.Clear();
+            faultSite = null;
             checkedSounds.Clear();
             blockedTraversals.Clear();
             investigationSound = null;
@@ -322,6 +323,17 @@ namespace AfterHours
             listenTime = listenCooldown = 0;
             recentListenTarget = new Vector3(float.PositiveInfinity, 0, 0);
             listenRipple?.Stop();
+        }
+
+        // The wired fault bells relay a fixed station address. They never relay the player's position.
+        Vector3? faultSite;
+        float faultUntil;
+        internal void HearGeneratorTrip(Vector3 approach)
+        {
+            faultSite = approach;
+            faultUntil = elapsed + 24f + Vector3.Distance(Position, approach) / 1.4f;
+            nextDecision = 0;
+            scanTime = 0;
         }
 
         internal void Hear(Vector3 place, float volume) => HearNoise(place, volume, "");
@@ -711,7 +723,9 @@ namespace AfterHours
             bool keepPatrol = underway && activeIntent == Intent.Patrol;
             bool keepInvestigation = underway && activeIntent == Intent.Investigate;
             bool hasTrail = sinceSeen < Mathf.Lerp(6f, 10f, NightPressure);
-            bool quiet = notice <= 0 && !hasTrail && noises.Count == 0 && !keepInvestigation;
+            if (faultSite.HasValue && (elapsed > faultUntil || sees || (Position - faultSite.Value).sqrMagnitude < 2.25f))
+                faultSite = null;
+            bool quiet = !faultSite.HasValue && notice <= 0 && !hasTrail && noises.Count == 0 && !keepInvestigation;
             bool sampleDue = !patrolArea.HasValue || patrolRemaining <= 0 || !patrolStarted && elapsed >= approachDeadline;
             if (quiet && sampleDue)
             {
@@ -754,6 +768,8 @@ namespace AfterHours
                 Consider(Intent.Investigate, cue.Place, cue.Age, cue.Loudness,
                     bias: cue.Footstep ? 0 : .14f * cue.Loudness, sound: cue.Sound);
             }
+            if (faultSite.HasValue)
+                Consider(Intent.Investigate, faultSite.Value, 0, 1, bias: 8f, sound: "generator-trip");
             int sensoryGoals = goals.Count;
             if (keepInvestigation && sensoryGoals == 0 && !sees && !hasTrail) return;
             if (keepPatrol)

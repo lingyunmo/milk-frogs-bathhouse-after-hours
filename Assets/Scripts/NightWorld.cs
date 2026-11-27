@@ -131,6 +131,8 @@ namespace AfterHours
             DressStreetDistrict();
             DressStreetRelay();
             DressStreetRooms();
+            DressDispatch();
+            DressReturnLines();
             DressAnnexEquipment();
             DressNightEvents();
             RefinishFurniture();
@@ -256,6 +258,8 @@ namespace AfterHours
                 bool open=door.Fire?s.firstFireDoor:s.openDoors.Contains(door.Name);
                 door.Leaf.SetActive(!open || NightDetention.Locks(door.Name, s));
             }
+            RefreshDispatch();
+            RefreshReturnLines();
             RefreshDetentionRooms();
             RefreshNightEvents();
             RefreshAnnexEquipment();

@@ -329,6 +329,31 @@ namespace AfterHours
                 AreaBox(paint, NightAtlas.Building, buildingFill, Wall);
                 AreaBox(paint, NightMainRing.Footprint, buildingFill, Wall);
             }
+            if (game.State.dispatch.accepted && !game.State.dispatch.RoadReady)
+            {
+                var job = game.State.dispatch;
+                for (int i = 0; i < NightDispatch.Stations.Length; i++)
+                    if (street && job.steps[i] < NightDispatch.Contacts) MarkJob(NightDispatch.Stations[i].Feet);
+                if (job.teeth < NightDispatch.Teeth)
+                {
+                    Vector3 point = !job.delivered && !job.carrying ? job.loadFeet : NightDispatch.Barrier;
+                    int markerFloor = FloorRoutes.IsInsideBathhouse(point) ? FloorRoutes.LevelAt(point.y) + 1 : NightAtlas.Street;
+                    if (markerFloor == floor) MarkJob(point);
+                }
+                void MarkJob(Vector3 at)
+                {
+                    Vector2 c = Point(at.x, at.z);
+                    float r = small ? 4 : 6;
+                    paint.BeginPath();
+                    paint.MoveTo(c + Vector2.up * r);
+                    paint.LineTo(c + Vector2.right * r);
+                    paint.LineTo(c - Vector2.up * r);
+                    paint.LineTo(c - Vector2.right * r);
+                    paint.ClosePath();
+                    paint.fillColor = Amber;
+                    paint.Fill();
+                }
+            }
             if (!small) DrawScale(paint, street);
             if (floor != game.Atlas.Floor) return;
 
