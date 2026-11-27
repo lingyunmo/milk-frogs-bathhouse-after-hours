@@ -262,7 +262,7 @@ namespace AfterHours
         void TickTorch(NightGame game, float dt)
         {
             SetTorchVisible(game.State.torch);
-            if (Input.GetKeyDown(KeyCode.F)) game.ToggleTorch();
+            if (Input.GetKeyDown(NightGame.TorchKey)) game.ToggleTorch();
             if (Input.GetKeyDown(KeyCode.R)) game.ReplaceCell();
             AdvanceTorch(game, dt);
         }

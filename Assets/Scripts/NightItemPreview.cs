@@ -41,7 +41,7 @@ namespace AfterHours
                 NightItemId.Stone => Models + "Stone",
                 NightItemId.Starter or NightItemId.RelayFuse => Models + "Starter",
                 NightItemId.Seal => Models + "Seal",
-                NightItemId.Receipt => Models + "Receipt",
+                NightItemId.Receipt or NightItemId.AnnexDiagram => Models + "Receipt",
                 _ => null
             };
             if (path == null || !owner) return null;
@@ -141,7 +141,7 @@ namespace AfterHours
 
         Quaternion Presentation(Vector3 size)
         {
-            if (item is NightItemId.Receipt or NightItemId.Seal)
+            if (item is NightItemId.Receipt or NightItemId.AnnexDiagram or NightItemId.Seal)
             {
                 if (size.y < size.x && size.y < size.z) return Quaternion.Euler(-69, -8, -8);
                 if (size.x < size.z) return Quaternion.Euler(10, 71, -10);

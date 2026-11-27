@@ -1,0 +1,18 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "metal_toolbox_diff_2k",
+      "normal": "metal_toolbox_nor_gl_2k",
+      "arm": "metal_toolbox_arm_2k_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

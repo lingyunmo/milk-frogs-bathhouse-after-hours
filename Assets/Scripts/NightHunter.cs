@@ -26,6 +26,11 @@ namespace AfterHours
         const float Height = 2.24f;
         const float ListenPoseDuration = .48f;
         const float ListenCooldown = 4.5f;
+        const float InvestigationMemory = 24f;
+        const float BlockedTraversalMemory = 14f;
+        const float ProgressRadius = .36f;
+        const float StallLimit = 1.8f;
+        const float WaypointTolerance = .06f;
         const float PatrolAreaSize = 10f;
         const float PatrolAreaDelay = 3f;
         const int PatrolRadius = 10;
@@ -55,19 +60,25 @@ namespace AfterHours
 
         // Offsets are relative to the last visible direction of travel, never to the hidden player.
         static readonly Vector2[] SearchSpots = { new(0, 0), new(0, 2.9f), new(-2.3f, 1.5f), new(2.3f, 1.5f), new(0, -2.2f) };
-        readonly List<(Intent Kind, Vector3 Place, float Rank, int Slot)> goals = new();
+        readonly List<(Intent Kind, Vector3 Place, float Rank, int Slot, string Sound)> goals = new();
         readonly List<Vector3> proposedPath = new();
+        readonly List<(Vector3 Place, string Sound, float Until)> checkedSounds = new();
+        readonly List<(Vector3 Place, Vector3 Direction, float Until)> blockedTraversals = new();
         Vector3 lastSeen, lastHeading, destination, unreachable;
+        Vector3 progressAnchor;
         Quaternion scanFacing;
         float sinceSeen = 40, notice, scanTime, nextDecision, stride, retry, checkTime;
+        float elapsed, timeWithoutProgress;
         bool recognized;
         int waypoint, lastPost = -1, cycle, searched, activeSlot;
         Intent activeIntent;
+        string investigationSound;
         struct Cue
         {
             internal Vector3 Place;
             internal float Loudness, Age;
-            internal bool Footstep;
+            internal string Sound;
+            internal bool Footstep => Sound == "step";
         }
         readonly List<Cue> noises = new();
 
@@ -268,6 +279,7 @@ namespace AfterHours
         internal void Pose(Vector3 feet, float yaw)
         {
             actor.SetPositionAndRotation(feet, Quaternion.Euler(0, yaw, 0));
+            ResetProgress();
             SetExpression(0);
         }
 
@@ -281,6 +293,11 @@ namespace AfterHours
             visual.localScale=fullScale;
             visual.localPosition=fullOffset;
             noises.Clear();
+            checkedSounds.Clear();
+            blockedTraversals.Clear();
+            investigationSound = null;
+            elapsed = 0;
+            ResetProgress();
             visits.Clear();
             patrolRetryUntil.Clear();
             patrolArea = pendingPatrolArea = patrolLegArea = null;
@@ -320,7 +337,7 @@ namespace AfterHours
             if (strength < .075f || obstructed && distance > range * .83f) return;
 
             // A cue on top of a workbench is investigated from the floor beside it.
-            bool indoor = NightAtlas.Building.Contains(new Vector2(place.x, place.z));
+            bool indoor = sound != "drone" && FloorRoutes.IsInsideBathhouse(place);
             float level = indoor ? 3.6f * Mathf.Floor((place.y + .18f) / 3.6f) : 0;
             bool nearSlope = FloorRoutes.IsOnStair(place) || !indoor && place.y < -.24f;
             if (Physics.Raycast(place + Vector3.up * .18f, Vector3.down, out var floor, 2.85f,
@@ -328,22 +345,40 @@ namespace AfterHours
                 (nearSlope || Mathf.Abs(floor.point.y - level) <= .55f))
                 place.y = floor.point.y;
             else place.y = level;
+            if (!footstep && SoundRecentlyChecked(place, sound)) return;
 
-            // Consecutive footsteps in the same area are a trail, rather than competing sounds.
-            if (footstep)
+            // Repeated impacts and footsteps from one spot update a single clue.
+            for (int i = noises.Count - 1; i >= 0; i--)
             {
-                for (int i = noises.Count - 1; i >= 0; i--)
-                {
-                    var earlier = noises[i];
-                    if (!earlier.Footstep || earlier.Age > 1 || (earlier.Place - place).sqrMagnitude > 3.24f) continue;
-                    noises.RemoveAt(i);
-                    strength = Mathf.Max(strength, earlier.Loudness * .94f);
-                    break;
-                }
+                var earlier = noises[i];
+                if (earlier.Sound != sound || earlier.Age > (footstep ? 1 : 3) ||
+                    (earlier.Place - place).sqrMagnitude > 3.24f) continue;
+                noises.RemoveAt(i);
+                strength = Mathf.Max(strength, earlier.Loudness * .94f);
+                break;
             }
             if (noises.Count == 12) noises.RemoveAt(0);
-            noises.Add(new Cue { Place = place, Loudness = strength, Footstep = footstep });
-            if (!footstep && strength > .23f) nextDecision = Mathf.Min(nextDecision, .05f);
+            noises.Add(new Cue { Place = place, Loudness = strength, Sound = sound });
+            bool sameInvestigation = activeIntent == Intent.Investigate && waypoint < path.Count &&
+                investigationSound == sound && (destination - place).sqrMagnitude <= 3.24f;
+            if (!footstep && !sameInvestigation && strength > .23f) nextDecision = Mathf.Min(nextDecision, .05f);
+        }
+
+        bool SoundRecentlyChecked(Vector3 place, string sound)
+        {
+            foreach (var checkedSound in checkedSounds)
+                if (checkedSound.Sound == sound && (checkedSound.Place - place).sqrMagnitude <= 7.29f) return true;
+            return false;
+        }
+
+        void RememberCheckedSound(Vector3 place, string sound, float duration)
+        {
+            if (sound == null || sound == "step" || SoundRecentlyChecked(place, sound)) return;
+            if (checkedSounds.Count >= 8) checkedSounds.RemoveAt(0);
+            checkedSounds.Add((place, sound, elapsed + duration));
+            for (int i = noises.Count - 1; i >= 0; i--)
+                if (noises[i].Sound == sound && (noises[i].Place - place).sqrMagnitude <= 7.29f)
+                    noises.RemoveAt(i);
         }
 
         float NightPressure => (game.State.night - 1f) / (NightState.MaxNights - 1f);
@@ -356,6 +391,9 @@ namespace AfterHours
             float reach = game.Player.TorchOn ? 21f : game.Player.Crouched ? 7f : 12f;
             reach *= Mathf.Lerp(1, 1.10f, NightPressure);
             if (distance > reach || distance > 1.28f && Vector3.Dot(actor.forward, toward.normalized) < .39f) return false;
+            if (game.Player.Crouched && !game.Player.TorchOn && Physics.Raycast(game.Player.Eyes.position, Vector3.up,
+                .63f, ClearanceMask, QueryTriggerInteraction.Ignore))
+                return false;
             return !Physics.Raycast(eye, toward.normalized, Mathf.Max(0, distance - .10f),
                 EnvironmentMask, QueryTriggerInteraction.Ignore);
         }
@@ -455,6 +493,11 @@ namespace AfterHours
 
         internal void Tick(float dt)
         {
+            elapsed += dt;
+            for (int i = checkedSounds.Count - 1; i >= 0; i--)
+                if (checkedSounds[i].Until <= elapsed) checkedSounds.RemoveAt(i);
+            for (int i = blockedTraversals.Count - 1; i >= 0; i--)
+                if (blockedTraversals[i].Until <= elapsed) blockedTraversals.RemoveAt(i);
             sinceSeen += dt;
             ObservePatrolArea(dt);
             listenCooldown -= dt;
@@ -506,22 +549,35 @@ namespace AfterHours
 
         void FollowPath(float dt)
         {
+            while (waypoint < path.Count && (path[waypoint] - Position).sqrMagnitude < WaypointTolerance * WaypointTolerance)
+                waypoint++;
+            if (waypoint == path.Count)
+            {
+                ReachedGoal();
+                return;
+            }
             Vector3 target = path[waypoint];
             Vector3 direction = Vector3.ProjectOnPlane(target - Position, Vector3.up);
             float speed = Pursuing ? Mathf.Lerp(3.22f, 3.41f, NightPressure) : activeIntent == Intent.Patrol ? patrolSpeed : 1.77f;
             Vector3 next = Vector3.MoveTowards(Position, target, speed * dt);
-            if (!FloorRoutes.CanMove(Position, next) || !PassDoor(next))
+            bool progressed = (next - progressAnchor).sqrMagnitude >= ProgressRadius * ProgressRadius;
+            if (!progressed) timeWithoutProgress += dt;
+            if (!FloorRoutes.CanMove(Position, next) || !PassDoor(next) || !progressed && timeWithoutProgress >= StallLimit)
             {
+                RememberTraversal(Position, next);
                 RememberBlocked(activeIntent, destination, activeSlot);
                 path.Clear();
                 Pursuing = false;
                 nextDecision = 0;
+                SetStride(0);
+                ResetProgress();
                 return;
             }
             if (direction.sqrMagnitude > .005f)
                 actor.rotation = Quaternion.RotateTowards(actor.rotation, Quaternion.LookRotation(direction), dt * 430);
             actor.position = next;
-            if ((Position - target).sqrMagnitude < .06f * .06f) waypoint++;
+            if (progressed) ResetProgress();
+            if ((Position - target).sqrMagnitude < WaypointTolerance * WaypointTolerance) waypoint++;
             if (waypoint == path.Count) ReachedGoal();
 
             stride += dt * (Pursuing ? 16 : 8);
@@ -533,6 +589,47 @@ namespace AfterHours
                 checkTime = Pursuing ? .32f : .56f;
                 game.PlayCreatureStep(Position);
             }
+        }
+
+        void ResetProgress()
+        {
+            progressAnchor = Position;
+            timeWithoutProgress = 0;
+        }
+
+        void RememberTraversal(Vector3 from, Vector3 next)
+        {
+            Vector3 direction = next - from;
+            if (direction.sqrMagnitude < .00001f) return;
+            if (blockedTraversals.Count >= 8) blockedTraversals.RemoveAt(0);
+            blockedTraversals.Add((next, direction.normalized, elapsed + BlockedTraversalMemory));
+        }
+
+        bool CanTraverse(Vector3 from, Vector3 to)
+        {
+            Vector3 delta = to - from;
+            float lengthSquared = delta.sqrMagnitude;
+            if (lengthSquared < .000001f) return true;
+            if (!game.State.firstFireDoor && delta.z > 0 && from.z < NightWorld.FireDoorPosition.z)
+            {
+                // The basement push bar faces the corridor. Approaches from the stair side
+                // cannot cross the closed leaf, including the hunter's body clearance.
+                Vector3 door = NightWorld.FireDoorPosition;
+                float contact = door.z - .34f;
+                if (to.z >= contact && Mathf.Abs(from.y - door.y) < .65f)
+                {
+                    Vector3 approach = Vector3.Lerp(from, to, (contact - from.z) / delta.z);
+                    if (Mathf.Abs(approach.x - door.x) < 1.27f) return false;
+                }
+            }
+            float headingThreshold = .55f * Mathf.Sqrt(lengthSquared);
+            foreach (var blocked in blockedTraversals)
+            {
+                if (Vector3.Dot(delta, blocked.Direction) < headingThreshold) continue;
+                float t = Mathf.Clamp01(Vector3.Dot(blocked.Place - from, delta) / lengthSquared);
+                if ((from + delta * t - blocked.Place).sqrMagnitude < .20f) return false;
+            }
+            return true;
         }
 
         bool PassDoor(Vector3 next)
@@ -555,6 +652,7 @@ namespace AfterHours
 
         void ReachedGoal()
         {
+            ResetProgress();
             if (activeIntent == Intent.Patrol)
             {
                 lastPost = activeSlot;
@@ -566,6 +664,7 @@ namespace AfterHours
             if (activeIntent == Intent.Search) searched |= 1 << activeSlot;
             else
             {
+                RememberCheckedSound(destination, investigationSound, InvestigationMemory);
                 for (int i = noises.Count - 1; i >= 0; i--)
                     if ((noises[i].Place - destination).sqrMagnitude < 2.56f) noises.RemoveAt(i);
             }
@@ -598,17 +697,19 @@ namespace AfterHours
             var area = patrolArea ?? AreaOf(Position);
             bool keepPatrol = underway && activeIntent == Intent.Patrol &&
                 (patrolLegArea.HasValue && patrolLegArea.Value == area || FitsPatrolArea(area, destination));
+            bool keepInvestigation = underway && activeIntent == Intent.Investigate;
             bool hasTrail = sinceSeen < Mathf.Lerp(10.5f, 16f, NightPressure);
             if (underway && !sees && !hasTrail && noises.Count == 0 &&
-                (keepPatrol || activeIntent == Intent.Investigate)) return;
+                (keepPatrol || keepInvestigation)) return;
 
             goals.Clear();
-            void Consider(Intent kind, Vector3 point, float age, float strength, int slot = -1, float recent = 0, float repeats = 0, float bias = 0)
+            void Consider(Intent kind, Vector3 point, float age, float strength, int slot = -1,
+                float recent = 0, float repeats = 0, float bias = 0, string sound = null)
             {
                 if (kind != Intent.Patrol && Time.time < retry && (point - unreachable).sqrMagnitude < 1.96f) return;
                 float rank = Score((int)kind, point, age, strength, recent, repeats, sees) + bias;
                 if (underway && kind == activeIntent && (point - destination).sqrMagnitude < .81f) rank += .10f;
-                goals.Add((kind, point, rank, slot));
+                goals.Add((kind, point, rank, slot, sound));
             }
 
             if (sees) Consider(Intent.Pursue, lastSeen, 0, 1, bias: .20f);
@@ -626,10 +727,13 @@ namespace AfterHours
             foreach (var cue in noises)
             {
                 if ((cue.Place - Position).sqrMagnitude < .72f) continue;
+                if (keepInvestigation && cue.Sound == investigationSound &&
+                    (cue.Place - destination).sqrMagnitude < 1.44f) continue;
                 Consider(Intent.Investigate, cue.Place, cue.Age, cue.Loudness,
-                    bias: cue.Footstep ? 0 : .14f * cue.Loudness);
+                    bias: cue.Footstep ? 0 : .14f * cue.Loudness, sound: cue.Sound);
             }
             int sensoryGoals = goals.Count;
+            if (keepInvestigation && sensoryGoals == 0 && !sees && !hasTrail) return;
             if (keepPatrol)
             {
                 // Only an observed trail, a sound or a sighting can compete with this patrol leg.
@@ -640,9 +744,19 @@ namespace AfterHours
                 AddPatrolGoals(area, PatrolRadius, 2);
                 if (goals.Count == sensoryGoals) AddPatrolGoals(area, WidePatrolRadius, 2);
                 if (goals.Count == sensoryGoals) AddPatrolGoals(area, WidePatrolRadius, 1);
-                if (goals.Count == sensoryGoals && !underway && area != AreaOf(Position))
-                    AddPatrolGoals(AreaOf(Position), PatrolRadius, 1);
             }
+
+            if (TryRoute()) return;
+            var localArea = AreaOf(Position);
+            if (!underway && area != localArea)
+            {
+                // Step clear of the blockage even when every route into the desired area is closed.
+                goals.Clear();
+                AddPatrolGoals(localArea, PatrolRadius, 1);
+                if (TryRoute()) return;
+            }
+            Pursuing = false;
+            if (!underway) path.Clear();
 
             void AddPatrolGoals((Vector3 Center, bool Inside) region, int radius, int spacing)
             {
@@ -658,49 +772,58 @@ namespace AfterHours
                 }
             }
 
-            goals.Sort(static (a, b) => b.Rank.CompareTo(a.Rank));
-            int attempts = 0;
-            foreach (var goal in goals)
+            bool TryRoute()
             {
-                float drift = goal.Kind == Intent.Pursue ? .68f : .58f;
-                bool samePatrol = activeIntent == Intent.Patrol && activeSlot == goal.Slot;
-                if (underway && (goal.Place - destination).sqrMagnitude < drift * drift &&
-                    (goal.Kind != Intent.Patrol || samePatrol))
+                goals.Sort(static (a, b) => b.Rank.CompareTo(a.Rank));
+                Func<Vector3, Vector3, bool> allowed = !game.State.firstFireDoor || blockedTraversals.Count > 0
+                    ? CanTraverse : null;
+                int attempts = 0;
+                foreach (var goal in goals)
                 {
+                    bool sameImpact = goal.Kind == Intent.Investigate && activeIntent == Intent.Investigate &&
+                        goal.Sound != "step" && goal.Sound == investigationSound;
+                    float drift = goal.Kind == Intent.Pursue ? .68f : sameImpact ? 1.2f : .58f;
+                    bool samePatrol = activeIntent == Intent.Patrol && activeSlot == goal.Slot;
+                    if (underway && (goal.Place - destination).sqrMagnitude < drift * drift &&
+                        (goal.Kind != Intent.Patrol || samePatrol))
+                    {
+                        activeIntent = goal.Kind;
+                        activeSlot = goal.Slot;
+                        investigationSound = goal.Sound;
+                        Pursuing = goal.Kind == Intent.Pursue;
+                        if (goal.Kind == Intent.Patrol) patrolLegArea = area;
+                        return true;
+                    }
+                    if (++attempts > 3) break;
+                    if (!routing.Find(Position, goal.Place, proposedPath, allowed))
+                    {
+                        RememberBlocked(goal.Kind, goal.Place, goal.Slot);
+                        if (goal.Kind == Intent.Search) searched |= 1 << goal.Slot;
+                        if (goal.Kind == Intent.Investigate) RememberCheckedSound(goal.Place, goal.Sound, 6f);
+                        continue;
+                    }
+
+                    cycle++;
+                    path.Clear();
+                    path.AddRange(proposedPath);
+                    destination = goal.Place;
+                    waypoint = 0;
                     activeIntent = goal.Kind;
                     activeSlot = goal.Slot;
+                    investigationSound = goal.Sound;
                     Pursuing = goal.Kind == Intent.Pursue;
-                    if (goal.Kind == Intent.Patrol) patrolLegArea = area;
-                    return;
+                    if (goal.Kind == Intent.Patrol)
+                    {
+                        patrolLegArea = area;
+                        patrolSpeed = Mathf.Lerp(1.46f, 2.30f, Mathf.InverseLerp(16, 64, Vector3.Distance(Position, destination)));
+                    }
+                    if (goal.Kind == Intent.Investigate && !sees && listenCooldown <= 0 &&
+                        (destination - recentListenTarget).sqrMagnitude > 4)
+                        BeginListening(destination);
+                    return true;
                 }
-                if (++attempts > 3) break;
-                if (!routing.Find(Position, goal.Place, proposedPath))
-                {
-                    RememberBlocked(goal.Kind, goal.Place, goal.Slot);
-                    if (goal.Kind == Intent.Search) searched |= 1 << goal.Slot;
-                    continue;
-                }
-
-                cycle++;
-                path.Clear();
-                path.AddRange(proposedPath);
-                destination = goal.Place;
-                waypoint = 0;
-                activeIntent = goal.Kind;
-                activeSlot = goal.Slot;
-                Pursuing = goal.Kind == Intent.Pursue;
-                if (goal.Kind == Intent.Patrol)
-                {
-                    patrolLegArea = area;
-                    patrolSpeed = Mathf.Lerp(1.46f, 2.30f, Mathf.InverseLerp(16, 64, Vector3.Distance(Position, destination)));
-                }
-                if (goal.Kind == Intent.Investigate && !sees && listenCooldown <= 0 &&
-                    (destination - recentListenTarget).sqrMagnitude > 4)
-                    BeginListening(destination);
-                return;
+                return false;
             }
-            Pursuing = false;
-            if (!underway) path.Clear();
         }
 
         void RememberBlocked(Intent kind, Vector3 point, int slot)

@@ -14,7 +14,7 @@ namespace AfterHours
                 State.charge=NightState.FullTorchCharge;
                 Player.SetTorch(true);
                 world.Refresh();
-                PickupFeedback(torchBench, "手电筒 · F 开关", art: "torch");
+                PickupFeedback(torchBench, $"手电筒 · {TorchKey} 开关", art: "torch");
                 SaveProgress();
             },()=>!State.torch);
 
@@ -31,6 +31,7 @@ namespace AfterHours
                 Cell(supply.Id, supply.Position, supply.Location);
             BuildStreetRelayObjectives();
             BuildNightEventObjectives();
+            BuildAnnexObjectives();
             Supply("stones", new(24,.13f,-10), "捡三颗石子", "石子 × 3", () => State.stones += 3);
 
             Vector3 motor=new(-10,-2.57f,18.92f);
@@ -58,11 +59,13 @@ namespace AfterHours
                 new[]{1,0},()=>Repair(network,.36f,()=>State.networkStage=1)),()=>State.networkStage==0);
             Target(network,"打开路由器，确认链路灯",3.6f,()=>Repair(network,.42f,()=>State.uplink=true,"signal"),()=>State.power&&State.networkStage==1&&!State.uplink);
             Vector3 terminal=new(9,1.12f,3.94f);
+            Target(terminal,"检查终端线路",0,()=>Notify("外线没有回波。维修副楼的中继机还没接好。",6),
+                ()=>State.power&&State.uplink&&!State.annexRelay&&!State.contacted);
             Target(terminal,"发送街名与站牌编号",3.1f,()=>Repair(terminal,.73f,()=>
             {
                 State.contacted=true;
                 Notify("收到回执。到街道尽头翻起接应板。",7);
-            },"signal"),()=>State.power&&State.uplink&&!State.contacted);
+            },"signal"),()=>State.power&&State.uplink&&State.annexRelay&&!State.contacted);
             Target(terminal,"请求一次补给",1.7f,()=>
             {
                 State.dropTime=21;
@@ -152,7 +155,7 @@ namespace AfterHours
 
         static string SupplyArt(string id) => id switch
         {
-            FaultNoteId => "receipt",
+            FaultNoteId or AnnexDiagramId => "receipt",
             "motor" or NightStreetRelay.FuseId => "starter",
             "seal" => "seal",
             "stones" => "stone",

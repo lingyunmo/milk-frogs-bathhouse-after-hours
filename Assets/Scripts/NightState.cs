@@ -22,6 +22,7 @@ namespace AfterHours
         public float charge;
         internal const float FullTorchCharge = 360;
         public bool torch, motorPart, seal, firstFireDoor, power, pump, uplink, contacted, beacon, escaped;
+        public bool annexIsolated, annexRelay;
         public int motorStage, sinkStage, networkStage;
         public float dropTime=-1, rescueTime=-1;
         public bool rearDrop, dropTaken;

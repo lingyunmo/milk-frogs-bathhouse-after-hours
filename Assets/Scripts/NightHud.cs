@@ -366,7 +366,8 @@ namespace AfterHours
                     foreach (var (keys, what) in new (string, string)[]
                     {
                         ("W A S D", "移动"), ("鼠标", "观察"), ("Shift", "按住奔跑"), ("C", "切换蹲行"),
-                        ("E", "拾取 / 交互 / 翻窗"), ("F", "开关手电"), ("R", "更换电池"), ("G", "投掷石子"),
+                        (NightGame.InteractKey.ToString(), "拾取 / 交互 / 翻窗"),
+                        (NightGame.TorchKey.ToString(), "开关手电"), ("R", "更换电池"), ("G", "投掷石子"),
                         ("B", "背包"), ("M", "地图"), ("F5", "保存"), ("Esc", "暂停"), ("Alt + Enter", "切换全屏")
                     })
                     {
@@ -557,7 +558,7 @@ namespace AfterHours
             reticle = new NightReticle();
             layer.Add(reticle);
             prompt = Area(layer, "prompt");
-            Type(prompt, "E", "key prompt-key");
+            Type(prompt, NightGame.InteractKey.ToString(), "key prompt-key");
             promptText = Type(prompt, "", "prompt-text");
             promptHold = Type(prompt, "按住", "prompt-hold");
 
@@ -588,7 +589,7 @@ namespace AfterHours
             stamina.Track.name = "stamina-meter";
 
             var equipment = Area(layer, "equipment");
-            torchSlot = Slot(equipment, "F", "手电", "torch", out charge);
+            torchSlot = Slot(equipment, NightGame.TorchKey.ToString(), "手电", "torch", out charge);
             torchSlot.AddToClassList("torch-slot");
             charge.name = "torch-charge";
             torch = new Meter(torchSlot.Q(className: "slot-body"), "torch-track", "torch-fill", 5);
@@ -818,8 +819,11 @@ namespace AfterHours
             if (!state.power && state.motorStage == 0 && !state.motorPart && !state.collected.Contains("receipt"))
                 return "查看前台的故障单";
             if (!state.power) return "恢复浴场供电";
-            if (!state.uplink) return "接通三楼线路";
-            return "回前台发送求援";
+            if (!state.annexIsolated) return "去副楼二楼隔离受潮线路";
+            if (!state.collected.Contains(NightGame.AnnexDiagramId) && !state.annexRelay) return "找留档室的外线接线图";
+            if (!state.annexRelay) return "接通副楼三楼的中继机";
+            if (!state.uplink) return "接通三楼弱电间，或到街外值守点";
+            return "到前台或街外值守点求援";
         }
 
         void Resume() => game.SetScreen(NightScreen.Play);

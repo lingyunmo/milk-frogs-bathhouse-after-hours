@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse }
+    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram }
 
     internal readonly struct NightInventoryItem
     {
@@ -70,8 +70,11 @@ namespace AfterHours
                         "后场检修棚拾得。街对面值守点的转接机正缺这支保险管。");
                 if (State.collected.Contains(FaultNoteId))
                     yield return new NightInventoryItem(NightItemId.Receipt, "夜班故障单", "记录",
-                        "先去地下设备层恢复供电。三楼弱电间接好外线。最后回前台，用终端呼叫接应。",
+                        "地下设备层负责供电。维修副楼的旁路还没接好，机修间和留档室都有线索。接通外线后，可回前台或去街外值守点求援。",
                         status: "前台 · 夜班记录");
+                if (State.collected.Contains(AnnexDiagramId))
+                    yield return new NightInventoryItem(NightItemId.AnnexDiagram, "外线接线图", "记录",
+                        AnnexDiagramText, status: "副楼三楼 · 留档室");
             }
         }
 
@@ -115,7 +118,7 @@ namespace AfterHours
             State.cells--;
             Player.SetTorch(false);
             PlayHandheld("pickup", .38f);
-            Notify("已换电池。按 F 开手电。");
+            Notify($"已换电池。按 {TorchKey} 开手电。");
             return true;
         }
 
