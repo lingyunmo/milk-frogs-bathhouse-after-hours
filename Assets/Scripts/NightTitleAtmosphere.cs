@@ -7,11 +7,12 @@ namespace AfterHours
     {
         const float TitleCycle = 19.5f;
         const float LampStutter = .76f;
-        const float CornerReveal = 2.35f;
-        const float CornerRelight = .20f;
+        const float CornerBlackout = 3.10f;
+        const float CornerRelight = .58f;
         const float IntruderHold = 1.10f;
 
-        VisualElement titleBackdrop, titleHaze, titleLamp, titleLampShade, titleLampCore, titleCornerLight, titleHallFrog, titleIntruder;
+        VisualElement titleBackdrop, titleHaze, titleLamp, titleLampShade, titleLampCore, titleCornerLight, titleHallFrog;
+        VisualElement titleBlackout, titleIntruder;
         float titleElapsed;
 
         void BuildTitleArt(VisualElement theater)
@@ -37,14 +38,16 @@ namespace AfterHours
 
         void BuildTitleIntruder(VisualElement theater)
         {
+            titleBlackout = Area(theater, "screen title-blackout");
             titleIntruder = Area(theater, "title-intruder");
-            titleIntruder.style.backgroundImage = new StyleBackground(Resources.Load<Texture2D>(InterfaceFolder + "AfterHoursIntruder"));
+            titleIntruder.style.backgroundImage = new StyleBackground(Resources.Load<Texture2D>(InterfaceFolder + "AfterHoursIntruderClose"));
             DrawTitleAtmosphere(titleElapsed);
         }
 
         void ClearTitleArt()
         {
-            titleBackdrop = titleHaze = titleLamp = titleLampShade = titleLampCore = titleCornerLight = titleHallFrog = titleIntruder = null;
+            titleBackdrop = titleHaze = titleLamp = titleLampShade = titleLampCore = titleCornerLight = titleHallFrog = null;
+            titleBlackout = titleIntruder = null;
         }
 
         void LayoutTitleArt(Vector2 viewport)
@@ -68,7 +71,9 @@ namespace AfterHours
                 titleElapsed += Mathf.Min(Time.unscaledDeltaTime, .075f);
             float phase = titleElapsed % TitleCycle;
             if (before < LampStutter && phase >= LampStutter) game.PlayTitleLightFlicker(.67f);
-            if (before < CornerReveal && phase >= CornerReveal) game.PlayTitleLightFlicker();
+            if (before < CornerBlackout && phase >= CornerBlackout) game.PlayTitleLightFlicker(.78f);
+            if (before < CornerBlackout + CornerRelight && phase >= CornerBlackout + CornerRelight)
+                game.PlayTitleContact();
             DrawTitleAtmosphere(titleElapsed);
         }
 
@@ -76,20 +81,22 @@ namespace AfterHours
         {
             float phase = elapsed % TitleCycle;
             float relay = phase - LampStutter;
-            float reveal = phase - CornerReveal;
+            float reveal = phase - CornerBlackout;
             float intruderCut = CornerRelight + IntruderHold;
             bool intruderVisible = reveal >= CornerRelight && reveal < intruderCut;
+            bool blackout = reveal is >= 0 and < CornerRelight ||
+                reveal >= intruderCut && reveal < intruderCut + .25f;
             float power = .87f + .13f * Mathf.PerlinNoise(elapsed * 3.1f, 2.7f);
             if (relay >= 0 && relay < .52f)
                 power *= relay < .19f ? .16f : relay < .34f ? .94f : .28f;
-            if (reveal >= 0 && reveal < intruderCut + .19f && !intruderVisible)
-                power *= reveal < CornerRelight ? .12f : .15f;
+            if (blackout) power *= .055f;
+            else if (intruderVisible) power *= .62f;
 
             float level = Mathf.Lerp(.69f, 1f, power);
             titleBackdrop.style.unityBackgroundImageTintColor = new Color(level, level, level, 1);
             titleLampShade.style.opacity = Mathf.Pow(1 - power, .8f);
             titleLamp.style.opacity = power * .77f;
-            bool reigniting = relay is >= .19f and < .34f || reveal is >= CornerRelight and < .36f;
+            bool reigniting = relay is >= .19f and < .34f || reveal >= CornerRelight && reveal < CornerRelight + .13f;
             titleLampCore.style.opacity = power * (reigniting ? .86f : .14f);
 
             float hallApproach = Mathf.SmoothStep(0, 1, (phase - .94f) / .62f);
@@ -102,7 +109,9 @@ namespace AfterHours
             titleHallFrog.style.unityBackgroundImageTintColor =
                 new Color(hallLight, hallLight * .92f, hallLight * .81f, 1);
 
-            // A fixed foreground pose cuts in with the relight and cuts out at the next blackout.
+            titleBlackout.style.opacity = blackout ? .91f : intruderVisible ? .46f : 0f;
+            game.SetTitleBlackout(blackout);
+            // The stage stays readable while the whole foreground pose cuts in at once.
             titleIntruder.style.opacity = intruderVisible ? 1f : 0f;
 
             float drift = .5f + .5f * Mathf.Sin(elapsed * .19f);
