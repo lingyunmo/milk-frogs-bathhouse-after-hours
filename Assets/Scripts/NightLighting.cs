@@ -19,11 +19,50 @@ namespace AfterHours
         NightAtmosphere atmosphere;
         bool? capturedPower;
 
+        // Shorter pools of practical light still mark working equipment when the street goes dark.
+        static readonly (float Ambient, float Moon, float Lamps, float Bounce, Color Fog, float Cloud)[] nights =
+        {
+            (1f,  .20f, 1f,   1f,   new(.098f, .131f, .161f), 1f),
+            (.86f,.16f, .90f, .77f, new(.059f, .079f, .105f), .36f),
+            (.72f,.12f, .77f, .53f, new(.027f, .043f, .064f), 0f),
+            (.50f,.075f,.63f, .32f, new(.018f, .028f, .041f), 0f),
+            (.29f,.032f,.46f, .14f, new(.009f, .014f, .021f), 0f)
+        };
+        readonly List<(Light Lamp, float Energy)> practicals = new();
+        Light moon;
+        int litNight;
+        float lampScale = 1;
+
+        void SetNightLighting(int night)
+        {
+            night = Mathf.Clamp(night, 1, nights.Length);
+            if (litNight == night) return;
+            var look = nights[night - 1];
+            litNight = night;
+            lampScale = look.Lamps;
+            moon.intensity = look.Moon;
+            RenderSettings.ambientSkyColor = new Color(.175f, .188f, .204f) * look.Ambient;
+            RenderSettings.ambientEquatorColor = new Color(.120f, .139f, .150f) * look.Ambient;
+            RenderSettings.ambientGroundColor = new Color(.109f, .101f, .089f) * look.Ambient;
+            RenderSettings.reflectionIntensity = .07f * look.Ambient;
+            RenderSettings.fogColor = look.Fog;
+            RenderSettings.fogDensity = night < 3 ? .0135f : .012f;
+            game.Player.Eyes.GetComponent<Camera>().backgroundColor = look.Fog;
+            if (nightSky)
+            {
+                nightSky.SetColor("_NightHorizon", look.Fog);
+                nightSky.SetFloat("_CloudWeight", look.Cloud);
+            }
+            foreach (var (lamp, energy) in practicals) lamp.intensity = energy * lampScale;
+            Shader.SetGlobalFloat("_NightBounceScale", look.Bounce);
+            game.Player.SetNightOptics(night);
+            if (capturedPower.HasValue) atmosphere?.CaptureReflections(false);
+        }
+
         void Lighting()
         {
-            var moon = GameObject.Find("白盒照明").GetComponent<Light>();
+            moon = GameObject.Find("白盒照明").GetComponent<Light>();
             moon.transform.rotation = Quaternion.LookRotation(new Vector3(-.58f, -.39f, .71f), Vector3.up);
-            moon.intensity = .20f;
             moon.color = new Color(.63f, .73f, .85f);
             moon.shadows = LightShadows.Soft;
             moon.shadowStrength = .97f;
@@ -34,15 +73,9 @@ namespace AfterHours
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientIntensity = 1;
-            RenderSettings.ambientSkyColor = new Color(.175f, .188f, .204f);
-            RenderSettings.ambientEquatorColor = new Color(.120f, .139f, .150f);
-            RenderSettings.ambientGroundColor = new Color(.109f, .101f, .089f);
             // Rooms carry their own box-projected reflections. The sky fallback only reaches the street.
-            RenderSettings.reflectionIntensity = .07f;
             RenderSettings.fog = true;
-            RenderSettings.fogColor = new Color(.098f, .131f, .161f);
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = .0135f;
 
             var camera = Camera.main;
             var skyShader = Resources.Load<Shader>("NightSky");
@@ -55,6 +88,7 @@ namespace AfterHours
             camera.clearFlags = RenderSettings.skybox ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
             water = camera.gameObject.AddComponent<NightWetReflections>();
             camera.backgroundColor = RenderSettings.fogColor;
+            SetNightLighting(1);
             camera.allowHDR = true;
             camera.gameObject.AddComponent<NightCameraGrade>();
         }
@@ -79,6 +113,7 @@ namespace AfterHours
             lamp.shadowBias = .08f;
             lamp.shadowNormalBias = .25f;
             atmosphere?.AddShaft(lamp, haze);
+            practicals.Add((lamp, energy));
             return lamp;
         }
 
@@ -195,9 +230,9 @@ namespace AfterHours
                 {
                     float rise = Mathf.SmoothStep(0, 1, Mathf.Clamp01((elapsed - entry.Delay) / TubeRiseSeconds));
                     entry.Lamp.enabled = rise > 0;
-                    entry.Lamp.intensity = entry.Intensity * rise;
+                    entry.Lamp.intensity = entry.Intensity * lampScale * rise;
                     entry.Diffuser.sharedMaterial = rise > 0 ? LitDiffuser() : emergencyGlass;
-                    tubeResponse.SetColor("_EmissionColor", TubeGlow * entry.Glow * rise);
+                    tubeResponse.SetColor("_EmissionColor", TubeGlow * lampScale * entry.Glow * rise);
                     entry.Diffuser.SetPropertyBlock(tubeResponse);
                 }
                 yield return null;
@@ -220,9 +255,9 @@ namespace AfterHours
             foreach (var entry in circuits)
             {
                 entry.Lamp.enabled = power;
-                entry.Lamp.intensity = entry.Intensity;
+                entry.Lamp.intensity = entry.Intensity * lampScale;
                 entry.Diffuser.sharedMaterial = power ? LitDiffuser() : emergencyGlass;
-                tubeResponse.SetColor("_EmissionColor", TubeGlow * entry.Glow);
+                tubeResponse.SetColor("_EmissionColor", TubeGlow * lampScale * entry.Glow);
                 entry.Diffuser.SetPropertyBlock(power ? tubeResponse : null);
             }
 

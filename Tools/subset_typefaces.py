@@ -1,10 +1,6 @@
-"""Rebuild the static Noto subsets that the interface ships with.
-
-The sources are the Noto Sans SC and Noto Serif SC variable fonts (SIL OFL 1.1) that ship with
-Windows 11 under C:/Windows/Fonts. Each subset is pinned to one weight and keeps every character
-that appears in the game scripts and style sheets, plus the punctuation in EXTRA below.
-
-    python Tools/subset_typefaces.py [--fonts C:/Windows/Fonts]
+"""Build the game's embedded font subsets. Place the upstream LXGW WenKai Regular and
+Ma Shan Zheng TTF files in --art-fonts (sources and OFL notices in Docs/World/art-sources.md).
+Use --fonts for the installed Noto Sans SC variable font.
 """
 import argparse
 import re
@@ -27,8 +23,8 @@ EXTRA = (
 # (source file, output, weight, character scope)
 TYPEFACES = (
     ("NotoSansSC-VF.ttf", RESOURCES / "Typeface" / "AfterHours.ttf", 500, "all"),
-    ("NotoSerifSC-VF.ttf", RESOURCES / "Typeface" / "AfterHoursSerif.ttf", 600, "all"),
-    ("NotoSerifSC-VF.ttf", RESOURCES / "Interface" / "TitleTypeface.ttf", 650, "打烊后"),
+    ("LXGWWenKai-Regular.ttf", RESOURCES / "Typeface" / "AfterHoursSerif.ttf", None, "all"),
+    ("MaShanZheng-Regular.ttf", RESOURCES / "Interface" / "TitleTypeface.ttf", None, "打烊后奶娃浴场"),
 )
 
 
@@ -49,19 +45,17 @@ def interface_characters() -> str:
 
 
 def build(source: Path, output: Path, weight: int, characters: str) -> None:
-    if output.exists():
-        with TTFont(output) as previous:
-            carried = {chr(c) for c in previous.getBestCmap()}
-        if set(characters) <= carried:
-            print(f"{output.relative_to(ROOT)}: already covers {len(characters)} characters")
-            return
-        # Never drop a glyph an earlier subset carried. Some text is only assembled at runtime.
-        characters = "".join(sorted(set(characters) | carried))
-    font = TTFont(source)
-    axis = next(a for a in font["fvar"].axes if a.axisTag == "wght")
-    font = instancer.instantiateVariableFont(font, {"wght": max(axis.minValue, min(axis.maxValue, weight))},
-                                             updateFontNames=False)
-    font["OS/2"].usWeightClass = weight
+    font = TTFont(source, recalcTimestamp=False)
+    if weight:
+        font = instancer.instantiateVariableFont(font, {"wght": weight}, updateFontNames=False)
+        font["OS/2"].usWeightClass = weight
+    else:
+        # OFL subsets use project-specific family names; keep the original copyright and license.
+        family = "After Hours Ledger" if characters != "打烊后奶娃浴场" else "After Hours Sign"
+        for record in font["name"].names:
+            if record.nameID in (1, 3, 4, 6, 16):
+                value = family.replace(" ", "") if record.nameID == 6 else family
+                record.string = value.encode(record.getEncoding())
     options = subset.Options()
     options.name_IDs = ["*"]
     options.name_languages = ["*"]
@@ -73,6 +67,7 @@ def build(source: Path, output: Path, weight: int, characters: str) -> None:
     subsetter.populate(text=characters)
     subsetter.subset(font)
     output.parent.mkdir(parents=True, exist_ok=True)
+    font.recalcTimestamp = False
     font.save(output)
     print(f"{output.relative_to(ROOT)}: {len(characters)} characters, {output.stat().st_size:,} bytes")
 
@@ -80,10 +75,11 @@ def build(source: Path, output: Path, weight: int, characters: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fonts", default="C:/Windows/Fonts", type=Path)
+    parser.add_argument("--art-fonts", default=ROOT / ".local" / "night-wall-sources", type=Path)
     args = parser.parse_args()
     everything = interface_characters()
     for source, output, weight, scope in TYPEFACES:
-        build(args.fonts / source, output, weight, everything if scope == "all" else scope)
+        build((args.fonts if weight else args.art_fonts) / source, output, weight, everything if scope == "all" else scope)
 
 
 if __name__ == "__main__":

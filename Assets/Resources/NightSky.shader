@@ -1,6 +1,11 @@
 Shader "AfterHours/OvercastNight"
 {
-    Properties { _MainTex ("Sky panorama", 2D) = "gray" {} }
+    Properties
+    {
+        _MainTex ("Sky panorama", 2D) = "gray" {}
+        _NightHorizon ("Distant fog", Color) = (0,0,0,1)
+        _CloudWeight ("Cloud light", Range(0,1)) = 1
+    }
     SubShader
     {
         Tags { "Queue"="Background" "RenderType"="Background" "PreviewType"="Skybox" }
@@ -12,6 +17,8 @@ Shader "AfterHours/OvercastNight"
             #pragma fragment Frag
             #include "UnityCG.cginc"
             sampler2D _MainTex;
+            half4 _NightHorizon;
+            half _CloudWeight;
             struct SkyVertex { float4 pos : SV_POSITION; float3 direction : TEXCOORD0; };
             SkyVertex Vert(float4 vertex : POSITION)
             {
@@ -29,7 +36,7 @@ Shader "AfterHours/OvercastNight"
                 half overcast = density / (density + .75);
                 half3 cloud = lerp(half3(.003,.005,.009), half3(.053,.084,.114), overcast * overcast);
                 half horizon = exp(-abs(ray.y) * 9) * (.4 + .6 * saturate(dot(ray.xz, float2(.89,-.45))));
-                return half4(cloud + half3(.025,.016,.009)*horizon, 1);
+                return half4(lerp(_NightHorizon.rgb, cloud + half3(.025,.016,.009)*horizon, _CloudWeight), 1);
             }
             ENDCG
         }

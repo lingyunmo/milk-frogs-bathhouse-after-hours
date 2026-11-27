@@ -33,7 +33,7 @@ namespace AfterHours
                 () => NightEvents.Available(State, 3) && State.collected.Contains(NightEvents.FreightBellKey(State.night)));
 
             Target(NightEvents.BackupBeacon, "查看备用接应灯", 0,
-                () => Notify("先发出求援，收到回执后再开灯。"),
+                () => Notify("指示窗还是黑的。灯座下面写着「凭回执亮灯」。"),
                 () => NightEvents.Available(State, 4) && !State.contacted);
             Target(NightEvents.BackupBeacon, "扳开备用接应灯", 1.2f, SendBackupBeacon,
                 () => NightEvents.Available(State, 4) && State.contacted && !State.beacon && State.rescueTime < 0);
@@ -67,7 +67,7 @@ namespace AfterHours
             {
                 State.beacon = true;
                 State.rescueTime = NightEvents.BackupArrivalTime;
-                Notify("接应灯亮了。沿街往东到站牌。", 5);
+                Notify("东边的站牌亮起来了。", 5);
             }, "signal");
     }
 

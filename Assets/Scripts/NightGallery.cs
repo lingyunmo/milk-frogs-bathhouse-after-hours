@@ -1,9 +1,56 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AfterHours
 {
     internal sealed partial class NightWorld
     {
+        // All tiles share one mesh. Glaze rolls into the grout across a millimetre-scale bevel.
+        // UVs stay registered to the whole painting, including the angled edges.
+        static void CeramicPanel(Transform parent, string label, Vector3 center, float yaw, Vector2 size,
+            float[] columns, float[] rows, Material glaze)
+        {
+            var points = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var triangles = new List<int>();
+            for (int row = 1; row < rows.Length; row++)
+            for (int col = 1; col < columns.Length; col++)
+            {
+                float left = (columns[col-1] - .5f) * size.x + .0017f;
+                float right = (columns[col] - .5f) * size.x - .0017f;
+                float bottom = (rows[row-1] - .5f) * size.y + .0017f;
+                float top = (rows[row] - .5f) * size.y - .0017f;
+                var a = new Vector3(left, bottom, 0);
+                var b = new Vector3(left, top, 0);
+                var c = new Vector3(right, top, 0);
+                var d = new Vector3(right, bottom, 0);
+                var ia = a + new Vector3(.004f,.004f,-.003f);
+                var ib = b + new Vector3(.004f,-.004f,-.003f);
+                var ic = c + new Vector3(-.004f,-.004f,-.003f);
+                var id = d + new Vector3(-.004f,.004f,-.003f);
+                Face(ia,ib,ic,id);
+                Face(a,b,ib,ia); Face(b,c,ic,ib); Face(c,d,id,ic); Face(d,a,ia,id);
+            }
+            void Face(Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+            {
+                int i = points.Count;
+                foreach (var p in new[] { a,b,c,d })
+                {
+                    points.Add(p);
+                    uvs.Add(new Vector2(.5f + p.x / size.x, .5f + p.y / size.y));
+                }
+                triangles.AddRange(new[] {i,i+1,i+2,i,i+2,i+3});
+            }
+            var mesh = new Mesh { name = label };
+            mesh.SetVertices(points); mesh.SetUVs(0,uvs); mesh.SetTriangles(triangles,0);
+            mesh.RecalculateNormals(); mesh.RecalculateTangents(); mesh.RecalculateBounds();
+            var panel = new GameObject(label, typeof(MeshFilter), typeof(MeshRenderer));
+            panel.transform.SetParent(parent,false);
+            panel.transform.SetPositionAndRotation(center,Quaternion.Euler(0,yaw,0));
+            panel.GetComponent<MeshFilter>().sharedMesh = mesh;
+            panel.GetComponent<MeshRenderer>().sharedMaterial = glaze;
+        }
+
         void BuildStreetElevation(Transform level, int floor, float y)
         {
             const float wall = NightMainRing.Front;
@@ -98,13 +145,10 @@ namespace AfterHours
                 var mural = Pbr("鹭塘瓷板", "Surfaces/EgretMural", null, null, Color.white, .59f);
                 var backing = Box("Ceramic mural mounting", new(-10.8f,1.83f,wall+.05f), new(3.19f,2.15f,.11f), brass,level);
                 backing.GetComponent<Collider>().enabled = false;
-                var face = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                face.name = "鹭塘瓷板";
-                face.transform.SetParent(level, false);
-                face.transform.SetPositionAndRotation(new(-10.8f,1.83f,wall+.116f), Quaternion.Euler(0,180,0));
-                face.transform.localScale = new(3.12f,2.08f,1);
-                face.GetComponent<Collider>().enabled = false;
-                face.GetComponent<Renderer>().sharedMaterial = mural;
+                CeramicPanel(level, "鹭塘瓷板", new(-10.8f,1.83f,wall+.116f), 180, new(3.12f,2.08f),
+                    // The painted panel seams are uneven; keep the relief on the original joints.
+                    new[] { 0f,.079f,.157f,.252f,.337f,.412f,.498f,.578f,.661f,.745f,.832f,.910f,1f },
+                    new[] { 0f,.092f,.189f,.309f,.423f,.548f,.638f,.747f,.876f,1f }, mural);
                 WallPractical(-13.45f, new Color(1,.76f,.49f), 1.55f);
                 WallPractical(2.63f, new Color(.60f,.83f,.84f), .86f);
             }

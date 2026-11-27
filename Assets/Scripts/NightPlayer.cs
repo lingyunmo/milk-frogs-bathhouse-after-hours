@@ -12,8 +12,8 @@ namespace AfterHours
         const float CrouchSpeed = 1.10f;
         const float StandingHeight = 1.70f;
         const float CrouchHeight = .54f;
-        const float TorchStrength = 2.64f;
-        const float TorchBeamAngle = 65;
+        float torchStrength = 2.64f;
+        float beamAngle = 65;
         const float TorchWarmup = .15f;
 
         internal CharacterController Body { get; private set; }
@@ -54,10 +54,10 @@ namespace AfterHours
             flashlight.localRotation = Quaternion.Euler(-1.5f, -.55f, 0);
             torch = flashlight.gameObject.AddComponent<Light>();
             torch.type = LightType.Spot;
-            torch.spotAngle = TorchBeamAngle;
+            torch.spotAngle = beamAngle;
             torch.innerSpotAngle = 21;
             torch.range = 17;
-            torch.intensity = TorchStrength;
+            torch.intensity = torchStrength;
             torch.renderMode = LightRenderMode.ForcePixel;
             torch.shadows = LightShadows.Soft;
             torch.shadowStrength = .96f;
@@ -69,6 +69,16 @@ namespace AfterHours
             torch.cookie = SoftBeam();
             torch.enabled = false;
             ApplyHeight(StandingHeight);
+        }
+
+        internal void SetNightOptics(int night)
+        {
+            bool lastNight = night == 5;
+            beamAngle = lastNight ? 81 : 65;
+            torchStrength = lastNight ? 4.15f : 2.64f;
+            torch.spotAngle = beamAngle;
+            torch.innerSpotAngle = lastNight ? 32 : 21;
+            torch.range = lastNight ? 24 : 17;
         }
 
         internal void AttachHeldTorch(GameObject model)
@@ -276,7 +286,7 @@ namespace AfterHours
             if (charge <= 0)
             {
                 SetTorch(false);
-                game.Notify("手电没电了。按 R 换电。");
+                game.Notify("灯丝红了一下，灭了。");
                 return;
             }
 
@@ -285,15 +295,15 @@ namespace AfterHours
             {
                 torchWarmupProgress = Mathf.MoveTowards(torchWarmupProgress, 1, dt / TorchWarmup);
                 settled = Mathf.SmoothStep(0, 1, torchWarmupProgress);
-                torch.spotAngle = Mathf.Lerp(TorchBeamAngle + 4, TorchBeamAngle, settled);
+                torch.spotAngle = Mathf.Lerp(beamAngle + 4, beamAngle, settled);
             }
             float lowCharge = 1 - Mathf.InverseLerp(0, 26, charge);
             float output = Mathf.Lerp(1, .52f, lowCharge);
             // A weak cell drifts below its normal output without a full blackout or a repeated flash.
             if (lowCharge > 0)
                 output *= 1 - lowCharge * Mathf.Lerp(.025f, .13f, Mathf.PerlinNoise(Time.time * .94f, 8.3f));
-            torch.intensity = TorchStrength * output * Mathf.Lerp(.26f, 1, settled);
-            if (before > 36 && charge <= 36) game.Notify("手电电量不足。");
+            torch.intensity = torchStrength * output * Mathf.Lerp(.26f, 1, settled);
+            if (before > 36 && charge <= 36) game.Notify("光圈开始发颤了。");
         }
 
         void ApplyHeight(float height)
@@ -319,8 +329,8 @@ namespace AfterHours
             if (!on) return;
 
             torchWarmupProgress = 0;
-            torch.spotAngle = TorchBeamAngle + 4;
-            torch.intensity = TorchStrength * .26f;
+            torch.spotAngle = beamAngle + 4;
+            torch.intensity = torchStrength * .26f;
         }
 
         internal bool Vault(Vector3 destination)

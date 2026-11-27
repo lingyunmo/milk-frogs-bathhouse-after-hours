@@ -42,5 +42,5 @@
 [场景资产与授权清单](art-sources.md) · [新增街区 CC0 建筑](../../ArtSource/StreetCC0.md)
 
 - 瓷砖、墙面与柏油使用 ambientCG 的原始 2K 色彩图，CC0。[Tiles074](https://ambientcg.com/a/Tiles074) · [Concrete034](https://ambientcg.com/a/Concrete034) · [Asphalt017](https://ambientcg.com/a/Asphalt017) · [ambientCG 许可](https://docs.ambientcg.com/license/)
-- 局内字使用 Noto Sans SC，标题使用 Noto Serif SC。两套字体均为 SIL OFL 1.1 的静态子集。[Noto Sans SC](https://github.com/google/fonts/tree/main/ofl/notosanssc) · [Noto Serif SC](https://github.com/google/fonts/tree/main/ofl/notoserifsc)
+- 浴场题字使用马善政毛笔楷书，交班记录、道具和章节使用霞鹜文楷，数字与操作键使用 Noto Sans SC。[来源与许可](art-sources.md)
 - 奶娃来自本项目的 Blender 源工程。4096 像素肤色图和源文件的 SHA‑256 一致。脚步、设备声和菜单音效由项目代码合成。抓捕中的三声怪笑使用网页版合成的原始 `haunted-laugh-v1.mp3`，演出时长跟随录音。 [网页版音频说明](https://github.com/lingyunmo/nwaxz/blob/main/docs/AUDIO.md)

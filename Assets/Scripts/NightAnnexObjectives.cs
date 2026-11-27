@@ -5,7 +5,7 @@ namespace AfterHours
     internal sealed partial class NightGame
     {
         internal const string AnnexDiagramId = "annex-wiring-plan";
-        const string AnnexDiagramText = "外线旁路接线顺序：屏蔽 Ⅱ · 线路 Ⅲ · 通报 Ⅰ。";
+        const string AnnexDiagramText = "图纸折口正压着三行铅笔字：「屏蔽 Ⅱ，线路 Ⅲ，通报 Ⅰ。」角落补了一句：「别信盖子上的旧漆。」";
 
         void BuildAnnexObjectives()
         {
@@ -16,9 +16,9 @@ namespace AfterHours
             Target(isolation, "隔离受潮线路", 2.8f, () => Repair(isolation, .75f, () =>
             {
                 State.annexIsolated = true;
-                Notify("受潮回路已切离。三楼中继机可以改接旁路。", 6);
+                Notify("啪的一声。墙里的滋滋声停了。", 6);
             }, "switch"), () => !State.annexIsolated);
-            Target(isolation, "检查隔离开关", 0, () => Notify("受潮回路已经切离。"), () => State.annexIsolated);
+            Target(isolation, "检查隔离开关", 0, () => Notify("扳柄落到底了。"), () => State.annexIsolated);
 
             Vector3 diagram = NightAnnexLayout.WiringPlan;
             Supply(AnnexDiagramId, diagram, "查看外线接线图", "外线接线图 · B 查看",
@@ -29,19 +29,19 @@ namespace AfterHours
             Vector3 relay = NightAnnexLayout.RelayConsole;
             Target(relay, "检查中继机", 0, () =>
             {
-                if (!State.power) Notify("电源指示灯不亮。先恢复地下设备层供电。", 6);
-                else if (!State.annexIsolated) Notify("受潮回路仍在漏电。二楼机修间有隔离开关。", 6);
-                else Notify("端子标记磨损了。查找留档室的接线图。", 6);
+                if (!State.power) Notify("灯珠是冷的，楼下听不见机声。", 6);
+                else if (!State.annexIsolated) Notify("表针贴着红线不动。封条上印着「二层机修」。", 6);
+                else Notify("端子只剩三个钉眼。盖内印着「原图留档」。", 6);
             }, () => !State.annexRelay && !CanWireAnnex());
             Target(relay, "接通外线旁路", 0, () => OpenRepair("中继机旁路", relay,
                 new[] { "Ⅰ", "Ⅱ", "Ⅲ" },
-                new[] { "选择屏蔽端子。接线图可以在背包里重看。", "选择线路端子。", "选择通报端子。" },
+                new[] { "屏蔽线的铜辫散开了。", "线路一端还有压痕。", "通报线只剩短短一截。" },
                 new[] { 1, 2, 0 }, () => Repair(relay, .92f, () =>
                 {
                     State.annexRelay = true;
-                    Notify("外线接通。现在可以从浴场前台或街外值守点求援。", 7);
+                    Notify("送话灯亮了。听筒里有人清了清嗓子。", 7);
                 }, "signal")), CanWireAnnex);
-            Target(relay, "查看中继状态", 0, () => Notify("外线旁路正在运行。"), () => State.annexRelay);
+            Target(relay, "查看中继状态", 0, () => Notify("机柜里传出均匀的嗡声。"), () => State.annexRelay);
         }
 
         bool CanWireAnnex() => State.power && State.annexIsolated &&
