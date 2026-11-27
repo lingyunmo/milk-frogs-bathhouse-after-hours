@@ -285,7 +285,7 @@ namespace AfterHours
             {
                 var position = new Vector3(x, y + 2.42f, x < 0 ? 14.8f : 9.16f);
                 Fixture(position, new Vector3(0, -1, x < 0 ? .15f : -.15f),
-                    new Color(.94f, .72f, .53f), thirdFloor ? .63f : .90f, thirdFloor ? 4.95f : 5.5f, 104);
+                    new Color(.94f, .72f, .53f), .90f, 5.5f, 104);
             }
         }
     }
