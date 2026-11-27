@@ -21,7 +21,7 @@ namespace AfterHours
         Label promptText, pickupText, areaFloor, areaName, chapterOverline, chapterTitle;
         VisualElement objectiveBlock, prompt, promptHold, status, repairSlot, torchSlot, runHint, crouchHint;
         VisualElement staminaBlock, pickupCard, pickupArt, areaCard, minimapRing, north, curtain, chapter, letterbox;
-        VisualElement titleBackdrop, titleHaze, titleLamp, grainLayer, toastBox;
+        VisualElement grainLayer, toastBox;
         NightReticle reticle;
         Meter stamina, torch;
         NightMapView minimap;
@@ -62,7 +62,7 @@ namespace AfterHours
             root.style.unityFontDefinition = FontDefinition.FromFont(font);
             serifFont = Resources.Load<Font>("Typeface/AfterHoursSerif");
             displayFont = Resources.Load<Font>(InterfaceFolder + "TitleTypeface");
-            titleImage = Resources.Load<Texture2D>(InterfaceFolder + "AfterHoursTitle");
+            titleImage = Resources.Load<Texture2D>(InterfaceFolder + "AfterHoursCorridor");
             root.AddToClassList("after-hours");
             root.pickingMode = PickingMode.Ignore;
             root.RegisterCallback<GeometryChangedEvent>(e => root.EnableInClassList("compact", e.newRect.width < 980));
@@ -143,6 +143,7 @@ namespace AfterHours
         internal void Show(NightScreen screen)
         {
             subpage = "";
+            if (screen == NightScreen.Title) titleElapsed = 0;
             Draw(screen);
         }
 
@@ -152,7 +153,8 @@ namespace AfterHours
             switches.Clear();
             toast = null;
             toastBox = null;
-            titleBackdrop = titleHaze = titleLamp = grainLayer = null;
+            ClearTitleArt();
+            grainLayer = null;
             reticle = null;
             curtain = chapter = letterbox = null;
             screenOpened = Time.unscaledTime;
@@ -184,21 +186,17 @@ namespace AfterHours
         void BuildTitle()
         {
             var theater = Area(root, "screen theater");
-            titleBackdrop = Area(theater, "screen title-backdrop");
-            titleBackdrop.style.backgroundImage = new StyleBackground(titleImage);
-            // Both ride inside the key art so the slow push-in carries them with the lamp and corridor.
-            titleHaze = Area(titleBackdrop, "screen title-haze");
-            titleHaze.style.backgroundImage = new StyleBackground(NightInterfaceArt.Haze);
-            titleLamp = Area(titleBackdrop, "title-lamp");
-            titleLamp.style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
+            BuildTitleArt(theater);
             Area(theater, "screen title-scrim-left").style.backgroundImage = new StyleBackground(NightInterfaceArt.LeftScrim);
             Area(theater, "screen title-scrim-bottom").style.backgroundImage = new StyleBackground(NightInterfaceArt.BottomScrim);
             Area(theater, "screen title-vignette").style.backgroundImage = new StyleBackground(NightInterfaceArt.Vignette);
             grainLayer = Area(theater, "screen film-grain");
             grainLayer.style.backgroundImage = new StyleBackground(NightInterfaceArt.Grain);
+            BuildTitleIntruder(theater);
 
             var stage = Area(theater, "screen title-stage");
             var block = Area(stage, "title-block");
+            block.EnableInClassList("title-block--resume", game.ResumableSave != null);
             Type(block, "MILK FROG'S BATHHOUSE", "title-overline");
             Type(block, "奶娃浴场", "title-brand serif");
             var logotype = Type(block, "打烊后", "title-name");
@@ -704,7 +702,7 @@ namespace AfterHours
                 grainLayer.style.backgroundPositionX = new BackgroundPosition(BackgroundPositionKeyword.Left, (frame * 71) % 192);
                 grainLayer.style.backgroundPositionY = new BackgroundPosition(BackgroundPositionKeyword.Top, (frame * 113) % 192);
             }
-            if (screen == NightScreen.Title && titleBackdrop != null) TickTitle(now);
+            if (screen == NightScreen.Title) TickTitle();
             if (screen != NightScreen.Play || reticle == null) return;
 
             var player = game.Player;
@@ -799,25 +797,6 @@ namespace AfterHours
                 minimap.MarkDirtyRepaint();
             }
             UpdateArrival();
-        }
-
-        void TickTitle(float now)
-        {
-            float motion = game.Preferences.CameraMotion;
-            float drift = .5f + .5f * Mathf.Sin(now * .19f);
-            titleBackdrop.style.scale = new Scale(Vector3.one * (1.015f + motion * drift * .034f));
-            if (titleHaze != null)
-            {
-                titleHaze.style.backgroundPositionX = new BackgroundPosition(BackgroundPositionKeyword.Left, -now * 9f % 2048);
-                titleHaze.style.opacity = .30f + .07f * Mathf.Sin(now * .37f);
-            }
-            if (titleLamp != null)
-            {
-                // An old caged bulb: steady most of the time, with the odd sag and stutter.
-                float flicker = Mathf.PerlinNoise(now * 3.1f, 2.7f);
-                float stutter = Mathf.PerlinNoise(now * 17f, 9.1f) > .78f ? .55f : 1;
-                titleLamp.style.opacity = (.50f + .30f * flicker) * stutter;
-            }
         }
 
         static string Objective(NightState state)

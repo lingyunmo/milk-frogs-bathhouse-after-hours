@@ -87,6 +87,10 @@ namespace AfterHours
 
         internal void PlayMenuSound() => soundscape.PlayMenuSound();
         internal void PlayMenuTick() => soundscape.PlayMenuTick();
+        internal void PlayTitleLightFlicker(float strength = 1f)
+        {
+            if (ScreenState == NightScreen.Title) soundscape.PlayTitleLightFlicker(strength);
+        }
 
         static NightState LoadUnfinished()
         {
@@ -229,7 +233,7 @@ namespace AfterHours
             if (grade) grade.SetMenu(screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
                 or NightScreen.Caught or NightScreen.Escaped);
             Player.SetTorchVisible(screen == NightScreen.Play && State.torch);
-            soundscape.SetTitle(screen == NightScreen.Title);
+            soundscape.SetScreen(screen);
             if (screen is not (NightScreen.Capture or NightScreen.Caught)) soundscape.StopCaptureLaugh();
             if (screen == NightScreen.Play) pauseTime = .12f;
             if (screen == NightScreen.Title)
@@ -311,7 +315,7 @@ namespace AfterHours
 
         void TickWorld(float dt)
         {
-            soundscape.Tick(State.power);
+            soundscape.Tick(State.power, InPursuit, dt);
             if(State.dropTime>0)
             {
                 State.dropTime=Mathf.Max(0,State.dropTime-dt);

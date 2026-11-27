@@ -81,3 +81,23 @@ Create a single game-ready material plate as an original photograph/scan. 16:9 l
 - 美术贴图改为 BC7 压缩，法线贴图另行压缩，画面基本无损，显存约降到原来的四分之一。4 GB 显存的笔记本显卡因此能放下整套贴图。
 - 标题、菜单、目标和地点名使用 Noto Serif SC 600 的静态子集，正文仍用 Noto Sans SC 500。两套子集都由 `Tools/subset_typefaces.py` 从 Windows 11 自带的 Noto 可变字体生成，收录脚本、样式表和场景房间名里出现的全部字符。新增界面文字后重跑一次即可。
 - 截取预览图：`AfterHours.exe -screen-fullscreen 0 -screen-width 1600 -screen-height 900 -afterhours-capture <文件夹>` 会依次拍下标题、出生点、浴池、地下室、供电后的走廊、街道、暂停、背包、地图和结局，然后自动退出。截图模式不会写入存档。这次改动拍下的 25 张 1600×900 预览存放在 [`ArtSource/Previews/cinematic-interface-pass/`](../../ArtSource/Previews/cinematic-interface-pass/)。
+
+## 标题页暗处演出与环境音
+
+- [走廊底图](../../Assets/Resources/Interface/AfterHoursCorridor.png)用内置 ImageGen 把角色与原[标题图](../../Assets/Resources/Interface/AfterHoursTitle.png)的场景拆开。灯、长凳和右侧门框沿用原构图。
+- [门后的彩色奶娃](../../Assets/Resources/Interface/AfterHoursHallFrog.png)复用本项目透明背景的[奶娃右前视图](../../ArtSource/HorrorMilkFrog/haunted-fullbody-skin-03/08-front-right-look.png)，灯亮时以原有色彩从门框后探出。
+- [闯入画面的奶娃](../../Assets/Resources/Interface/AfterHoursIntruder.png)由内置 ImageGen 参考同一角色新画，保留透明背景。它从屏幕边缘近距离探出，露出眼睛和手，再退回画面外。
+- 标题环境音使用 congusbongus 的《Lost in a bad place》，CC0，编辑了 120 毫秒循环接缝。 [原曲与许可](https://opengameart.org/content/lost-in-a-bad-place-horror-ambience-loop)
+- 浴场环境音使用 TinyWorlds 的《Deep Humidity》，CC0，处理高低频和 2.1 秒循环接缝。标题故障灯的电流声在 Unity 中独立合成。 [原曲与许可](https://opengameart.org/content/deep-humidity)
+
+走廊底图使用的提示词如下。
+
+```text
+Precise object edit for a shipped 16:9 horror game title. The supplied image is the edit target. Remove only the large yellow frog peeking from the far-right foreground doorway. Reconstruct the now empty narrow band of corridor behind it with the same dim deep-green wall, receding window and wet tiled floor, matching the original perspective and subtle distance haze. Keep the near right-hand glazed teal tiled door jamb and its vertical occluding edge, the exact view and position of the caged amber bulb near the upper middle, the copper plumbing, low bench, floor reflection, and the dark plain negative space across the left 40 percent. The lamp is on at exactly the original warm exposure. Lock the framing, image aspect, palette and existing geometry. Deliver one photorealistic empty-corridor plate with no character, no silhouette, no text, no UI, no added objects, no stylization.
+```
+
+近景奶娃使用的提示词如下。
+
+```text
+Transparent-background foreground character cutout for the Unity horror game Milk Frog's Bathhouse: After Hours. The supplied image is an identity reference for our own Milk Frog, not the pose or backdrop. Create ONE new separate rendition of this same unsettling pear-shaped frog mascot, in a NEW close-to-camera three-quarter lean. It intrudes from below and to the viewer's right, tilting its head toward screen left, with one dark broad hand reaching onto the invisible lower edge of the viewer's screen, like it is peeking into the interface from outside its frame. Large rounded head, very hunched thick shoulder and belly, slightly visible hooked fingers, and an unmistakably sinister toothy grin as in the reference. As a shadow in front of the lens, the body is deep near-black umber/charcoal with just a cold slate rim outlining the head and hand, a faint muted amber glint in one eye and a few desaturated teeth catching the flicker. Keep it legible against a dark scene without turning it into a flat cutout or brighter yellow portrait. Realistic worn skin material with hard-edged silvery rim only, strong threatening silhouette. Crop legs out naturally as a waist-up close foreground figure, but leave some transparent breathing room around the head, forearm and hand for UI placement. Image composition is portrait-oriented. Actual clean transparency all around the character, no black background rectangle, no walls, no light flare outside the subject, no text or UI.
+```
