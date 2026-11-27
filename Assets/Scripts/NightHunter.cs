@@ -87,8 +87,11 @@ namespace AfterHours
             captureFill.intensity=1.46f;
             captureFill.shadows=LightShadows.Soft;
             captureFill.enabled=false;
-            var skin=new Material(Shader.Find("Standard")){mainTexture=Resources.Load<Texture2D>("Creature/Skin"),color=Color.white};
-            skin.SetFloat("_Glossiness",.24f);
+            // Damp amphibian hide: fine pores and creases catch the hand torch without changing the painted colour.
+            var hide=Resources.Load<Shader>("CreatureSkin");
+            var skin=new Material(hide&&hide.isSupported?hide:Shader.Find("Standard")){mainTexture=Resources.Load<Texture2D>("Creature/Skin"),color=Color.white};
+            skin.SetFloat("_Glossiness",.34f);
+            skin.SetTexture("_Pores",SkinPores());
             var mucosa=Resources.Load<Texture2D>("Creature/Mucosa");
             var lining=OralSurface(mucosa,new Color(.92f,.71f,.62f),.13f);
             lining.SetFloat("_DepthTint",1);
@@ -197,6 +200,42 @@ namespace AfterHours
             foreach(var (mesh,index) in laughShapes)mesh.SetBlendShapeWeight(index,Mathf.Clamp01(weight)*100);
         }
 
+        static Texture2D SkinPores()
+        {
+            const int size=256;
+            var random=new System.Random(8117);
+            var height=new float[size*size];
+            // Overlapping soft dimples of several sizes, tiled so the detail map repeats seamlessly.
+            for(int i=0;i<1400;i++)
+            {
+                float cx=(float)random.NextDouble()*size, cy=(float)random.NextDouble()*size;
+                float r=1.2f+(float)(random.NextDouble()*random.NextDouble())*7.5f;
+                float depth=(.35f+(float)random.NextDouble()*.65f)*(r<3?.6f:1);
+                int span=Mathf.CeilToInt(r*2);
+                for(int dy=-span;dy<=span;dy++)
+                for(int dx=-span;dx<=span;dx++)
+                {
+                    float d=Mathf.Sqrt(dx*dx+dy*dy)/r;
+                    if(d>=2)continue;
+                    int x=((int)cx+dx+size)%size, y=((int)cy+dy+size)%size;
+                    height[y*size+x]-=depth*Mathf.Exp(-d*d*1.6f);
+                }
+            }
+            var pixels=new Color32[size*size];
+            for(int y=0;y<size;y++)
+            for(int x=0;x<size;x++)
+            {
+                float hx=height[y*size+(x+1)%size]-height[y*size+(x+size-1)%size];
+                float hy=height[((y+1)%size)*size+x]-height[((y+size-1)%size)*size+x];
+                var n=new Vector3(-hx*.9f,-hy*.9f,1).normalized;
+                pixels[y*size+x]=new Color32((byte)((n.x*.5f+.5f)*255),(byte)((n.y*.5f+.5f)*255),(byte)((n.z*.5f+.5f)*255),255);
+            }
+            var texture=new Texture2D(size,size,TextureFormat.RGBA32,true,true){name="Skin pores",wrapMode=TextureWrapMode.Repeat};
+            texture.SetPixels32(pixels);
+            texture.Apply(true,true);
+            return texture;
+        }
+
         static Material OralSurface(Texture2D texture, Color tint,float smoothness)
         {
             var material=new Material(Resources.Load<Shader>("OralLining")) { color=tint, mainTexture=texture };
@@ -209,6 +248,13 @@ namespace AfterHours
             var m=new Material(Shader.Find("Standard")){color=color};
             if(glow>0){m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor",color*glow);}
             return m;
+        }
+
+        // Preview stills only: stand the creature somewhere without waking the policy.
+        internal void Pose(Vector3 feet, float yaw)
+        {
+            actor.SetPositionAndRotation(feet, Quaternion.Euler(0, yaw, 0));
+            SetExpression(0);
         }
 
         internal void Reset()

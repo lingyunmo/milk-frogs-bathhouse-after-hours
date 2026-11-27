@@ -9,12 +9,15 @@ namespace AfterHours
     {
         const float TubeRiseSeconds = .25f;
         static readonly Color TubeGlow = new(.43f, .53f, .48f);
+        const float TubeBloom = 3.1f;
         readonly List<(Light Lamp, Renderer Diffuser, float Intensity, float Delay)> circuits = new();
         readonly MaterialPropertyBlock tubeResponse = new();
         Material litDiffuser, practicalBulb;
         Coroutine powerRestoration;
         static Texture2D practicalProfile;
         NightState restoringState;
+        NightAtmosphere atmosphere;
+        bool? capturedPower;
 
         void Lighting()
         {
@@ -26,7 +29,7 @@ namespace AfterHours
             moon.shadowStrength = .97f;
             moon.shadowBias = .12f;
             moon.shadowNormalBias = .42f;
-            QualitySettings.pixelLightCount = 6;
+            QualitySettings.pixelLightCount = 8;
             QualitySettings.shadowDistance = 42;
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
@@ -34,6 +37,7 @@ namespace AfterHours
             RenderSettings.ambientSkyColor = new Color(.175f, .188f, .204f);
             RenderSettings.ambientEquatorColor = new Color(.120f, .139f, .150f);
             RenderSettings.ambientGroundColor = new Color(.109f, .101f, .089f);
+            // Rooms carry their own box-projected reflections. The sky fallback only reaches the street.
             RenderSettings.reflectionIntensity = .07f;
             RenderSettings.fog = true;
             RenderSettings.fogColor = new Color(.027f, .043f, .064f);
@@ -47,7 +51,8 @@ namespace AfterHours
             camera.gameObject.AddComponent<NightCameraGrade>();
         }
 
-        Light Fixture(Vector3 position, Vector3 direction, Color colour, float energy, float range, float angle)
+        Light Fixture(Vector3 position, Vector3 direction, Color colour, float energy, float range, float angle,
+            float haze = .011f)
         {
             var lamp = new GameObject("已安装灯具光源").AddComponent<Light>();
             lamp.transform.SetParent(root);
@@ -65,6 +70,7 @@ namespace AfterHours
             lamp.shadowNearPlane = .06f;
             lamp.shadowBias = .08f;
             lamp.shadowNormalBias = .25f;
+            atmosphere?.AddShaft(lamp, haze);
             return lamp;
         }
 
@@ -82,7 +88,7 @@ namespace AfterHours
                     {
                         practicalBulb = new Material(materials[i]) { name = "Powered amber sconce diffuser" };
                         practicalBulb.EnableKeyword("_EMISSION");
-                        practicalBulb.SetColor("_EmissionColor", new Color(.69f, .32f, .095f));
+                        practicalBulb.SetColor("_EmissionColor", new Color(.69f, .32f, .095f) * 5.2f);
                     }
                     materials[i] = practicalBulb;
                     changed = true;
@@ -121,13 +127,14 @@ namespace AfterHours
 
         void AddMainsLight(Vector3 position, Color colour, float power, float range)
         {
+            power *= 1.35f;
             var body = Box("熄灭的荧光灯槽", position + Vector3.up * .12f,
                 new Vector3(.85f, .17f, .32f), steel);
             var diffuser = Box("荧光灯磨砂罩", position + Vector3.up * .022f,
                 new Vector3(.67f, .034f, .21f), emergencyGlass);
             body.GetComponent<Collider>().enabled = false;
             diffuser.GetComponent<Collider>().enabled = false;
-            var lamp = Fixture(position + Vector3.down * .065f, Vector3.down, colour, power, range, 109);
+            var lamp = Fixture(position + Vector3.down * .065f, Vector3.down, colour, power, range, 109, .006f);
             lamp.enabled = false;
             float distanceFromBreaker = Mathf.Abs(position.x - 8) + Mathf.Abs(position.z - 3.38f);
             float floor = Mathf.Clamp(Mathf.Floor((position.y + 3.60f) / 3.60f), 0, 3);
@@ -140,7 +147,7 @@ namespace AfterHours
             if (litDiffuser) return litDiffuser;
             litDiffuser = Material(new Color(.51f, .61f, .58f));
             litDiffuser.EnableKeyword("_EMISSION");
-            litDiffuser.SetColor("_EmissionColor", TubeGlow);
+            litDiffuser.SetColor("_EmissionColor", TubeGlow * TubeBloom);
             return litDiffuser;
         }
 
@@ -162,7 +169,7 @@ namespace AfterHours
                     entry.Lamp.enabled = rise > 0;
                     entry.Lamp.intensity = entry.Intensity * rise;
                     entry.Diffuser.sharedMaterial = rise > 0 ? LitDiffuser() : emergencyGlass;
-                    tubeResponse.SetColor("_EmissionColor", TubeGlow * rise);
+                    tubeResponse.SetColor("_EmissionColor", TubeGlow * TubeBloom * rise);
                     entry.Diffuser.SetPropertyBlock(tubeResponse);
                 }
                 yield return null;
@@ -189,6 +196,17 @@ namespace AfterHours
                 entry.Diffuser.sharedMaterial = power ? LitDiffuser() : emergencyGlass;
                 entry.Diffuser.SetPropertyBlock(null);
             }
+
+            // Reflections were shot under the other lighting state. Re-shoot them a few faces a frame.
+            if (capturedPower.HasValue && capturedPower != power) atmosphere?.CaptureReflections(false);
+            if (capturedPower.HasValue) capturedPower = power;
+        }
+
+        // Called once everything is in place, while the title screen hides the brief hitch.
+        internal void CaptureReflections()
+        {
+            capturedPower = game.State.power;
+            atmosphere?.CaptureReflections(true);
         }
 
         void InteriorLight(Vector3 position, string room)

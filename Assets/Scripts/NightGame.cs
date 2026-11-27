@@ -22,6 +22,8 @@ namespace AfterHours
         internal bool InPursuit => hunter.Pursuing;
         internal string Message => messageTime > 0 ? message : "";
         internal NightState ResumableSave { get; private set; }
+        // The most recent pickup, for the acquisition card. Serial changes with every new pickup.
+        internal (string Art, string Text, int Serial) LastPickup { get; private set; }
 
         readonly List<NightTarget> targets = new();
         readonly List<ThrownStone> stones = new();
@@ -29,6 +31,7 @@ namespace AfterHours
         NightAudio soundscape;
         NightHunter hunter;
         NightInterface hud;
+        NightCameraGrade grade;
         NightTarget focus, held;
         float holdTime, messageTime, pauseTime, caughtTime;
         string message = "";
@@ -55,6 +58,7 @@ namespace AfterHours
             Player.ResetPosition(State.spawn, State.yaw);
             world = new NightWorld(this);
             world.Build();
+            grade = Player.Eyes.GetComponent<NightCameraGrade>();
             BuildObjectives();
             Physics.SyncTransforms();
             hunter = new NightHunter(this);
@@ -63,6 +67,7 @@ namespace AfterHours
             hud = new NightInterface(this);
             ApplyPreferences();
             SetScreen(NightScreen.Title);
+            world.CaptureReflections();
         }
 
         void OnDestroy()
@@ -107,8 +112,11 @@ namespace AfterHours
             caughtTime = 0;
             panel = null;
             messageTime = 0;
+            LastPickup = default;
             Atlas.Track(State, Player.Feet);
+            if (grade) grade.SetFear(0);
             SetScreen(NightScreen.Play);
+            hud.Arrive(save == null);
         }
 
         void Update()
@@ -140,11 +148,22 @@ namespace AfterHours
             else if ((ScreenState == NightScreen.Map && Input.GetKeyDown(KeyCode.M)) ||
                 (ScreenState == NightScreen.Inventory && Input.GetKeyDown(KeyCode.B)))
                 SetScreen(NightScreen.Play);
+            if (grade && ScreenState is NightScreen.Play or NightScreen.Capture)
+                grade.SetFear(ScreenState == NightScreen.Capture || InPursuit ? 1 : 0);
             hud.Tick();
         }
 
         void TickPlay(float dt)
         {
+            if (Capturing)
+            {
+                Player.SetTorchVisible(State.torch);
+                Player.AdvanceTorch(this, dt);
+                Player.SettleView(dt);
+                Atlas.Track(State, Player.Feet);
+                FocusTarget(dt);
+                return;
+            }
             if (!Application.isFocused)
             {
                 SetScreen(NightScreen.Pause);
@@ -207,6 +226,8 @@ namespace AfterHours
                 or NightScreen.Caught or NightScreen.Escaped;
             SyncCursor(Application.isFocused);
             Player.Eyes.GetComponent<Camera>().enabled = screen != NightScreen.Title;
+            if (grade) grade.SetMenu(screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
+                or NightScreen.Caught or NightScreen.Escaped);
             Player.SetTorchVisible(screen == NightScreen.Play && State.torch);
             soundscape.SetTitle(screen == NightScreen.Title);
             if (screen is not (NightScreen.Capture or NightScreen.Caught)) soundscape.StopCaptureLaugh();
@@ -224,7 +245,7 @@ namespace AfterHours
         void OnApplicationFocus(bool focused)
         {
             if (hud == null) return;
-            if (!focused && ScreenState == NightScreen.Play)
+            if (!focused && ScreenState == NightScreen.Play && !Capturing)
                 SetScreen(NightScreen.Pause);
             else
                 SyncCursor(focused);
@@ -245,6 +266,7 @@ namespace AfterHours
             panel = null;
             caughtTime = 0;
             SetScreen(NightScreen.Capture);
+            if (grade) grade.Shock();
             soundscape.PlayCaptureLaugh(hunter.LaughSource);
         }
 
@@ -422,6 +444,7 @@ namespace AfterHours
 
         bool SaveProgress()
         {
+            if (Capturing) return true;
             try{ NightSave.Write(State); return true; }
             catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
             {

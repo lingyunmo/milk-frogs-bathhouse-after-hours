@@ -53,6 +53,7 @@ namespace AfterHours
 
         internal void Build()
         {
+            atmosphere = NightAtmosphere.Create(root);
             Lighting();
             CreateSurfaces();
             SkinArchitecture();
@@ -75,16 +76,23 @@ namespace AfterHours
                         AddDoor(room.name,entry);
                     LabelRoom(room.name,entry,p.z>12);
                     InteriorLight(new Vector3(p.x,y+3.16f,p.z),room.name);
+                    RoomAir(room.name,slab);
                 }
+                if(hall)HallAir(hall);
+                foreach(var stair in new[]{floor.Find("西北勤务梯段"),floor.Find("东南前厅梯段")})
+                    StairAir(stair);
             }
+            ExitSigns();
             AddDoor("地下防火门",new Vector3(14,-3.6f,10),true);
             foreach (int x in new[]{0,25,52,78,102,129,153,164})
             {
                 var p=new Vector3(x,0,-14);
                 Box("路灯杆",p+Vector3.up*2.2f,new Vector3(.13f,4.4f,.13f),wood);
                 Box("路灯灯罩",p+new Vector3(0,4.4f,-.28f),new Vector3(.3f,.16f,.8f),brass);
+                var lens=Box("路灯灯泡罩",p+new Vector3(0,4.31f,-.38f),new Vector3(.22f,.03f,.5f),StreetLens());
+                lens.GetComponent<Collider>().enabled=false;
                 Fixture(p+new Vector3(0,4.19f,-.55f),new Vector3(0,-1,-.33f),
-                    new Color(.96f,.81f,.62f),2.35f,14,115);
+                    new Color(.96f,.81f,.62f),2.35f,14,115,.0045f);
             }
             Box("卡座背板",new Vector3(-10,0.55f,5.1f),new Vector3(4,.98f,.2f),wood);
             Box("卡座座面",new Vector3(-10,.37f,4.6f),new Vector3(4,.14f,.86f),wood);
@@ -115,6 +123,7 @@ namespace AfterHours
             BoundTheStreet();
             DressRoute();
             game.Player.AttachHeldTorch(HeldFlashlight());
+            atmosphere.FollowTorch(game.Player.Eyes,game.Player.Beam);
             Physics.SyncTransforms();
         }
 

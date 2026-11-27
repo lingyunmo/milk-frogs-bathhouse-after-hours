@@ -23,6 +23,7 @@ namespace AfterHours
         internal bool Exhausted { get; private set; }
         internal float Stamina { get; private set; } = 1;
         internal bool TorchOn => torch.enabled;
+        internal Light Beam => torch;
         internal bool Vaulting => vaultTime > 0;
         internal Vector3 Feet => transform.position;
         float pitch, vertical, footDistance, vaultTime, breathDelay, bobPhase, eyeHeight, torchWarmupProgress;
@@ -85,6 +86,8 @@ namespace AfterHours
             handsCamera.farClipPlane = 3;
             handsCamera.fieldOfView = 57;
             handsCamera.enabled = false;
+            // The torch joins the world frame before tone mapping, so it shares the grade, grain and lens.
+            if (worldCamera.TryGetComponent<NightCameraGrade>(out var grade)) grade.Overlay(handsCamera);
             var fill = new GameObject("Viewmodel light").AddComponent<Light>();
             fill.transform.SetParent(mount, false);
             fill.transform.localPosition = new Vector3(.30f, .27f, .34f);
@@ -106,28 +109,39 @@ namespace AfterHours
         {
             var camera = Eyes.GetComponent<Camera>();
             camera.fieldOfView = preferences.FieldOfView;
-            if (camera.TryGetComponent<NightCameraGrade>(out var grade)) grade.SetGlow(preferences.PracticalGlow);
+            if (camera.TryGetComponent<NightCameraGrade>(out var grade)) grade.Configure(preferences);
         }
 
+        // A cheap reflector torch: a hot, slightly lopsided core, faint facet rings from the
+        // stamped reflector, the shadow of the bulb filament and a wide dim spill.
         static Texture2D SoftBeam()
         {
-            const int size = 128;
+            const int size = 256;
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false, true)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Bilinear
             };
             var pixels = new Color32[size * size];
+            var random = new System.Random(5150);
             for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
             {
                 var lens = new Vector2((x + .5f) * 2 / size - 1, (y + .5f) * 2 / size - 1);
                 float radius = new Vector2(lens.x * 1.045f, lens.y * .985f).magnitude;
+                float angle = Mathf.Atan2(lens.y, lens.x);
                 float edge = 1 - Mathf.SmoothStep(0, 1, Mathf.InverseLerp(.45f, .985f, radius));
-                float core = .61f * Mathf.Exp(-radius * radius * 8.35f);
+                var hot = lens - new Vector2(.035f, -.02f);
+                float core = .60f * Mathf.Exp(-hot.sqrMagnitude * 9.2f);
                 float spill = .30f * Mathf.Exp(-radius * radius * 1.53f);
-                float lensRim = .028f * Mathf.Exp(-Mathf.Pow((radius - .295f) * 13f, 2));
-                float beam = (core + spill + lensRim) * edge;
+                float lensRim = .034f * Mathf.Exp(-Mathf.Pow((radius - .295f) * 13f, 2));
+                float facets = .024f * Mathf.Sin(radius * 41f + 1.3f) * Mathf.SmoothStep(.08f, .3f, radius) *
+                    (1 - Mathf.SmoothStep(.55f, .8f, radius));
+                float hotRing = .045f * Mathf.Exp(-Mathf.Pow((radius - .17f) * 21f, 2));
+                float filament = 1 - .16f * Mathf.Exp(-radius * radius * 320f);
+                float dents = 1 + .035f * Mathf.Sin(angle * 5 + radius * 9) + .02f * Mathf.Sin(angle * 11 - radius * 4);
+                float grain = ((float)random.NextDouble() - .5f) * .012f;
+                float beam = ((core + spill + lensRim + facets + hotRing) * filament * dents + grain) * edge;
                 byte light = (byte)(Mathf.Clamp01(beam) * 255);
                 pixels[y * size + x] = new Color32(light, light, light, light);
             }
@@ -288,6 +302,9 @@ namespace AfterHours
             Body.height = height;
             Body.center = Vector3.up * (height / 2);
         }
+
+        // Preview stills: hold the torch and eye height where play would, without reading input.
+        internal void SettleView(float dt) => UpdateCamera(dt, 0);
 
         internal void LookDown(float degrees)
         {

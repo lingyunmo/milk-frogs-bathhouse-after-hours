@@ -41,7 +41,7 @@ Use case: stylized-concept. Asset type: a single photoreal cinematic environment
 
 背包采用左侧分类和物件、右侧近看与使用的结构。布局沿用网页首作可操作的背包，台面、纸张、物件图和版式按本作浴场重新制作。
 
-- [值班台底图](../../Assets/Resources/Interface/DutyDesk.png)和[故障单纸纹](../../Assets/Resources/Interface/DutyPaper.png)使用内置 ImageGen 生成。按钮、状态、地图门洞和可交互区由 Unity UI Toolkit 绘制。
+- [值班台底图](../../ArtSource/Interface/DutyDesk.png)和[故障单纸纹](../../ArtSource/Interface/DutyPaper.png)使用内置 ImageGen 生成。按钮、状态、地图门洞和可交互区由 Unity UI Toolkit 绘制。影院化界面改为模糊的实时画面做底后，两张底图移到 `ArtSource/Interface/` 存档，不再进入安装包。
 - 六件道具的 768 像素透明图使用 Blender 5.1 Cycles 渲染。手电使用场景内原模型，另外五件使用项目制作的网格。手电来自 [Poly Haven Small Plastic Torch](https://polyhaven.com/a/small_plastic_torch)。
 - 湿区、门厅和设备层使用三组 2048² 实拍 PBR 材质。色彩、法线以及打包后的金属度、粗糙度与 AO 在游戏中共同参与照明。[Worn Tile Floor](https://polyhaven.com/a/worn_tile_floor) · [Old Mosaic Floor](https://polyhaven.com/a/old_mosaic_floor) · [Scuffed Cement](https://polyhaven.com/a/scuffed_cement)
 
@@ -63,10 +63,21 @@ One horizontal game material plate, macro tabletop scan of a densely fibrous, wo
 - 走廊、设备层和更衣室的建筑表面保留实拍底图。附加的微细法线、跨墙段的水渍和沿地漏分布的湿区随场景光源变化。门框、门锁、蒸汽管、法兰、电箱和地漏是实体渲染网格。
 - 管路使用 Amal Kumar 的 2K 色彩和法线，粗糙度、金属度及遮蔽图按 Unity Standard 通道打包。[Poly Haven Rusty Metal Sheet](https://polyhaven.com/a/rusty_metal_sheet)
 - 背包的六件实物使用离屏相机。手电沿用场景中的 Poly Haven 模型，其他五件沿用背包 2D 图标的 Blender 网格。材质在独立灯光中呈现，可拖动检查细节。
-- [地图纸纹](../../Assets/Resources/Interface/AtlasPaper.png)使用内置 ImageGen 生成。楼层轮廓、开口、当前位置与比例尺仍从游戏状态实时画出。
+- [地图纸纹](../../ArtSource/Interface/AtlasPaper.png)使用内置 ImageGen 生成，现已随值班台底图一起存档。楼层轮廓、开口、当前位置与比例尺仍从游戏状态实时画出。
 
 地图纸纹提示词
 
 ```text
 Create a single game-ready material plate as an original photograph/scan. 16:9 landscape from straight overhead, entire frame filled with a single very dark antique smoked gray-green archival drafting paper from a forgotten 1990s Chinese public bathhouse. This is for readable floor-plan geometry to be drawn over it in the game. Low contrast black olive fiber board (luminance roughly RGB 66 to 96, no white), graphite scuffing with nearly invisible pencil-eraser smudges in the center, tiny water tide marks at two outside corners, gently worn deckled fibers and one faint crease at the very edge. Central 90 percent absolutely quiet, evenly lit. Fine large realistic texture, authentic and old, premium tactile film production prop, nearly matte fibrous material with a faint natural horizontal grain. Full-bleed material only, entire image usable, no objects or background framing, no pre-drawn geometry or grid, no words/letters/numbers, no maps, no colored marks, no UI, no artwork, no borders or thick edges. Cold and muted, dynamic range reserved for use over black green UI.
 ```
+
+
+## 影院化画面与界面
+
+- 画面后期分两段完成。世界相机先叠加半分辨率的环境光遮蔽；手持手电画在同一张 HDR 画面上之后，再统一做泛光与镜头污渍、AgX 色调映射、偏冷暗部和钨丝灯高光的夜间调色、胶片颗粒、边缘色差和暗角。被追时画面更冷更紧，被抓瞬间泛红。暂停、背包、地图和结局画面把实时画面模糊压暗后垫在界面下面。「选项 → 画面」可以调亮度，并单独开关灯光柔晕、环境光遮蔽和胶片颗粒。
+- 每个房间、每段走廊和楼梯各有一个盒投影反射探针。标题画面期间分批拍完，供电恢复后每帧补拍三个面，湿瓷砖和搪瓷浴缸会映出房间里真实的灯。拍摄时会临时隐去手电和奶娃。
+- 灯具下方有随灯开关的淡光柱。大浴池和淋浴间持续冒出蒸汽，浮尘只在手电光里显形。各层两座楼梯口挂着电池供电的「安全出口」灯箱，停电时也亮着，把走廊尽头染成绿色。灯泡、灯管和路灯罩的自发光提高到能触发泛光的亮度。
+- 墙面在踢脚高度留有拖把和鞋底蹭出的暗带，顶角发黑。奶娃皮肤叠加程序生成的平铺毛孔法线，褶皱处更湿亮。手电光斑带反光杯纹理和灯丝阴影。
+- 美术贴图改为 BC7 压缩，法线贴图另行压缩，画面基本无损，显存约降到原来的四分之一。4 GB 显存的笔记本显卡因此能放下整套贴图。
+- 标题、菜单、目标和地点名使用 Noto Serif SC 600 的静态子集，正文仍用 Noto Sans SC 500。两套子集都由 `Tools/subset_typefaces.py` 从 Windows 11 自带的 Noto 可变字体生成，收录脚本、样式表和场景房间名里出现的全部字符。新增界面文字后重跑一次即可。
+- 截取预览图：`AfterHours.exe -screen-fullscreen 0 -screen-width 1600 -screen-height 900 -afterhours-capture <文件夹>` 会依次拍下标题、出生点、浴池、地下室、供电后的走廊、街道、暂停、背包、地图和结局，然后自动退出。截图模式不会写入存档。这次改动拍下的 25 张 1600×900 预览存放在 [`ArtSource/Previews/cinematic-interface-pass/`](../../ArtSource/Previews/cinematic-interface-pass/)。
