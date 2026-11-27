@@ -62,7 +62,6 @@ namespace AfterHours
 
             titleContact = Source(root, "Title near contact");
             titleContact.spatialBlend = 0;
-            titleContact.panStereo = -.67f;
             titleContact.volume = .57f;
             titleContact.clip = NearContact();
 
