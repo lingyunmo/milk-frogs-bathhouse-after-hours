@@ -1,0 +1,18 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "tool-shed0_color",
+      "normal": "tool-shed0_normal",
+      "arm": "tool-shed0_orm_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

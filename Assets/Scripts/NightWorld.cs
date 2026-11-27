@@ -122,8 +122,11 @@ namespace AfterHours
             Box("车顶警示灯",new Vector3(161.0f,2.22f,-20),new Vector3(.82f,.19f,.3f),red,Rescue.transform);
             Rescue.SetActive(false);
             DressRooms();
+            DressDetentionRooms();
             BoundTheStreet();
             DressRoute();
+            DressStreetDistrict();
+            DressStreetRelay();
             game.Player.AttachHeldTorch(HeldFlashlight());
             atmosphere.FollowTorch(game.Player.Eyes,game.Player.Beam);
             Physics.SyncTransforms();
@@ -191,7 +194,8 @@ namespace AfterHours
             }
             var door=new Door{Name=name,Leaf=leaf,Position=p,Fire=fire};
             Doors.Add(door);
-            game.Target(p+Vector3.up*1.08f,fire?"推开地下防火门":"推门 · "+name,0,()=>game.ToggleDoor(door));
+            game.Target(p+Vector3.up*1.08f,fire?"推开地下防火门":"推门 · "+name,0,()=>game.ToggleDoor(door),
+                () => !NightDetention.Locks(name, game.State));
         }
 
         void Pickup(string id,Vector3 point,Vector3 scale, Material mat)
@@ -222,8 +226,9 @@ namespace AfterHours
             foreach (var door in Doors)
             {
                 bool open=door.Fire?s.firstFireDoor:s.openDoors.Contains(door.Name);
-                door.Leaf.SetActive(!open);
+                door.Leaf.SetActive(!open || NightDetention.Locks(door.Name, s));
             }
+            RefreshDetentionRooms();
             SetPowerLighting(s.power);
             foreach(var (id,model) in pickups)model.SetActive(id=="torch"?!s.torch:!s.collected.Contains(id));
             AnimateArrival();

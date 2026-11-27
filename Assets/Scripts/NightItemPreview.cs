@@ -39,7 +39,7 @@ namespace AfterHours
                 NightItemId.Torch => Torch + "Model",
                 NightItemId.Battery => Models + "Cell",
                 NightItemId.Stone => Models + "Stone",
-                NightItemId.Starter => Models + "Starter",
+                NightItemId.Starter or NightItemId.RelayFuse => Models + "Starter",
                 NightItemId.Seal => Models + "Seal",
                 NightItemId.Receipt => Models + "Receipt",
                 _ => null

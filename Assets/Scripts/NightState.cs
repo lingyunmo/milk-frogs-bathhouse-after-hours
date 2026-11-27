@@ -8,7 +8,13 @@ namespace AfterHours
     [Serializable]
     internal sealed class NightState
     {
+        internal const int MaxNights = 5;
+        static readonly string[] NightLabels = { "第一夜", "第二夜", "第三夜", "第四夜", "第五夜" };
+
         public int schema=1;
+        public int night = 1;
+        public bool detained, ended;
+        internal string NightLabel => NightLabels[Mathf.Clamp(night, 1, MaxNights) - 1];
         public List<string> collected=new();
         public List<string> openDoors=new();
         public List<string> explored=new();
@@ -48,6 +54,8 @@ namespace AfterHours
                     if (save == null || save.schema != 1 || save.collected == null || save.openDoors == null)
                         continue;
                     save.explored ??= new List<string>();
+                    save.night = Mathf.Clamp(save.night, 1, NightState.MaxNights);
+                    if (save.escaped || save.ended || save.night == 1) save.detained = false;
                     if (!NightWorld.ContainsPlayable(save.spawn)) save.spawn = NightState.NewSpawn;
                     if (!float.IsFinite(save.yaw)) save.yaw = 24;
                     return save;

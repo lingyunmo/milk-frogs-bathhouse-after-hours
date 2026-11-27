@@ -45,8 +45,10 @@ namespace AfterHours
             new(-16,3.6f,12),new(11,3.6f,12),new(-12,3.6f,5),new(7,3.6f,19),
             new(-13,7.2f,12),new(9,7.2f,12),new(11,7.2f,19),
             new(-12,-3.6f,12),new(10,-3.6f,12),new(-8,-3.6f,20),
-            new(1,0,-4),new(-24,0,10),new(-11,0,31),new(49,0,6),new(100,0,-17),new(155,0,-17)
+            new(1,0,-4),new(-24,0,10),new(-11,0,31),new(49,0,6),new(100,0,-17),new(155,0,-17),
+            new(39,0,-7),new(80,0,-3),new(116,0,-23),new(136,0,-6)
         };
+        static readonly int[] StartingPosts = { 1, 5, 10, 16, 13 };
         Vector3 lastSeen, destination, unreachable;
         float sinceSeen=40, nextDecision, stride, retry, checkTime;
         int waypoint, lastPost=-1, cycle;
@@ -260,7 +262,7 @@ namespace AfterHours
         internal void Reset()
         {
             EndCapture();
-            actor.position=posts[1];
+            actor.position = posts[StartingPosts[game.State.night - 1]];
             SetExpression(0);
             visual.localRotation=modelFacing;
             silhouette=1;
