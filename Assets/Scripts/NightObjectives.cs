@@ -27,7 +27,10 @@ namespace AfterHours
             Cell("cell-parking", new(49,.17f,4.8f), "停车棚");
             foreach (var supply in NightWorld.StreetSupplies)
                 Cell(supply.Id, supply.Position, supply.Location);
+            foreach (var supply in NightWorld.StreetRoomSupplies)
+                Cell(supply.Id, supply.Position, supply.Location);
             BuildStreetRelayObjectives();
+            BuildNightEventObjectives();
             Supply("stones", new(24,.13f,-10), "捡三颗石子", "石子 × 3", () => State.stones += 3);
 
             Vector3 motor=new(-10,-2.57f,18.92f);

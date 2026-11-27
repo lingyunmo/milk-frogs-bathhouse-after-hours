@@ -127,6 +127,8 @@ namespace AfterHours
             DressRoute();
             DressStreetDistrict();
             DressStreetRelay();
+            DressStreetRooms();
+            DressNightEvents();
             game.Player.AttachHeldTorch(HeldFlashlight());
             atmosphere.FollowTorch(game.Player.Eyes,game.Player.Beam);
             Physics.SyncTransforms();
@@ -229,6 +231,7 @@ namespace AfterHours
                 door.Leaf.SetActive(!open || NightDetention.Locks(door.Name, s));
             }
             RefreshDetentionRooms();
+            RefreshNightEvents();
             SetPowerLighting(s.power);
             foreach(var (id,model) in pickups)model.SetActive(id=="torch"?!s.torch:!s.collected.Contains(id));
             AnimateArrival();
