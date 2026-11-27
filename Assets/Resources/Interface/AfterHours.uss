@@ -155,12 +155,16 @@
     background-repeat: no-repeat;
     opacity: 0;
 }
+.title-blackout {
+    background-color: #020504;
+    opacity: 0;
+}
 .title-intruder {
     position: absolute;
-    right: -3%;
-    bottom: -6%;
-    width: 48%;
-    height: 66%;
+    right: -6%;
+    bottom: -12%;
+    width: 64%;
+    height: 87%;
     background-repeat: no-repeat;
     background-size: contain;
     background-position: right bottom;
@@ -781,8 +785,8 @@
     top: 10%;
 }
 .compact .title-intruder {
-    width: 60%;
-    height: 60%;
+    width: 66%;
+    height: 77%;
 }
 .compact .title-brand {
     font-size: 24px;

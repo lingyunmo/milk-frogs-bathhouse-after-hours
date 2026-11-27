@@ -8,9 +8,10 @@ namespace AfterHours
     {
         readonly Dictionary<string,AudioClip> clips=new();
         readonly AudioSource[] emitters=new AudioSource[10];
+        const float TitleAmbience = .62f;
         const float RoomAmbience = .46f;
         const float PursuitAmbience = .18f;
-        readonly AudioSource generator, entrance, ambience, titleLight;
+        readonly AudioSource generator, entrance, ambience, titleLight, titleContact;
         readonly AudioSource captureLaugh, menu;
         readonly AudioClip menuClick, menuTick;
         float nextMenuTick;
@@ -41,7 +42,7 @@ namespace AfterHours
             entrance.spatialBlend = 0;
             entrance.loop = true;
             entrance.clip = Resources.Load<AudioClip>("Audio/after-hours-title");
-            entrance.volume = .62f;
+            entrance.volume = TitleAmbience;
 
             ambience = Source(root, "Bathhouse ambience");
             ambience.spatialBlend = 0;
@@ -53,6 +54,12 @@ namespace AfterHours
             titleLight.spatialBlend = 0;
             titleLight.panStereo = .48f;
             titleLight.clip = LightBallast();
+
+            titleContact = Source(root, "Title near contact");
+            titleContact.spatialBlend = 0;
+            titleContact.panStereo = .67f;
+            titleContact.volume = .57f;
+            titleContact.clip = NearContact();
 
             captureLaugh = Source(root, "Hunter capture laugh");
             captureLaugh.clip = Resources.Load<AudioClip>("Audio/haunted-laugh-v1");
@@ -91,11 +98,13 @@ namespace AfterHours
                 generator.volume = 0;
                 ambience.Stop();
                 ambience.volume = 0f;
+                entrance.volume = TitleAmbience;
                 if (entrance.clip && !entrance.isPlaying) entrance.Play();
                 return;
             }
             entrance.Stop();
             titleLight.Stop();
+            titleContact.Stop();
             // The shared listener pauses this source in menus and preserves its playhead.
             if (screen == NightScreen.Play && ambience.clip && !ambience.isPlaying) ambience.Play();
             if (screen == NightScreen.Capture) ambience.volume = PursuitAmbience;
@@ -105,6 +114,42 @@ namespace AfterHours
         {
             titleLight.volume = .56f * Mathf.Clamp01(strength);
             titleLight.Play();
+        }
+
+        internal void SetTitleBlackout(bool dark)
+        {
+            float target = dark ? .018f : TitleAmbience;
+            float rate = dark ? 10f : 1.36f;
+            float delta = Mathf.Min(Time.unscaledDeltaTime, .075f);
+            entrance.volume = Mathf.MoveTowards(entrance.volume, target, rate * delta);
+        }
+
+        internal void PlayTitleContact() => titleContact.Play();
+
+        static AudioClip NearContact()
+        {
+            const int rate = 24000;
+            var wave = new float[rate * 68 / 100];
+            var noise = new System.Random(312);
+            float fast = 0, slow = 0, phase = 0;
+            for (int i = 0; i < wave.Length; i++)
+            {
+                float t = (float)i / rate;
+                float white = 2f * (float)noise.NextDouble() - 1f;
+                fast = Mathf.Lerp(fast, white, .28f);
+                slow = Mathf.Lerp(slow, white, .036f);
+                float texture = fast - slow;
+                float onset = Mathf.Min(t * 350f, 1f);
+                float scrape = onset * (.22f * Mathf.Exp(-t * 61f) +
+                    .12f * Mathf.Exp(-Mathf.Abs(t - .026f) * 77f));
+                phase += 2 * Mathf.PI * (46 + 66 * Mathf.Exp(-t * 21f)) / rate;
+                float knock = .39f * onset * Mathf.Sin(phase) * Mathf.Exp(-t * 29f);
+                float breath = Mathf.SmoothStep(0, 1, (t - .055f) / .10f) *
+                    (1 - Mathf.SmoothStep(0, 1, (t - .24f) / .42f));
+                float rasp = .55f + .45f * Mathf.Sin(t * 2 * Mathf.PI * 37f + fast * 1.8f);
+                wave[i] = knock + scrape * (white - fast) + breath * (.23f * texture + .027f * rasp * slow);
+            }
+            return Ready("Close scrape, breath and knock", wave, rate);
         }
 
         static AudioClip LightBallast()

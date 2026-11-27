@@ -86,9 +86,9 @@ Create a single game-ready material plate as an original photograph/scan. 16:9 l
 
 - [走廊底图](../../Assets/Resources/Interface/AfterHoursCorridor.png)用内置 ImageGen 把角色与原[标题图](../../Assets/Resources/Interface/AfterHoursTitle.png)的场景拆开。灯、长凳和右侧门框沿用原构图。
 - [门后的彩色奶娃](../../Assets/Resources/Interface/AfterHoursHallFrog.png)复用本项目透明背景的[奶娃右前视图](../../ArtSource/HorrorMilkFrog/haunted-fullbody-skin-03/08-front-right-look.png)，灯亮时以原有色彩从门框后探出。
-- [近景黑影](../../Assets/Resources/Interface/AfterHoursIntruder.png)由内置 ImageGen 参考同一角色新画，保留透明背景。灯重新亮起时，眼睛和手在屏幕右下的固定位置短暂显现。
+- [贴脸黑影](../../Assets/Resources/Interface/AfterHoursIntruderClose.png)用内置 ImageGen 从此前的[近景稿](../../Assets/Resources/Interface/AfterHoursIntruder.png)进一步推近。保留透明背景，眼睛和嘴在断电后从右下固定位置短暂显现。
 - 标题环境音使用 congusbongus 的《Lost in a bad place》，CC0，编辑了 120 毫秒循环接缝。 [原曲与许可](https://opengameart.org/content/lost-in-a-bad-place-horror-ambience-loop)
-- 浴场环境音使用 TinyWorlds 的《Deep Humidity》，CC0，处理高低频和 2.1 秒循环接缝。标题故障灯的电流声在 Unity 中独立合成。 [原曲与许可](https://opengameart.org/content/deep-humidity)
+- 浴场环境音使用 TinyWorlds 的《Deep Humidity》，CC0，处理高低频和 2.1 秒循环接缝。故障灯的电流声和贴脸时的近处摩擦、短促呼吸及闷响在 Unity 中独立合成。 [原曲与许可](https://opengameart.org/content/deep-humidity)
 
 走廊底图使用的提示词如下。
 
@@ -96,7 +96,19 @@ Create a single game-ready material plate as an original photograph/scan. 16:9 l
 Precise object edit for a shipped 16:9 horror game title. The supplied image is the edit target. Remove only the large yellow frog peeking from the far-right foreground doorway. Reconstruct the now empty narrow band of corridor behind it with the same dim deep-green wall, receding window and wet tiled floor, matching the original perspective and subtle distance haze. Keep the near right-hand glazed teal tiled door jamb and its vertical occluding edge, the exact view and position of the caged amber bulb near the upper middle, the copper plumbing, low bench, floor reflection, and the dark plain negative space across the left 40 percent. The lamp is on at exactly the original warm exposure. Lock the framing, image aspect, palette and existing geometry. Deliver one photorealistic empty-corridor plate with no character, no silhouette, no text, no UI, no added objects, no stylization.
 ```
 
-近景奶娃使用的提示词如下。
+贴脸近景使用的提示词如下。
+
+```text
+Edit the supplied transparent foreground asset of our own Milk Frog mascot into the fixed extreme close-up for its horror title scare. Preserve its rounded frog-like head, dark ochre skin, deep narrow eye sockets and distinctive large, uneven teeth. Put the face almost against the viewer's lens, pitched a little to the left, with ONE sharply readable small pale-amber eye looking straight into the lens. Give it an asymmetrically opening jaw and a threatening rictus rather than a friendly or posed smile. Use very tight perspective, as if the viewer can almost feel its moist breath. Show mostly the head and part of the nearest shoulder; a few dark fingers appear only as a partial edge shape on the far lower right. Narrow dirty grey-green sidelight catches the eye, wet edge of the lower lid and a few real uneven teeth; keep the rest deep charcoal, with textured pores and restrained natural specularity. The eye and immediate shape must register in one second on a nearly black corridor, so avoid making the whole face uniformly black. No blood, gore, comic expression, hard clean rim, glow effects, framing, text, blur blanket or UI. Strong large head with a distinct three-quarter contour anchored in the lower-right. Portrait composition and a genuinely transparent empty exterior, exactly one standalone character image.
+```
+
+贴脸近景第二次修整边缘时使用的提示词如下。
+
+```text
+Precise edge repair of this transparent creature sprite for a polished horror title. Keep the same alarming character identity, same close perspective, turned head, eye staring at camera, dirty olive-ochre moist skin, and same unnerving open rictus, teeth and lower-right fingers. Reframe very slightly wider, reconstructing the missing rounded crown and the complete screen-left cheek and neck edge. The silhouette must be organically curved and fully contained along the top and left of the output. Leave an unmistakable band of clean transparent pixels at least 8 percent of the canvas along the ENTIRE top edge and ENTIRE left edge. Do not crop, truncate, flatten or straight-cut any part of the top or left contour. Only shoulders, hand or chest can exit the bottom and right sides. Keep the strong facial close-up, eyes and teeth briefly readable in darkness. Retain real alpha transparency outside the shape and the original photographic skin, desaturated palette, and shadow detail. One portrait standalone sprite, no scene, no rectangular dark background, no ground, no drop shadow, no text, no UI.
+```
+
+此前近景稿使用的提示词如下。
 
 ```text
 Transparent-background foreground character cutout for the Unity horror game Milk Frog's Bathhouse: After Hours. The supplied image is an identity reference for our own Milk Frog, not the pose or backdrop. Create ONE new separate rendition of this same unsettling pear-shaped frog mascot, in a NEW close-to-camera three-quarter lean. It intrudes from below and to the viewer's right, tilting its head toward screen left, with one dark broad hand reaching onto the invisible lower edge of the viewer's screen, like it is peeking into the interface from outside its frame. Large rounded head, very hunched thick shoulder and belly, slightly visible hooked fingers, and an unmistakably sinister toothy grin as in the reference. As a shadow in front of the lens, the body is deep near-black umber/charcoal with just a cold slate rim outlining the head and hand, a faint muted amber glint in one eye and a few desaturated teeth catching the flicker. Keep it legible against a dark scene without turning it into a flat cutout or brighter yellow portrait. Realistic worn skin material with hard-edged silvery rim only, strong threatening silhouette. Crop legs out naturally as a waist-up close foreground figure, but leave some transparent breathing room around the head, forearm and hand for UI placement. Image composition is portrait-oriented. Actual clean transparency all around the character, no black background rectangle, no walls, no light flare outside the subject, no text or UI.

@@ -92,6 +92,16 @@ namespace AfterHours
             if (ScreenState == NightScreen.Title) soundscape.PlayTitleLightFlicker(strength);
         }
 
+        internal void SetTitleBlackout(bool dark)
+        {
+            if (ScreenState == NightScreen.Title) soundscape.SetTitleBlackout(dark);
+        }
+
+        internal void PlayTitleContact()
+        {
+            if (ScreenState == NightScreen.Title) soundscape.PlayTitleContact();
+        }
+
         static NightState LoadUnfinished()
         {
             var saved = NightSave.Read();
