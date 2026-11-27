@@ -14,7 +14,8 @@ namespace AfterHours
 
         NightTitleSparks titleSparks;
         VisualElement titleBackdrop, titleHaze, titleLamp, titleLampShade, titleLampCore, titleCornerLight, titleHallFrog;
-        VisualElement titleBlackout, titleIntruder;
+        VisualElement titleBlackout;
+        NightTitleIntruder titleIntruder;
         float titleElapsed;
 
         void BuildTitleArt(VisualElement theater)
@@ -42,15 +43,16 @@ namespace AfterHours
         void BuildTitleIntruder(VisualElement theater)
         {
             titleBlackout = Area(theater, "screen title-blackout");
-            titleIntruder = Area(theater, "title-intruder");
-            titleIntruder.style.backgroundImage = new StyleBackground(Resources.Load<Texture2D>(InterfaceFolder + "AfterHoursIntruderClose"));
+            titleIntruder = new NightTitleIntruder(Resources.Load<Texture2D>(InterfaceFolder + "AfterHoursIntruderClose"));
+            theater.Add(titleIntruder);
             DrawTitleAtmosphere(titleElapsed);
         }
 
         void ClearTitleArt()
         {
             titleBackdrop = titleHaze = titleLamp = titleLampShade = titleLampCore = titleCornerLight = titleHallFrog = null;
-            titleBlackout = titleIntruder = null;
+            titleBlackout = null;
+            titleIntruder = null;
             titleSparks = null;
         }
 

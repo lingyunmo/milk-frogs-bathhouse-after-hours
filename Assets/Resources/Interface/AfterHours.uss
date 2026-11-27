@@ -169,15 +169,12 @@
 }
 .title-intruder {
     position: absolute;
-    left: -6%;
-    top: -6%;
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
     width: 64%;
     height: 87%;
     rotate: 180deg;
-    -unity-background-image-tint-color: rgb(187, 198, 194);
-    background-repeat: no-repeat;
-    background-size: contain;
-    background-position: right bottom;
     opacity: 0;
 }
 .title-scrim-left {
