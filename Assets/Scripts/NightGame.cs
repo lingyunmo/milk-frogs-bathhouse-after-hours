@@ -10,6 +10,9 @@ namespace AfterHours
 
     internal sealed partial class NightGame : MonoBehaviour
     {
+        internal const KeyCode InteractKey = KeyCode.F;
+        internal const KeyCode TorchKey = KeyCode.E;
+
         internal NightState State { get; private set; }
         internal NightPlayer Player { get; private set; }
         internal float LandingNoise { get; private set; }
@@ -420,12 +423,12 @@ namespace AfterHours
                 focus=target;
                 best=value;
             }
-            if(focus!=held || !Input.GetKey(KeyCode.E))
+            if(focus!=held || !Input.GetKey(InteractKey))
             {
                 holdTime=0;
                 held=null;
             }
-            if(focus!=null&&Input.GetKeyDown(KeyCode.E))held=focus;
+            if(focus!=null&&Input.GetKeyDown(InteractKey))held=focus;
             if(held==null)return;
             holdTime+=dt;
             if(holdTime<held.Hold)return;
@@ -442,7 +445,7 @@ namespace AfterHours
             if(door.Fire)
             {
                 if(State.firstFireDoor)return;
-                if(Player.Feet.z<10){Notify("防火门的推杆在另一侧");return;}
+                if(Player.Feet.z<NightWorld.FireDoorPosition.z){Notify("防火门的推杆在另一侧");return;}
                 State.firstFireDoor=true;
             }
             else if(!State.openDoors.Remove(door.Name))State.openDoors.Add(door.Name);
@@ -456,7 +459,7 @@ namespace AfterHours
             {
                 if(!door.Leaf.activeSelf||Mathf.Abs(position.y-door.Position.y)>.55f||
                     Vector3.Distance(position,door.Position)>1.05f)continue;
-                if (NightDetention.Locks(door.Name, State) || door.Fire && position.z < 10) continue;
+                if (NightDetention.Locks(door.Name, State) || door.Fire && position.z < door.Position.z) continue;
                 if(door.Fire)State.firstFireDoor=true;
                 else State.openDoors.Add(door.Name);
                 door.Leaf.SetActive(false);

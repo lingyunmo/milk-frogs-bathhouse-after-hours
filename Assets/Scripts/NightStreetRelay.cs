@@ -37,7 +37,10 @@ namespace AfterHours
                     State.contacted = true;
                     Notify("收到值守回执。到街道尽头翻起接应板。", 7);
                 }, "signal")),
-                () => State.power && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
+                () => State.power && State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
+            Target(radio, "检查应急线路", 0,
+                () => Notify("保险管已经装好。先接通维修副楼三楼的中继机。", 6),
+                () => State.power && !State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
         }
     }
 

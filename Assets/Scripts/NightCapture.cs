@@ -78,7 +78,7 @@ namespace AfterHours
             State.cells = 2;
             world.Refresh();
             Player.SetTorch(true);
-            LastPickup = ("torch", "手电筒 · F 开关", LastPickup.Serial + 1);
+            LastPickup = ("torch", $"手电筒 · {TorchKey} 开关", LastPickup.Serial + 1);
             yield return Still("torch-pickup", 1.2f);
 
             Stand(new Vector3(7.5f, 3.67f, 12.1f), 270, 2);

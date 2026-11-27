@@ -3,7 +3,7 @@ using UnityEngine.UIElements;
 
 namespace AfterHours
 {
-    // A pin-point reticle that opens into a ring over usable objects. Holding E fills the ring.
+    // A pin-point reticle that opens into a ring over usable objects. Holding the interaction key fills it.
     internal sealed class NightReticle : VisualElement
     {
         static readonly Color Ink = new(.93f, .90f, .82f, .80f);

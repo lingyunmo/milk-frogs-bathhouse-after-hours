@@ -29,7 +29,8 @@ namespace AfterHours
         {
             for (int level = -1; level <= 2; level++)
             {
-                int minX = level == 0 ? -31 : -19, maxX = level == 0 ? 171 : 15;
+                int minX = level == 0 ? -31 : -19;
+                int maxX = level == 0 ? 171 : level > 0 ? Mathf.CeilToInt(NightAnnexLayout.Ramp.xMax) - 1 : 15;
                 int minZ = level == 0 ? -35 : 1, maxZ = level == 0 ? 43 : 23;
                 for (int x = minX; x <= maxX; x++)
                 for (int z = minZ; z <= maxZ; z++)
@@ -52,6 +53,7 @@ namespace AfterHours
             for (int level = -1; level < 2; level++)
             foreach (var stairwell in Stairwells)
                 AddStairs(stairwell.X, stairwell.Mouth, stairwell.Direction, level);
+            AddAnnexRamp();
 
             previous = new int[points.Count];
             distance = new float[points.Count];
@@ -165,6 +167,9 @@ namespace AfterHours
 
         static bool InStairwell(Vector3 feet)
         {
+            if (feet.y > NightAnnexLayout.Lower - .25f && feet.y < NightAnnexLayout.Upper + .25f &&
+                NightAnnexLayout.Ramp.Contains(new Vector2(feet.x, feet.z)))
+                return true;
             foreach (var stairwell in Stairwells)
             {
                 float depth = (feet.z - stairwell.Mouth) * stairwell.Direction;
@@ -175,6 +180,36 @@ namespace AfterHours
 
         internal static bool IsOnStair(Vector3 feet) =>
             Mathf.Abs(feet.y - Mathf.Round(feet.y / FloorHeight) * FloorHeight) > .16f && InStairwell(feet);
+
+        void AddAnnexRamp()
+        {
+            var low = new Vector3(NightAnnexLayout.RampX, NightAnnexLayout.Lower, NightAnnexLayout.LowerRampEntry);
+            var high = new Vector3(NightAnnexLayout.RampX, NightAnnexLayout.Upper, NightAnnexLayout.UpperRampEntry);
+            int entry = Nearest(low, false), exit = Nearest(high, false);
+            if (entry < 0 || exit < 0) return;
+
+            var lane = new List<Vector3>();
+            Vector3 previousPoint = points[entry];
+            for (float z = low.z; z <= high.z; z += 1)
+            {
+                float height = NightAnnexLayout.RampHeight(z);
+                if (!Ground(new Vector3(low.x, height, z), .70f, out Vector3 point) || !CanMove(previousPoint, point))
+                    return;
+                lane.Add(point);
+                previousPoint = point;
+            }
+            if (!CanMove(previousPoint, points[exit])) return;
+
+            int node = entry;
+            foreach (Vector3 point in lane)
+            {
+                int next = Add(point);
+                stairNodes.Add(next);
+                Link(node, next);
+                node = next;
+            }
+            Link(node, exit);
+        }
 
         void AddStairs(float x, float mouth, int direction, int level)
         {
@@ -212,7 +247,7 @@ namespace AfterHours
             }
         }
 
-        int Nearest(Vector3 desired, bool includeStairs)
+        int Nearest(Vector3 desired, bool includeStairs, Func<Vector3, Vector3, bool> allowed = null, bool outgoing = true)
         {
             int closest = -1;
             float best = float.PositiveInfinity;
@@ -233,24 +268,27 @@ namespace AfterHours
                 if (horizontal > SnapRadius * SnapRadius || Mathf.Abs(delta.y) > .64f) return;
                 float score = horizontal + 5 * delta.y * delta.y;
                 if (score >= best || !CanMove(desired, point)) return;
+                if (allowed != null && !(outgoing ? allowed(desired, point) : allowed(point, desired))) return;
                 best = score;
                 closest = node;
             }
         }
 
-        internal bool Find(Vector3 from, Vector3 target, List<Vector3> result)
+        internal bool Find(Vector3 from, Vector3 target, List<Vector3> result, Func<Vector3, Vector3, bool> allowed = null)
         {
             result.Clear();
             if (!NightWorld.ContainsPlayable(from) || !NightWorld.ContainsPlayable(target)) return false;
 
-            if (Mathf.Abs(from.y - target.y) < .18f && (from - target).sqrMagnitude < 64 && CanMove(from, target))
+            if (Mathf.Abs(from.y - target.y) < .18f && (from - target).sqrMagnitude < 64 &&
+                CanMove(from, target) && (allowed == null || allowed(from, target)))
             {
                 result.Add(target);
                 return true;
             }
 
-            int start = Nearest(from, true), goal = Nearest(target, true);
+            int start = Nearest(from, true, allowed), goal = Nearest(target, true, allowed, outgoing: false);
             if (start < 0 || goal < 0) return false;
+            if (components[start] != components[goal]) return false;
             open.Clear();
             Array.Fill(distance, float.PositiveInfinity);
             distance[start] = 0;
@@ -276,7 +314,7 @@ namespace AfterHours
                 foreach (int next in edges[node])
                 {
                     float cost = distance[node] + Vector3.Distance(points[node], points[next]);
-                    if (cost >= distance[next]) continue;
+                    if (cost >= distance[next] || allowed != null && !allowed(points[node], points[next])) continue;
                     float heuristic = Estimate(next);
                     if (float.IsFinite(distance[next])) open.Remove((distance[next] + heuristic, next));
                     distance[next] = cost;

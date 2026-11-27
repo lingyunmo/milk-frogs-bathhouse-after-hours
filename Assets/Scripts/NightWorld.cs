@@ -14,6 +14,7 @@ namespace AfterHours
             internal bool Fire;
         }
 
+        internal static readonly Vector3 FireDoorPosition = new(14, -3.6f, 10);
         internal readonly List<Door> Doors=new();
         internal GameObject Crate, Rescue;
         readonly List<(string id,GameObject model)> pickups=new();
@@ -83,9 +84,10 @@ namespace AfterHours
                 StairAir(serviceStair);
                 StairAir(lobbyStair);
             }
+            DressAnnex();
             SkinArchitecture();
             ExitSigns();
-            AddDoor("地下防火门",new Vector3(14,-3.6f,10),true);
+            AddDoor("地下防火门",FireDoorPosition,true);
             foreach (int x in new[]{0,25,52,78,102,129,153,164})
             {
                 var p=new Vector3(x,0,-14);
@@ -128,6 +130,7 @@ namespace AfterHours
             DressStreetDistrict();
             DressStreetRelay();
             DressStreetRooms();
+            DressAnnexEquipment();
             DressNightEvents();
             game.Player.AttachHeldTorch(HeldFlashlight());
             atmosphere.FollowTorch(game.Player.Eyes,game.Player.Beam);
@@ -232,6 +235,7 @@ namespace AfterHours
             }
             RefreshDetentionRooms();
             RefreshNightEvents();
+            RefreshAnnexEquipment();
             SetPowerLighting(s.power);
             foreach(var (id,model) in pickups)model.SetActive(id=="torch"?!s.torch:!s.collected.Contains(id));
             AnimateArrival();
