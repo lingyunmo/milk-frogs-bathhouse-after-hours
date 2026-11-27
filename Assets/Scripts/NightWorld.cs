@@ -20,7 +20,8 @@ namespace AfterHours
         internal GameObject Crate, Rescue;
         readonly List<(string id,GameObject model)> pickups=new();
         readonly NightGame game;
-        readonly Material wood, brass, olive, red;
+        readonly Material brass, olive;
+        Material wood, red;
         Material ceiling;
         readonly Transform root;
         NightWetReflections water;
@@ -30,10 +31,8 @@ namespace AfterHours
         {
             this.game=game;
             root=new GameObject("First night runtime").transform;
-            wood=Material(new Color(.29f,.22f,.16f));
             brass=Material(new Color(.55f,.36f,.12f));
             olive=Material(new Color(.30f,.43f,.28f));
-            red=Material(new Color(.45f,.10f,.07f));
             signFont=Resources.Load<Font>("Typeface/AfterHours");
             signInk=new Material(Resources.Load<Shader>("DepthLabel"));
             RefreshSignAtlas(signFont);
@@ -119,9 +118,10 @@ namespace AfterHours
             Rescue.transform.SetParent(root);
             Box("车身",new Vector3(160,-.45f,-20)+Vector3.up*1.25f,new Vector3(5,1.48f,2.1f),olive,Rescue.transform);
             Box("车厢",new Vector3(159.7f,1.78f,-20),new Vector3(3.1f,.7f,2.05f),wood,Rescue.transform);
+            var rubber = Material(new Color(.095f,.09f,.082f));
             foreach(float x in new[]{158.5f,161.5f})
             foreach(float z in new[]{-19f,-21f})
-                Box("轮胎",new Vector3(x,.32f,z),new Vector3(.72f,.64f,.23f),wood,Rescue.transform);
+                Box("轮胎",new Vector3(x,.32f,z),new Vector3(.72f,.64f,.23f),rubber,Rescue.transform);
             Box("车顶警示灯",new Vector3(161.0f,2.22f,-20),new Vector3(.82f,.19f,.3f),red,Rescue.transform);
             Rescue.SetActive(false);
             DressRooms();
@@ -246,6 +246,7 @@ namespace AfterHours
         internal void Refresh()
         {
             NightState s=game.State;
+            SetNightLighting(s.night);
             foreach (var door in Doors)
             {
                 bool open=door.Fire?s.firstFireDoor:s.openDoors.Contains(door.Name);

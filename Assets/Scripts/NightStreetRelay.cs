@@ -20,10 +20,10 @@ namespace AfterHours
             Target(NightStreetRelay.Clue, "查看搪瓷牌", 0,
                 () => Notify("值守频道 · 天线 Ⅱ，呼叫 Ⅲ。", 5));
             Target(radio, "检查转接机", 0,
-                () => Notify("转接机接在浴场的备用回路上。先恢复供电。", 5),
+                () => Notify("电表纹丝不动。电源线上印着浴场的名字。", 5),
                 () => !State.power && !State.contacted);
             Target(radio, "检查保险座", 0,
-                () => Notify("保险管不见了。去后场检修棚看看。", 5),
+                () => Notify("瓷座空了一截。盒盖内贴着旧领料章：「后场检修」。", 5),
                 () => State.power && !State.contacted && !State.collected.Contains(NightStreetRelay.FuseId));
             Target(radio, "装上备用保险管", 2.45f,
                 () => Repair(radio, .86f, () => State.collected.Add(NightStreetRelay.SeatedId), "tool"),
@@ -31,15 +31,15 @@ namespace AfterHours
                     && !State.collected.Contains(NightStreetRelay.SeatedId));
             Target(radio, "调节转接机", 0, () => OpenRepair("街外应急转接", radio,
                 new[] { "Ⅰ", "Ⅱ", "Ⅲ" },
-                new[] { "先选天线。机旁的搪瓷牌上有标记。", "再选呼叫频道。" },
+                new[] { "天线旋钮的漆掉了。搪瓷牌上的字还在。", "呼叫旋钮响了一格。" },
                 new[] { 1, 2 }, () => Repair(radio, .76f, () =>
                 {
                     State.contacted = true;
-                    Notify("收到值守回执。到街道尽头翻起接应板。", 7);
+                    Notify("「看见街尾的牌子，我就靠边。」对面松开了话筒。", 7);
                 }, "signal")),
                 () => State.power && State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
             Target(radio, "检查应急线路", 0,
-                () => Notify("保险管已经装好。先接通维修副楼三楼的中继机。", 6),
+                () => Notify("机身热了，耳机里全是沙声。回路线挂着「副楼中继」的签。", 6),
                 () => State.power && !State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
         }
     }

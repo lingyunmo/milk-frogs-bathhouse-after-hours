@@ -95,6 +95,7 @@ namespace AfterHours
                 bool thirdFloor = floor == NightAnnexLayout.Upper;
                 spill.range = thirdFloor ? 2.65f : 3.3f;
                 spill.intensity = thirdFloor ? .27f : .42f;
+                practicals.Add((spill, spill.intensity));
                 spill.shadows = LightShadows.None;
             }
         }

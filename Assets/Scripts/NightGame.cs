@@ -356,7 +356,7 @@ namespace AfterHours
                 {
                     world.Refresh();
                     Emit(NightWorld.DropPoint(State),1,"land");
-                    Notify("补给已到");
+                    Notify("箱子落地了。");
                     SaveProgress();
                 }
             }
@@ -367,7 +367,7 @@ namespace AfterHours
                 {
                     world.Refresh();
                     Emit(new Vector3(161,0,-20),1,"truck");
-                    Notify("救援车已靠站，从车侧登车。",6);
+                    Notify("车刹停了。侧门滑开一条缝。",6);
                     SaveProgress();
                 }
             }

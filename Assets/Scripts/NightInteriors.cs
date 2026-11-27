@@ -82,7 +82,18 @@ namespace AfterHours
             paint = Worn("剥落灰泥", "Finishes/PaintColor", "Finishes/PaintNormal", "Finishes/PaintFinish",
                 new Color(.60f, .63f, .58f), .95f, .48f, new(.76f, .88f, .04f));
             glazed = Photographed("返潮釉面小砖", "Ceramic", new Color(.50f, .67f, .62f), 1.12f, .84f, new(.52f, .78f, .20f));
-            brick = Pbr("外墙砖", "Finishes/BrickColor", "Finishes/BrickNormal", "Finishes/BrickFinish", new Color(.63f, .60f, .58f), .20f);
+            brick = Worn("外墙砖", "Finishes/BrickColor", "Finishes/BrickNormal", "Finishes/BrickFinish",
+                new Color(.63f, .60f, .58f), 1.14f, .46f, new(.31f, .23f, .03f));
+            void WallRelief(Material surface, string path, float depth)
+            {
+                surface.SetTexture("_HeightMap", Resources.Load<Texture2D>(path + "Relief"));
+                surface.SetFloat("_WallDepth", depth);
+                surface.EnableKeyword("WALL_RELIEF");
+            }
+            WallRelief(brick, "Finishes/Brick", .024f);
+            WallRelief(paint, "Finishes/Paint", .010f);
+            WallRelief(plaster, NightFinish + "Cement", .012f);
+            WallRelief(glazed, NightFinish + "Ceramic", .016f);
             tiles = Photographed("冲洗区旧地砖", "Ceramic", new Color(.74f, .79f, .74f), 1.10f, .79f, new(.58f, 0, .12f));
             terrazzo = Photographed("更衣区磨石地坪", "Terrazzo", new Color(.69f, .72f, .67f), .94f, .66f, new(.47f, 0, .08f));
             planks = Worn("磨损旧木地板", "Finishes/WoodColor", "Finishes/WoodNormal", "Finishes/WoodFinish",
@@ -90,9 +101,12 @@ namespace AfterHours
             asphalt = Worn("湿柏油", "Surfaces/Asphalt017", "Finishes/RoadNormal", "Finishes/RoadFinish",
                 new Color(.65f, .69f, .72f), .88f, .67f, new(.46f, 0, .18f));
             asphalt.SetFloat("_Rain", 1);
-            steel = Material(new Color(.27f, .32f, .31f));
-            steel.SetFloat("_Metallic", .35f);
-            steel.SetFloat("_Glossiness", .34f);
+            Material Enamel(string name, Color tint) => Pbr(name, "Finishes/Service/SteelColor",
+                "Finishes/Service/SteelNormal", "Finishes/Service/SteelFinish", tint, .46f, true);
+            steel = Enamel("旧搪瓷铁件", new(.59f, .66f, .63f));
+            red = Enamel("朱漆防火门", new(.72f, .25f, .18f));
+            wood = Pbr("老榆木", "Finishes/WoodColor", "Finishes/WoodNormal", "Finishes/WoodFinish",
+                new(.66f, .56f, .45f), .40f, true);
             emergencyGlass = Material(new Color(.24f, .27f, .24f));
         }
 
@@ -196,7 +210,10 @@ namespace AfterHours
                         var floor = lodge ? planks : wet ? tiles : p.y < -.2f || p.z < 0 ? plaster : terrazzo;
                         Surface(obj, floor, lodge ? 2.2f : floor == plaster ? 1.62f : 2f, floor: true);
                         break;
-                    case "室内墙" when obj.name=="墙":
+                    case "室内墙" when obj.name != "墙":
+                        Surface(obj, paint, 1.7f);
+                        break;
+                    case "室内墙":
                         bool outside = p.z<=.01f||p.z>=23.99f||p.x<=-19.99f||p.x>=15.99f;
                         float top=p.y+size.y*.5f;
                         bool levelCap=Mathf.Abs(top-Mathf.Round(top/3.6f)*3.6f)<.025f;
@@ -216,12 +233,12 @@ namespace AfterHours
                         {
                             float bandHeight=Mathf.Min(1.27f,size.y-.12f);
                             var band=Box("釉砖墙裙",new Vector3(p.x,baseline+bandHeight*.5f,p.z),
-                                new Vector3(size.x+.012f,bandHeight,size.z+.012f),glazed);
+                                new Vector3(size.x+.032f,bandHeight,size.z+.032f),glazed);
                             band.GetComponent<Collider>().enabled=false;
                             Surface(band, glazed, 1.12f);
 
                             var cap = Box("深釉压条", new Vector3(p.x, baseline + bandHeight + .025f, p.z),
-                                new Vector3(size.x + .021f, .052f, size.z + .021f), glazed);
+                                new Vector3(size.x + .076f, .052f, size.z + .076f), glazed);
                             cap.GetComponent<Collider>().enabled = false;
                             Surface(cap, glazed, 1.12f);
                         }
@@ -325,6 +342,22 @@ namespace AfterHours
 
         void BathFittings()
         {
+            const float width = 6.25f, height = 2.42f;
+            var bed = Box("淋浴墙水泥衬底", new(11.86f, height*.5f, 23.88f),
+                new(width, height, .044f), plaster);
+            bed.GetComponent<Collider>().enabled = false;
+            var glaze = Pbr("旧青瓷釉", NightFinish+"CementColor", NightFinish+"CementNormal", null,
+                new(.55f,.76f,.69f), .71f);
+            glaze.SetFloat("_BumpScale", .19f);
+            float[] Joints(int tiles)
+            {
+                var edges = new float[tiles+1];
+                for (int i = 0; i <= tiles; i++) edges[i] = (float)i/tiles;
+                return edges;
+            }
+            CeramicPanel(root, "五联淋浴青瓷墙", new(11.86f, height*.5f, 23.855f), 0,
+                new(width,height), Joints(20), Joints(8), glaze);
+
             for (int i=0;i<5;i++)
             {
                 float x=9.6f+i*1.13f;

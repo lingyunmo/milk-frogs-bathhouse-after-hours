@@ -79,7 +79,7 @@ Create a single game-ready material plate as an original photograph/scan. 16:9 l
 - 灯具下方有随灯开关的淡光柱。大浴池和淋浴间持续冒出蒸汽，浮尘只在手电光里显形。各层两座楼梯口挂着电池供电的「安全出口」灯箱，停电时也亮着，把走廊尽头染成绿色。灯泡、灯管和路灯罩的自发光提高到能触发泛光的亮度。
 - 墙面在踢脚高度留有拖把和鞋底蹭出的暗带，顶角发黑。奶娃皮肤叠加程序生成的平铺毛孔法线，褶皱处更湿亮。手电光斑带反光杯纹理和灯丝阴影。
 - 美术贴图改为 BC7 压缩，法线贴图另行压缩，画面基本无损，显存约降到原来的四分之一。4 GB 显存的笔记本显卡因此能放下整套贴图。
-- 标题、菜单、目标和地点名使用 Noto Serif SC 600 的静态子集，正文仍用 Noto Sans SC 500。两套子集都由 `Tools/subset_typefaces.py` 从 Windows 11 自带的 Noto 可变字体生成，收录脚本、样式表和场景房间名里出现的全部字符。新增界面文字后重跑一次即可。
+- 中文字库由 `Tools/subset_typefaces.py` 随界面用字更新；现用字体与授权见下方。
 - 截取预览图：`AfterHours.exe -screen-fullscreen 0 -screen-width 1600 -screen-height 900 -afterhours-capture <文件夹>` 会依次拍下标题、出生点、浴池、地下室、供电后的走廊、街道、暂停、背包、地图和结局，然后自动退出。截图模式不会写入存档。这次改动拍下的 25 张 1600×900 预览存放在 [`ArtSource/Previews/cinematic-interface-pass/`](../../ArtSource/Previews/cinematic-interface-pass/)。
 
 ## 标题页暗处演出与环境音
@@ -129,3 +129,10 @@ Create an original environment game texture, a straight-on orthographic conserva
 沿街四幅搪瓷牌为原创绘制，依次安装在浴场、面馆、值守棚与街尾商廊，实机按牌面分别取样。原始提示词如下。
 
 An ORIGINAL physically based game prop ALBEDO texture atlas, landscape 3:2 aspect. Four different real Chinese vintage porcelain enamel signs stacked vertically, exactly FOUR equal-height horizontal bands, each occupying the FULL WIDTH edge-to-edge, no margins or padding anywhere. Orthographic straight-on flat scan, neutral flat diffuse light, no perspective, no surroundings, no manufactured shadows. From top down: TOP QUARTER a municipal bathhouse fascia, faded celadon-green enamel, an engraved egret-and-ripples period seal at left, very legible large ivory hand-lettered Chinese '奶娃浴场' in center, double pinstripe border; SECOND QUARTER vermilion/oxblood enamel noodle shop, bowl and steam illustration at left, large hand-painted warm bone-white Chinese '石桥汤面', gold ornamental rules and faded lacquer; THIRD QUARTER soot-dark navy blue enamel with vintage off-white stenciled Chinese '夜班值守' and small old lantern emblem; BOTTOM QUARTER desaturated warm ivory enamel with historical dark green brush lettering '石桥商廊', faded rose commercial seal, green decorative pinstripe. Real age, oxidized bolt holes, small localized rust blooms and realistic localized flaking layers, brush edges, generations of cleaning. Printed graphics physically follow chipped surfaces. The letters MUST be exactly as specified, individually calligraphed with natural negative space; no other text or English. High-end first-person survival-horror environment asset, restrained realistic municipal Chinese 1980s art direction, NOT fantasy, high legibility. Fill all of each rectangular strip with the sign surface, ALL FOUR equal-size strips directly adjacent, no background. Treat the image as a digital scan, no flash glare, depth of field or tilt.
+
+
+### 夜间墙面与中文字形
+
+砖、漆面、湿区釉砖和水泥墙沿用各自扫描材质的 2K 原始高度图；色图、法线和高度使用相同 UV。墙面近处使用视差，真实墙裙和压条参与手电投影。[Brick Moss 001](https://polyhaven.com/a/brick_moss_001) · [Painted Concrete 02](https://polyhaven.com/a/painted_concrete_02) · [Worn Tile Floor](https://polyhaven.com/a/worn_tile_floor) · [Scuffed Cement](https://polyhaven.com/a/scuffed_cement)
+
+浴场题字采用马善政毛笔楷书，道具、交班簿和章节采用霞鹜文楷。操作键与数字沿用思源黑体。随游戏分发静态字形子集，完整许可见 [马善政 OFL](../../Assets/Resources/Interface/TitleTypeface-OFL.txt) 与 [霞鹜文楷 OFL](../../Assets/Resources/Typeface/Ledger-OFL.txt)。[马善政源字体](https://github.com/google/fonts/tree/main/ofl/mashanzheng) · [霞鹜文楷源字体](https://github.com/lxgw/LxgwWenKai)

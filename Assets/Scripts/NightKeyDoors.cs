@@ -33,11 +33,11 @@ namespace AfterHours
 
         internal static readonly LockSpec[] Locks =
         {
-            new(KeySlot.Linen, "毛巾库", "key-linen", "毛巾库钥匙", "备用钥匙留在更衣室的长凳上。",
+            new(KeySlot.Linen, "毛巾库", "key-linen", "毛巾库钥匙", "门缝夹着一角布条：「洗净的送更衣室。钥匙随布。」",
                 3.6f, new Vector3(-3.22f, 4.085f, 21.10f), -18, new Vector3(5, 3.6f, 5)),
-            new(KeySlot.Staff, "值班室", "key-staff", "值班室钥匙", "交班的人把钥匙留在了前台。",
+            new(KeySlot.Staff, "值班室", "key-staff", "值班室钥匙", "值班牌翻到了背面。粉笔字还在：「交班到前台签领。」",
                 7.2f, new Vector3(8.62f, .944f, 3.765f), 18),
-            new(KeySlot.Uplink, "弱电间", "key-uplink", "弱电间钥匙", "检修员带钥匙去了二楼放映室。",
+            new(KeySlot.Uplink, "弱电间", "key-uplink", "弱电间钥匙", "门上别着检修员的便条：「二楼放映，片子老是断。」",
                 7.2f, new Vector3(-6.75f, 4.344f, 2.13f), 32, new Vector3(4, 7.2f, 19))
         };
 

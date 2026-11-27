@@ -39,7 +39,7 @@ namespace AfterHours
             Vector3 motor=new(-10,-2.57f,18.92f);
             Target(motor,"安装启动件",3.2f,()=>Repair(motor,.48f,()=>{State.motorStage++;State.motorPart=false;}),()=>State.motorStage==0&&State.motorPart);
             Target(motor,"对准飞轮刻线",0,()=>OpenRepair("飞轮校准",motor,
-                new[]{"Ⅰ","Ⅱ","Ⅲ"},new[]{"机壳刻着 Ⅱ → Ⅰ → Ⅲ。先把第二道刻线推到指针下。","回到第一道刻线。","最后对齐第三道刻线。"},
+                new[]{"Ⅰ","Ⅱ","Ⅲ"},new[]{"油泥下有三个冲印：Ⅱ、Ⅰ、Ⅲ。指针停在第一道缺口前。","咔。一道齿扣住了。冲印还剩 Ⅰ、Ⅲ。","轴里只剩一道空响。最后一个冲印是 Ⅲ。"},
                 new[]{1,0,2},()=>Repair(motor,.30f,()=>State.motorStage++)),()=>State.motorStage==1);
             Target(motor,"点动发电机",4.6f,()=>Repair(motor,1.25f,()=>State.motorStage++,"switch"),()=>State.motorStage==2);
             Vector3 breaker=new(8,-2.45f,3.38f);
@@ -57,16 +57,16 @@ namespace AfterHours
 
             Vector3 network=new(12,8.38f,19.47f);
             Target(network,"检查标签，接好浴场上行线",0,()=>OpenRepair("弱电间接线",network,
-                new[]{"前台","外线","监控"},new[]{"上行插头接到写着「外线」的端口。","把浴场电话终端接回标记为「前台」的端口。"},
+                new[]{"前台","外线","监控"},new[]{"这条粗线穿墙通到街上，旧线套印着「外」。","细线从楼下电话引来，线头还缠着前台的号码签。"},
                 new[]{1,0},()=>Repair(network,.36f,()=>State.networkStage=1)),()=>State.networkStage==0);
             Target(network,"打开路由器，确认链路灯",3.6f,()=>Repair(network,.42f,()=>State.uplink=true,"signal"),()=>State.power&&State.networkStage==1&&!State.uplink);
             Vector3 terminal=new(9,1.12f,3.94f);
-            Target(terminal,"检查终端线路",0,()=>Notify("外线没有回波。维修副楼的中继机还没接好。",6),
+            Target(terminal,"检查终端线路",0,()=>Notify("拨号声到了副楼就断了。",6),
                 ()=>State.power&&State.uplink&&!State.annexRelay&&!State.contacted);
             Target(terminal,"发送街名与站牌编号",3.1f,()=>Repair(terminal,.73f,()=>
             {
                 State.contacted=true;
-                Notify("收到回执。到街道尽头翻起接应板。",7);
+                Notify("听筒里传来人声：「街尾那块反光板，翻起来我才看得见你。」",7);
             },"signal"),()=>State.power&&State.uplink&&State.annexRelay&&!State.contacted);
             Target(terminal,"请求一次补给",1.7f,()=>
             {
@@ -92,12 +92,12 @@ namespace AfterHours
             }
 
             Vector3 pole=new(160,1.20f,-14.76f);
-            Target(pole,"阅读站牌背面的应急说明",0,()=>Notify("应急接应由浴场前台终端发出。收到回执后翻开接应板。",7),()=>!State.contacted,2.3f);
+            Target(pole,"阅读站牌背面的应急说明",0,()=>Notify("站牌背面的小字：「夜班车凭反光接应板停车。未收到值守回话，请勿翻板。」",7),()=>!State.contacted,2.3f);
             Target(pole,"翻起反光接应板",1.25f,()=>Repair(pole,.95f,()=>
             {
                 State.beacon=true;
                 State.rescueTime=27;
-                Notify("接应灯已亮。救援车正在驶来。",6);
+                Notify("街的另一头，有人回了两下远光。",6);
             },"tool"),()=>State.contacted&&!State.beacon,2.3f);
             Target(new Vector3(159.2f,1.10f,-18.76f),"登上救援车",1.15f,()=>
             {

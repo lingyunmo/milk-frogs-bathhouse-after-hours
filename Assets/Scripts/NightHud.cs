@@ -100,9 +100,11 @@ namespace AfterHours
 
         void Serif(VisualElement element, string classes)
         {
-            if (!serifFont || !classes.Contains("serif")) return;
-            element.style.unityFont = serifFont;
-            element.style.unityFontDefinition = FontDefinition.FromFont(serifFont);
+            if (!classes.Contains("serif")) return;
+            var face = classes.Contains("title-brand") ? displayFont : serifFont;
+            if (!face) return;
+            element.style.unityFont = face;
+            element.style.unityFontDefinition = FontDefinition.FromFont(face);
         }
 
         Button Act(VisualElement parent, string title, Action run, string classes, string name = "")
@@ -316,7 +318,7 @@ namespace AfterHours
             var state = game.State;
             var brief = Area(veil, "pause-brief");
             Reveal(brief);
-            Type(brief, "当前目标", "overline");
+            Type(brief, "惦记的事", "overline");
             Type(brief, Objective(state), "brief-objective serif");
             Area(brief, "brief-rule");
             int explored = 0, total = 0;
@@ -529,7 +531,7 @@ namespace AfterHours
             objectiveBlock = Area(layer, "objective");
             var tagline = Area(objectiveBlock, "objective-tagline");
             Area(tagline, "objective-diamond");
-            objectiveTag = Type(tagline, "当前目标", "objective-tag");
+            objectiveTag = Type(tagline, "惦记的事", "objective-tag");
             task = Type(objectiveBlock, shownObjective, "objective-text serif");
             location = Type(objectiveBlock, "", "objective-place");
             status = Area(objectiveBlock, "danger");
@@ -641,7 +643,15 @@ namespace AfterHours
             shownArea = game.Atlas.Current?.Key ?? "";
             if (chapter == null) return;
             Copy(chapterOverline, game.State.NightLabel);
-            Copy(chapterTitle, newNight && !game.State.detained ? "打烊后" : LocationName());
+            string title = game.State.night switch
+            {
+                2 => "天暗了。",
+                3 => "街那头，看不见了。",
+                4 => "天更暗了。",
+                5 => "最后一夜。握紧手电。",
+                _ => "打烊后"
+            };
+            Copy(chapterTitle, newNight ? title : LocationName());
             UpdateArrival();
         }
 
@@ -728,7 +738,7 @@ namespace AfterHours
             Copy(task, objective);
             bool updated = now - objectiveSince < 3.2f;
             objectiveBlock.EnableInClassList("objective--updated", updated);
-            Copy(objectiveTag, state.NightLabel + (updated ? "　·　目标更新" : "　·　当前目标"));
+            Copy(objectiveTag, state.NightLabel + (updated ? "　·　目标更新" : "　·　惦记的事"));
             objectiveBlock.EnableInClassList("objective--quiet", now - Mathf.Max(objectiveSince, arrival) > 14 && !game.InPursuit);
             Copy(location, LocationName());
             Copy(mapFloor, NightAtlas.FloorNames[game.Atlas.Floor]);
@@ -811,19 +821,19 @@ namespace AfterHours
 
         static string Objective(NightState state)
         {
-            if (state.detained) return "拨开门上的卡簧锁";
-            if (state.rescueTime == 0) return "从车侧登车";
-            if (state.beacon) return "等待救援车";
-            if (state.contacted) return "去街尾翻起接应板";
-            if (!state.torch) return "在更衣室找手电";
+            if (state.detained) return "门闩另一边有道弹簧响";
+            if (state.rescueTime == 0) return "车门还开着";
+            if (state.beacon) return "远处有引擎声";
+            if (state.contacted) return "司机看得见街尾的反光板吗？";
+            if (!state.torch) return "更衣凳旁，有一圈金属反光";
             if (!state.power && state.motorStage == 0 && !state.motorPart && !state.collected.Contains("receipt"))
-                return "查看前台的故障单";
-            if (!state.power) return "恢复浴场供电";
-            if (!state.annexIsolated) return "去副楼二楼隔离受潮线路";
-            if (!state.collected.Contains(NightGame.AnnexDiagramId) && !state.annexRelay) return "找留档室的外线接线图";
-            if (!state.annexRelay) return "接通副楼三楼的中继机";
-            if (!state.uplink) return "接通三楼弱电间，或到街外值守点";
-            return "到前台或街外值守点求援";
+                return "前台还摊着昨晚的交班簿";
+            if (!state.power) return "地下的机器没了动静";
+            if (!state.annexIsolated) return "副楼二层有股焦糊味";
+            if (!state.collected.Contains(NightGame.AnnexDiagramId) && !state.annexRelay) return "缺的那张图，会归在哪一档？";
+            if (!state.annexRelay) return "副楼三层，机柜还空着一排端子";
+            if (!state.uplink) return "楼上的电话线通向街口";
+            return "听筒里终于有了长音";
         }
 
         void Resume() => game.SetScreen(NightScreen.Play);

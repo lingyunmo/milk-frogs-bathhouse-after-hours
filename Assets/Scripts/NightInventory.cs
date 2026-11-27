@@ -45,29 +45,29 @@ namespace AfterHours
                     string status = State.charge <= 0 ? "电量耗尽" :
                         (Player.TorchOn ? "亮着" : "已关闭") + " · " + Mathf.CeilToInt(charge * 100) + "%";
                     yield return new NightInventoryItem(NightItemId.Torch, "手电筒", "物资",
-                        "更衣凳上留下的旧手电。只在开灯时耗电。", status: status,
+                        "筒身刻了个「更」字。拇指搭上开关，正好落进前一个人磨出的凹痕。", status: status,
                         actionLabel: Player.TorchOn ? "关灯" : "开灯", canUse: State.charge > 0 || Player.TorchOn);
                 }
                 if (State.cells > 0)
                 {
                     string reason = BatteryBlockedReason();
                     yield return new NightInventoryItem(NightItemId.Battery, "备用电池", "物资",
-                        "换上一节，手电可再亮约 6 分钟。", count: State.cells,
+                        "纸皮有点潮，两头的铜帽还亮着。", count: State.cells,
                         status: reason ?? "可换电", actionLabel: "更换电池", canUse: reason == null);
                 }
                 if (State.stones > 0)
                     yield return new NightInventoryItem(NightItemId.Stone, "石子", "物资",
-                        "往空处投掷，奶娃会听见落地声。", count: State.stones, status: "G 投掷");
+                        "三两步外是瓷砖，再远是铁皮。同一颗石子，落下去是两种动静。", count: State.stones, status: "G 投掷");
                 if (State.motorPart)
                     yield return new NightInventoryItem(NightItemId.Starter, "发电机启动件", "维修",
-                        "装进地下设备层的发电机。");
+                        "齿口沾着黑油。转半圈便咬住，松手又弹回来。");
                 if (State.seal)
                     yield return new NightInventoryItem(NightItemId.Seal, "回水密封圈", "维修",
-                        "关掉盥洗室的进水阀，再换上密封圈。");
+                        "拇指大的黑胶圈，边缘压着一圈白色水垢。旧的那只大概早就硬了。");
                 if (State.collected.Contains(NightStreetRelay.FuseId) &&
                     !State.collected.Contains(NightStreetRelay.SeatedId))
                     yield return new NightInventoryItem(NightItemId.RelayFuse, "备用保险管", "维修",
-                        "后场检修棚拾得。街对面值守点的转接机正缺这支保险管。");
+                        "瓷管两头包铜，细丝还连着。纸套上有枚蓝章：「街口值守」。");
                 foreach (var key in NightKeyDoors.Locks)
                 {
                     if (!State.collected.Contains(key.KeyId)) continue;
@@ -78,12 +78,17 @@ namespace AfterHours
                         _ => NightItemId.UplinkKey
                     };
                     yield return new NightInventoryItem(itemId, key.KeyName, "钥匙",
-                        "开" + key.Room + "的门。对准门锁按 F。",
+                        key.Slot switch
+                        {
+                            NightKeyDoors.KeySlot.Linen => "匙圈上系着一截毛巾边。白线漂洗得发脆。",
+                            NightKeyDoors.KeySlot.Staff => "铝牌有两面。正面刻着「值班」，背面有人拿钉子划了个「早」。",
+                            _ => "窄齿磨得很亮，电工胶布裹着匙柄。揭开一角，底下写着「弱电」。"
+                        },
                         status: NightKeyDoors.IsUnlocked(key, State) ? "已开锁" : "");
                 }
                 if (State.collected.Contains(FaultNoteId))
                     yield return new NightInventoryItem(NightItemId.Receipt, "夜班故障单", "记录",
-                        "地下设备层负责供电。维修副楼的旁路还没接好，机修间和留档室都有线索。接通外线后，可回前台或去街外值守点求援。",
+                        "交班簿末页，老许的字。「楼底那台停了，电话也跟着哑。副楼又进水。图还在老地方，别拿来垫茶缸。要是前台没人，街口也有人守线。」",
                         status: "前台 · 夜班记录");
                 if (State.collected.Contains(AnnexDiagramId))
                     yield return new NightInventoryItem(NightItemId.AnnexDiagram, "外线接线图", "记录",
@@ -106,12 +111,12 @@ namespace AfterHours
         {
             if (!State.torch)
             {
-                Notify("先从更衣凳取手电。");
+                Notify("手里是空的。");
                 return false;
             }
             if (!Player.TorchOn && State.charge <= 0)
             {
-                Notify("手电没电了。按 R 换电。");
+                Notify("开关响了，灯没亮。");
                 return false;
             }
             Player.SetTorch(!Player.TorchOn);
@@ -131,7 +136,7 @@ namespace AfterHours
             State.cells--;
             Player.SetTorch(false);
             PlayHandheld("pickup", .38f);
-            Notify($"已换电池。按 {TorchKey} 开手电。");
+            Notify("尾盖拧紧了。");
             return true;
         }
 

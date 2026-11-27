@@ -10,6 +10,8 @@ Shader "AfterHours/WornArchitecture"
         _MetallicGlossMap ("Metal · AO · Smoothness", 2D) = "white" {}
         _GlossMapScale ("Smoothness Scale", Range(0,1)) = 1
         _StainTex ("Wear Detail", 2D) = "gray" {}
+        _HeightMap ("Scanned relief", 2D) = "gray" {}
+        _WallDepth ("Wall relief in UV units", Float) = 0
         _GrainNormal ("Scanned Detail Normal", 2D) = "bump" {}
         _Rain ("Outdoor wet asphalt", Float) = 0
         _Wear ("Weather · Damp · Wetness · Grain", Vector) = (.35,0,0,.28)
@@ -24,11 +26,13 @@ Shader "AfterHours/WornArchitecture"
         CGPROGRAM
         #pragma surface Surf Standard fullforwardshadows addshadow
         #pragma target 4.0
+        #pragma multi_compile_local __ WALL_RELIEF
         #include "UnityStandardUtils.cginc"
 
         sampler2D _MainTex, _BumpMap, _MetallicGlossMap, _StainTex, _GrainNormal;
         #include "NightIndirect.cginc"
-        sampler2D _BathWater;
+        sampler2D _BathWater, _HeightMap;
+        float _WallDepth;
         float4x4 _BathWaterProjection;
         float _BathWaterPlane;
         half _Rain;
@@ -41,6 +45,9 @@ Shader "AfterHours/WornArchitecture"
             float2 uv_MainTex;
             float3 worldPos;
             float3 worldNormal;
+            #ifdef WALL_RELIEF
+                float3 viewDir;
+            #endif
             INTERNAL_DATA
         };
 
@@ -55,6 +62,32 @@ Shader "AfterHours/WornArchitecture"
         void Surf(Input IN, inout SurfaceOutputStandard O)
         {
             float2 uv = IN.uv_MainTex;
+            half recess = 0;
+            #ifdef WALL_RELIEF
+                float strength = _WallDepth * (1 - smoothstep(5, 12, distance(_WorldSpaceCameraPos, IN.worldPos)));
+                float upright = abs(WorldNormalVector(IN, half3(0,0,1)).y);
+                float2 dx = ddx(uv), dy = ddy(uv);
+                if (strength > .0001 && upright < .55)
+                {
+                    float3 eye = normalize(IN.viewDir);
+                    float2 stride = eye.xy * (strength / max(.32, abs(eye.z))) / 6;
+                    float2 sampleUV = uv;
+                    float above = 1 - tex2Dgrad(_HeightMap, sampleUV, dx, dy).r;
+                    [unroll] for (int i = 1; i <= 6; ++i)
+                    {
+                        sampleUV -= stride;
+                        float below = 1 - tex2Dgrad(_HeightMap, sampleUV, dx, dy).r - i / 6.0;
+                        if (below <= 0)
+                        {
+                            uv = sampleUV + stride * saturate(-below / max(.0001, above - below));
+                            break;
+                        }
+                        above = below;
+                    }
+                    half h = tex2Dgrad(_HeightMap, uv, dx, dy).r;
+                    recess = (1 - smoothstep(.18, .52, h)) * saturate(strength / .008);
+                }
+            #endif
             half4 baseColor = tex2D(_MainTex, uv);
             half4 finish = tex2D(_MetallicGlossMap, uv);
 
@@ -106,7 +139,7 @@ Shader "AfterHours/WornArchitecture"
                 _Wear.w * (1 - .77 * standing));
             O.Normal = BlendNormals(coarseNormal, grainNormal);
             O.Metallic = min(finish.r, .16);
-            O.Occlusion = lerp(.69, 1, finish.g) * (1 - .29 * edge - .15 * damp);
+            O.Occlusion = (1 - .42 * recess) * lerp(.69, 1, finish.g) * (1 - .29 * edge - .15 * damp);
             half matte = finish.a * _GlossMapScale * (1 - .45 * grime) + _Wear.z * (.3 * islands + .5 * damp);
             O.Smoothness = saturate(lerp(matte, .81, standing * .76));
             O.Smoothness = lerp(O.Smoothness, .94, standing * standing);

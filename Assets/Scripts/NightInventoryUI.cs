@@ -65,7 +65,6 @@ namespace AfterHours
                 selectedItem = null;
                 var empty = Area(inventoryGrid, "inventory-empty");
                 Type(empty, showNotes ? "还没有找到线索。" : "背包是空的。", "inventory-empty-text serif");
-                Type(empty, showNotes ? "前台电话旁留着夜班故障单。" : "更衣室的长凳上放着一支手电。", "inventory-empty-hint");
                 return;
             }
 
@@ -118,7 +117,7 @@ namespace AfterHours
             Type(details, item.Name, "inspection-title serif");
             if (!string.IsNullOrEmpty(item.Status)) Type(details, item.Status, "inspection-status");
             Area(details, "inspection-rule");
-            Type(details, item.Description, "inspection-copy");
+            Type(details, item.Description, "inspection-copy serif");
             if (string.IsNullOrEmpty(item.ActionLabel)) return;
 
             var action = Act(details, item.ActionLabel, () =>
