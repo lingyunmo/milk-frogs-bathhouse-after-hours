@@ -12,7 +12,7 @@ namespace AfterHours
         readonly UIDocument document;
         readonly PanelSettings settings;
         readonly Font serifFont, displayFont;
-        readonly Texture2D titleImage;
+        readonly Texture2D titlePoster, titleImage;
         readonly VisualElement root;
         const string InterfaceFolder = "Interface/";
         static readonly int[] FloorOrder = { NightAtlas.Street, 3, 2, 1, 0 };
@@ -62,6 +62,7 @@ namespace AfterHours
             root.style.unityFontDefinition = FontDefinition.FromFont(font);
             serifFont = Resources.Load<Font>("Typeface/AfterHoursSerif");
             displayFont = Resources.Load<Font>(InterfaceFolder + "TitleTypeface");
+            titlePoster = Resources.Load<Texture2D>(InterfaceFolder + "AfterHoursTitle");
             titleImage = Resources.Load<Texture2D>(InterfaceFolder + "AfterHoursCorridor");
             root.AddToClassList("after-hours");
             root.pickingMode = PickingMode.Ignore;
