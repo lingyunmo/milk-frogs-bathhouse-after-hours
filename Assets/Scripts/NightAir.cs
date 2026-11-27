@@ -92,8 +92,9 @@ namespace AfterHours
                 spill.transform.position = center + new Vector3(facing * .25f, -.22f, 0);
                 spill.type = LightType.Point;
                 spill.color = new Color(.30f, 1f, .56f);
-                spill.range = 3.3f;
-                spill.intensity = .42f;
+                bool thirdFloor = floor == NightAnnexLayout.Upper;
+                spill.range = thirdFloor ? 2.65f : 3.3f;
+                spill.intensity = thirdFloor ? .27f : .42f;
                 spill.shadows = LightShadows.None;
             }
         }
