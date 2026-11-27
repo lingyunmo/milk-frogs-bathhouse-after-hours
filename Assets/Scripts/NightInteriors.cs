@@ -24,24 +24,30 @@ namespace AfterHours
         static Material Pbr(string name, string color, string normal, string finish, Color tint, float shine,
             bool ao = false, Shader shader = null)
         {
+            if (!shader) shader = Resources.Load<Shader>("NightProp");
             var material = shader ? new Material(shader) { color = tint } : Material(tint);
             material.name = name;
             material.mainTexture = Resources.Load<Texture2D>(color);
-            var bump = Resources.Load<Texture2D>(normal);
+            var bump = string.IsNullOrEmpty(normal) ? null : Resources.Load<Texture2D>(normal);
             if (bump)
             {
                 material.SetTexture("_BumpMap", bump);
                 material.SetFloat("_BumpScale", .70f);
                 material.EnableKeyword("_NORMALMAP");
             }
-            var packed = Resources.Load<Texture2D>(finish);
+            var packed = string.IsNullOrEmpty(finish) ? null : Resources.Load<Texture2D>(finish);
             material.SetFloat("_Glossiness", shine);
             if (packed)
             {
                 material.SetTexture("_MetallicGlossMap", packed);
                 material.SetFloat("_GlossMapScale", 1);
                 material.EnableKeyword("_METALLICGLOSSMAP");
-                if (ao) material.SetTexture("_OcclusionMap", packed);
+                if (material.HasProperty("_UseFinish"))
+                {
+                    material.SetFloat("_UseFinish", 1);
+                    material.SetFloat("_UseAO", ao ? 1 : 0);
+                }
+                if (ao && material.HasProperty("_OcclusionMap")) material.SetTexture("_OcclusionMap", packed);
             }
             return material;
         }
@@ -72,6 +78,7 @@ namespace AfterHours
             }
 
             plaster = Photographed("磨损水泥", "Cement", new Color(.69f, .69f, .65f), .96f, .58f, new(.57f, 0, .03f));
+            ceiling = Photographed("水泥顶棚", "Cement", new Color(.66f,.69f,.68f), .58f, .32f, new(.18f,0,0));
             paint = Worn("剥落灰泥", "Finishes/PaintColor", "Finishes/PaintNormal", "Finishes/PaintFinish",
                 new Color(.60f, .63f, .58f), .95f, .48f, new(.76f, .88f, .04f));
             glazed = Photographed("返潮釉面小砖", "Ceramic", new Color(.50f, .67f, .62f), 1.12f, .84f, new(.52f, .78f, .20f));
@@ -80,7 +87,9 @@ namespace AfterHours
             terrazzo = Photographed("更衣区磨石地坪", "Terrazzo", new Color(.69f, .72f, .67f), .94f, .66f, new(.47f, 0, .08f));
             planks = Worn("磨损旧木地板", "Finishes/WoodColor", "Finishes/WoodNormal", "Finishes/WoodFinish",
                 new Color(.61f, .53f, .44f), .82f, .51f, new(.65f, 0, 0));
-            asphalt = Pbr("湿柏油", "Surfaces/Asphalt017", "Finishes/RoadNormal", "Finishes/RoadFinish", new Color(.54f, .59f, .60f), .43f);
+            asphalt = Worn("湿柏油", "Surfaces/Asphalt017", "Finishes/RoadNormal", "Finishes/RoadFinish",
+                new Color(.65f, .69f, .72f), .88f, .67f, new(.46f, 0, .18f));
+            asphalt.SetFloat("_Rain", 1);
             steel = Material(new Color(.27f, .32f, .31f));
             steel.SetFloat("_Metallic", .35f);
             steel.SetFloat("_Glossiness", .34f);
@@ -88,7 +97,7 @@ namespace AfterHours
         }
 
         // World-sized UVs keep grout and wood grain consistent across wall segments and pieces of floor.
-        static void Surface(GameObject obj, Material material, float metres, bool keepBelowFloor = false, bool floor = false)
+        void Surface(GameObject obj, Material material, float metres, bool keepBelowFloor = false, bool floor = false)
         {
             var filter = obj.GetComponent<MeshFilter>();
             if (!filter) return;
@@ -119,20 +128,48 @@ namespace AfterHours
                 var bounds = renderer.bounds;
                 var properties = new MaterialPropertyBlock();
                 properties.SetVector("_FloorBounds", new Vector4(bounds.center.x, bounds.center.z, bounds.extents.x, bounds.extents.z));
+                void Pool(string slot, Vector4 patch)
+                {
+                    properties.SetVector(slot, patch);
+                    water.AddPool(new Bounds(new Vector3(patch.x, bounds.max.y, patch.y),
+                        new Vector3(patch.z * 2, .04f, patch.w * 2)));
+                }
+                if (material == asphalt)
+                    water.AddPool(new Bounds(new Vector3(bounds.center.x, bounds.max.y, bounds.center.z),
+                        new Vector3(bounds.size.x, .04f, bounds.size.z)));
                 if (obj.name == "横廊")
                 {
                     if (bounds.center.y < -.2f)
                     {
-                        properties.SetVector("_WetSourceA", new Vector4(-6.80f, 12.80f, 2.24f, .93f));
-                        properties.SetVector("_WetSourceB", new Vector4(2.10f, 13.03f, 1.96f, .88f));
+                        Pool("_WetSourceA", new Vector4(-6.80f, 12.80f, 2.24f, .93f));
+                        Pool("_WetSourceB", new Vector4(2.10f, 13.03f, 1.96f, .88f));
                     }
                     else if (bounds.center.y < 1f)
-                        properties.SetVector("_WetSourceA", new Vector4(6.46f, 12.50f, 1.39f, .79f));
+                        Pool("_WetSourceA", new Vector4(6.46f, 12.50f, 1.39f, .79f));
                 }
                 else if (obj.transform.parent && obj.transform.parent.name == "淋浴间")
                 {
-                    properties.SetVector("_WetSourceA", new Vector4(9.03f, 21.64f, 1.92f, 1.24f));
-                    properties.SetVector("_WetSourceB", new Vector4(13.9f, 19.95f, 1.52f, 2.09f));
+                    Pool("_WetSourceA", new Vector4(9.03f, 21.64f, 1.92f, 1.24f));
+                    Pool("_WetSourceB", new Vector4(13.9f, 19.95f, 1.52f, 2.09f));
+                }
+                else if (obj.name == "南翼连续地坪" && material != planks)
+                {
+                    if (bounds.max.y < -1)
+                        Pool("_WetSourceA", new Vector4(-11.2f,-9.9f,2.9f,.97f));
+                    else if (bounds.max.y < 1)
+                        Pool("_WetSourceA", new Vector4(.22f,-11.8f,2.2f,1.36f));
+                    else
+                        Pool("_WetSourceA", new Vector4(7.9f,-1.3f,1.46f,.72f));
+                }
+                else if (obj.name == "东连廊地坪")
+                    Pool("_WetSourceA", new Vector4(20.7f,13.23f,1.64f,.48f));
+                else if (obj.name == "副楼地坪" && material != planks)
+                    Pool("_WetSourceA", new Vector4(28.5f,6.6f,1.78f,.86f));
+                else if (material == tiles || obj.transform.parent.name is "停车棚泵房" or "街尾维修站")
+                {
+                    var c = bounds.center;
+                    Pool("_WetSourceA", new Vector4(c.x - bounds.extents.x*.52f,c.z + bounds.extents.z*.49f,
+                        Mathf.Min(2.4f,bounds.extents.x*.64f), Mathf.Min(1.3f,bounds.extents.z*.46f)));
                 }
                 renderer.SetPropertyBlock(properties);
             }
@@ -190,7 +227,7 @@ namespace AfterHours
                         }
                         break;
                     case "柏油":
-                        Surface(obj,asphalt,3.6f);
+                        Surface(obj,asphalt,3.6f, floor: true);
                         break;
                     case "楼梯及平台":
                         Surface(obj,plaster,1.45f);
@@ -221,6 +258,11 @@ namespace AfterHours
                     materials[i]=Pbr(m.name,folder+m.color,folder+m.normal,folder+m.arm,tint,
                         m.tint==null?.34f:1-m.rough,true);
                     if (!packed) materials[i].SetFloat("_Metallic", m.metal);
+                    if (packed && asset is ("noodle-shop" or "corner-shop-block" or "mixed-tenant-block" or "public-housing-slab"))
+                    {
+                        materials[i].SetTexture("_FacadePatina", Resources.Load<Texture2D>(NightFinish + "CementColor"));
+                        materials[i].EnableKeyword("_FACADE_WEATHER");
+                    }
                     if (asset is "locker-room-tall-lockers" or "metal_office_desk")
                     {
                         var paintedMetal = materials[i];

@@ -85,6 +85,7 @@ namespace AfterHours
                 if (index == 0) OpenMainRingPassage(original, level, height, false, -20, 12);
                 RingShell(level, index, height);
                 FurnishMainRing(level, index, height);
+                FinishRingGallery(level, index, height);
             }
 
             foreach (var (id, target, _) in NightMainRing.Batteries)
@@ -127,8 +128,10 @@ namespace AfterHours
             Material partitions = index switch { 0 => glazed, 1 => paint, 2 => glazed, _ => paint };
             AnnexDeck(level, bounds, height, "南翼连续地坪", paving);
             AnnexRoof(level, bounds, height, "南翼顶板", ceiling);
-            RingWall(level, true, NightMainRing.Front, index == 0 ? -24 : bounds.xMin, bounds.xMax,
-                height, brick, index == 1 ? 0 : null);
+            if (index == 0)
+                RingWall(level,true,NightMainRing.Front,-24,bounds.xMax,height,brick);
+            else
+                BuildStreetElevation(level,index,height);
             RingWall(level, false, bounds.xMax, bounds.yMin, 0, height, brick);
             if (index != 0)
                 RingWall(level, false, bounds.xMin, bounds.yMin, 0, height, brick);
@@ -288,6 +291,15 @@ namespace AfterHours
                             new Vector3(2.04f, 1.82f, .61f), -90);
                     Add("painted_wooden_chair_02", "员工木椅", zone.xMin + 2.24f, -8.09f,
                         new Vector3(.55f, .86f, .56f), 15);
+                }
+                if (index == 2)
+                {
+                    var mounted = new Vector3(zone.xMin+.15f, height+1.70f, -7.78f);
+                    var sconce = Prop("industrial_wall_sconce","理疗床阅读灯",mounted,new(.18f,.34f,.21f),90,false);
+                    sconce.transform.SetParent(level,true);
+                    LightSconce(sconce,.55f);
+                    Fixture(mounted+new Vector3(.20f,.12f,0),new(.45f,-.65f,.61f),
+                        new(.99f,.71f,.43f),1.18f,5.8f,112,.009f);
                 }
                 Fixture(new Vector3(x + 1.7f, height + 2.74f, -5.7f),
                     new Vector3(-.36f, -1, -.34f), lampTint, .59f, 4.7f, 112, .004f);

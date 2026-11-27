@@ -13,12 +13,14 @@ Shader "AfterHours/OralLining"
         Cull Off
         CGPROGRAM
         #pragma surface Surf Standard fullforwardshadows addshadow
-        #pragma target 3.0
+        #pragma target 4.0
+        #include "NightIndirect.cginc"
         sampler2D _MainTex;
         fixed4 _Color;
         half _Glossiness, _DepthTint;
         struct Input
         {
+            float3 worldPos;
             float2 uv_MainTex;
             float2 uv2_MainTex;
             float side : VFACE;
@@ -29,6 +31,7 @@ Shader "AfterHours/OralLining"
             O.Albedo = tex2D(_MainTex, IN.uv_MainTex).rgb * _Color.rgb * lerp(.84, .19, depth);
             O.Smoothness = _Glossiness * lerp(1,.35,depth);
             O.Normal = float3(0,0,IN.side > 0 ? 1 : -1);
+            O.Emission = O.Albedo * NightBounce(IN.worldPos);
             O.Alpha = 1;
         }
         ENDCG

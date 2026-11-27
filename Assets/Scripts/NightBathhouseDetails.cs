@@ -22,7 +22,7 @@ namespace AfterHours
             Surface(canopy,plaster,1.5f);
             var entranceTrim=Box("门头石线",new Vector3(0,2.54f,front-.17f),new Vector3(2.45f,.22f,.20f),plaster);
             Surface(entranceTrim,plaster,1.25f);
-            WallSign("奶娃浴场",new Vector3(0,3.57f,front-.19f),0,new Vector2(5.2f,.54f),.31f);
+            EnamelSign("奶娃浴场", 0, new Vector3(0,3.65f,front-.19f), 0, new Vector2(5.18f,.87f));
             WallSign("已打烊",new Vector3(1.50f,1.40f,front-.16f),0,new Vector2(.75f,.31f),.116f);
             WallSign("营业登记",new Vector3(8.95f,2.08f,1.12f),180,new Vector2(1.61f,.35f),.143f);
             WallSign("水疗区",new Vector3(5.63f,2.02f,23.88f),0,new Vector2(1.15f,.30f),.116f);
@@ -34,9 +34,9 @@ namespace AfterHours
             Prop("metal_trash_can","上客站垃圾桶",new Vector3(102.9f,0,-8.4f),new Vector3(.52f,.83f,.52f),17);
             Prop("potted_plant_01","前台盆栽",new Vector3(-1.57f,0,3.3f),new Vector3(.82f,1.22f,.77f),-13);
             foreach(float floor in new[]{3.6f,7.2f})
-            foreach(float x in new[]{-14.5f,-8.1f,6.7f,9.8f})
-                Prop("rollershutter_window_01","已降下的外窗卷帘",new Vector3(x,floor+1.05f,-12.945f),
-                    new Vector3(1.57f,1.42f,.18f),180,false);
+            foreach(float x in new[]{-16.4f,9.55f})
+                Prop("rollershutter_window_01","已降下的外窗卷帘",new Vector3(x,floor+1.93f,-12.945f),
+                    new Vector3(2.25f,.77f,.18f),180,false);
             Fixture(new Vector3(.0f,4.36f,front-.88f),new Vector3(0,-1,.65f),new Color(1,.73f,.45f),2.7f,6,104);
             Fixture(new Vector3(-9.7f,2.4f,2.25f),new Vector3(-.23f,-1,-.49f),new Color(.98f,.78f,.55f),1.85f,4,90);
             Fixture(new Vector3(101,2.23f,-9.04f),new Vector3(0,-1,.42f),new Color(.79f,.88f,1),1.9f,6,109);
@@ -50,6 +50,27 @@ namespace AfterHours
                 var plinth = Box("路肩石台", new Vector3(x,.22f,-33), new Vector3(25,.44f,1.4f),plaster);
                 Surface(plinth, plaster, 2.7f);
             }
+        }
+
+        // The four painted fascias occupy separate measured strips of the same original scan.
+        void EnamelSign(string name, int strip, Vector3 center, float yaw, Vector2 size)
+        {
+            var rotation = Quaternion.Euler(0, yaw, 0);
+            var mounting = Box(name + "招牌底座", center, new Vector3(size.x+.034f,size.y+.034f,.085f), steel);
+            mounting.transform.rotation = rotation;
+            mounting.GetComponent<Collider>().enabled = false;
+            var face = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            face.name = name + "旧搪瓷";
+            face.transform.SetParent(root, false);
+            face.transform.SetPositionAndRotation(center + rotation * Vector3.back * .045f, rotation);
+            face.transform.localScale = new Vector3(size.x,size.y,1);
+            face.GetComponent<Collider>().enabled = false;
+            var enamel = Pbr(name, "Surfaces/ShiqiaoEnamel", null, null, Color.white, .58f);
+            float[] boundaries = { 1f, .747f, .492f, .249f, 0f };
+            float lower = boundaries[strip+1], upper = boundaries[strip];
+            enamel.mainTextureScale = new Vector2(.996f, upper-lower-.004f);
+            enamel.mainTextureOffset = new Vector2(.002f, lower+.002f);
+            face.GetComponent<Renderer>().sharedMaterial = enamel;
         }
 
         void WallSign(string words,Vector3 center,float yaw, Vector2 size,float letters)

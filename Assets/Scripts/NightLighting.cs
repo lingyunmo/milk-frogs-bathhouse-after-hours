@@ -12,7 +12,7 @@ namespace AfterHours
         const float TubeBloom = 3.1f;
         readonly List<(Light Lamp, Renderer Diffuser, float Intensity, float Delay, float Glow)> circuits = new();
         readonly MaterialPropertyBlock tubeResponse = new();
-        Material litDiffuser, practicalBulb;
+        Material litDiffuser, practicalBulb, nightSky;
         Coroutine powerRestoration;
         static Texture2D practicalProfile;
         NightState restoringState;
@@ -27,7 +27,7 @@ namespace AfterHours
             moon.color = new Color(.63f, .73f, .85f);
             moon.shadows = LightShadows.Soft;
             moon.shadowStrength = .97f;
-            moon.shadowBias = .12f;
+            moon.shadowBias = .07f;
             moon.shadowNormalBias = .42f;
             QualitySettings.pixelLightCount = 8;
             QualitySettings.shadowDistance = 42;
@@ -40,12 +40,20 @@ namespace AfterHours
             // Rooms carry their own box-projected reflections. The sky fallback only reaches the street.
             RenderSettings.reflectionIntensity = .07f;
             RenderSettings.fog = true;
-            RenderSettings.fogColor = new Color(.027f, .043f, .064f);
+            RenderSettings.fogColor = new Color(.098f, .131f, .161f);
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogDensity = .012f;
+            RenderSettings.fogDensity = .0135f;
 
             var camera = Camera.main;
-            camera.clearFlags = CameraClearFlags.SolidColor;
+            var skyShader = Resources.Load<Shader>("NightSky");
+            var clouds = Resources.Load<Texture2D>("Surfaces/OvercastSky");
+            if (skyShader && clouds)
+            {
+                nightSky = new Material(skyShader) { mainTexture = clouds, name = "Stonebridge after midnight" };
+                RenderSettings.skybox = nightSky;
+            }
+            camera.clearFlags = RenderSettings.skybox ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
+            water = camera.gameObject.AddComponent<NightWetReflections>();
             camera.backgroundColor = RenderSettings.fogColor;
             camera.allowHDR = true;
             camera.gameObject.AddComponent<NightCameraGrade>();
@@ -182,6 +190,7 @@ namespace AfterHours
             const float end = .9f;
             for (float elapsed = 0; elapsed < end; elapsed += Time.deltaTime)
             {
+                Shader.SetGlobalFloat("_NightCircuit", Mathf.SmoothStep(0, 1, elapsed / end));
                 foreach (var entry in circuits)
                 {
                     float rise = Mathf.SmoothStep(0, 1, Mathf.Clamp01((elapsed - entry.Delay) / TubeRiseSeconds));
@@ -217,6 +226,7 @@ namespace AfterHours
                 entry.Diffuser.SetPropertyBlock(power ? tubeResponse : null);
             }
 
+            Shader.SetGlobalFloat("_NightCircuit", power ? 1f : 0f);
             // Reflections were shot under the other lighting state. Re-shoot them a few faces a frame.
             if (capturedPower.HasValue && capturedPower != power) atmosphere?.CaptureReflections(false);
             if (capturedPower.HasValue) capturedPower = power;
@@ -234,10 +244,12 @@ namespace AfterHours
             bool basement = position.y < 0;
             bool wet = room is "大浴池" or "淋浴间" or "盥洗室" or "循环泵房" or "洗衣房";
             bool restored = room is "门厅" or "前台室" or "发电机房" or "循环泵房" or "配电间" or "弱电间";
-            if (restored)
+            bool occupied = room is "茶座" or "大浴池" or "盥洗室" or "宿舍" or "更衣室" or "沙发厅" or "淋浴间";
+            if (restored || occupied)
             {
                 var tint = basement ? new Color(.87f, .78f, .63f) : new Color(.72f, .86f, .80f);
-                AddMainsLight(position, tint, 1.20f, 6.15f);
+                if (occupied) tint = wet ? new Color(.67f,.85f,.86f) : new Color(.94f,.79f,.59f);
+                AddMainsLight(position, tint, restored ? 1.20f : .82f, 6.15f);
             }
             else
             {

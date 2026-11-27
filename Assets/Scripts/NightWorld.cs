@@ -20,8 +20,10 @@ namespace AfterHours
         internal GameObject Crate, Rescue;
         readonly List<(string id,GameObject model)> pickups=new();
         readonly NightGame game;
-        readonly Material wood, brass, olive, red, ceiling;
+        readonly Material wood, brass, olive, red;
+        Material ceiling;
         readonly Transform root;
+        NightWetReflections water;
         Font signFont;
         Material signInk;
         internal NightWorld(NightGame game)
@@ -32,9 +34,6 @@ namespace AfterHours
             brass=Material(new Color(.55f,.36f,.12f));
             olive=Material(new Color(.30f,.43f,.28f));
             red=Material(new Color(.45f,.10f,.07f));
-            ceiling=Material(new Color(.32f,.34f,.34f));
-            ceiling.mainTexture=Resources.Load<Texture2D>("Surfaces/Concrete034");
-            ceiling.mainTextureScale=new Vector2(4,4);
             signFont=Resources.Load<Font>("Typeface/AfterHours");
             signInk=new Material(Resources.Load<Shader>("DepthLabel"));
             RefreshSignAtlas(signFont);
@@ -137,6 +136,8 @@ namespace AfterHours
             game.Player.AttachHeldTorch(HeldFlashlight());
             atmosphere.FollowTorch(game.Player.Eyes,game.Player.Beam);
             Physics.SyncTransforms();
+            atmosphere.CaptureLampOcclusion();
+            root.gameObject.AddComponent<NightIndirectLight>().Capture(root);
         }
 
         void AddCeiling(Transform slab,bool topFloor)
@@ -186,6 +187,8 @@ namespace AfterHours
         internal void Dispose()
         {
             Font.textureRebuilt-=RefreshSignAtlas;
+            if (nightSky && RenderSettings.skybox == nightSky) RenderSettings.skybox = null;
+            if (nightSky) Object.Destroy(nightSky);
         }
 
         void AddDoor(string name, Vector3 p, bool fire = false, Vector3? sideInward = null,

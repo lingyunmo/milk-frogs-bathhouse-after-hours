@@ -159,7 +159,7 @@ namespace AfterHours
             }
             bool high = QualitySettings.GetQualityLevel() >= 3;
             grade.SetVector(GradeSettings, new Vector4(1.85f * exposure, 1.03f, .94f, grain && high ? .042f : 0));
-            grade.SetVector(LensSettings, new Vector4(.42f + .16f * fear, .0016f + .0058f * fear + .012f * shock, fear, shock));
+            grade.SetVector(LensSettings, new Vector4(.24f + .20f * fear, .0016f + .0058f * fear + .012f * shock, fear, shock));
             grade.SetTexture(LensDirtTexture, lensDirt);
             var bloom = Bloom(glow && high);
             grade.SetTexture(BloomTexture, bloom ? bloom : Texture2D.blackTexture);

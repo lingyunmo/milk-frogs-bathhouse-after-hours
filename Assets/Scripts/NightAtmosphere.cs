@@ -31,7 +31,7 @@ namespace AfterHours
         readonly List<(ReflectionProbe Probe, RenderTexture Cube)> probes = new();
         Material shaftMaterial, moteMaterial, steamMaterial;
         Mesh cone;
-        Texture2D puff;
+        Texture2D puff, lampDepth;
         Camera capture;
         Light torch;
         int nextProbe = -1, nextFace;
@@ -81,6 +81,44 @@ namespace AfterHours
             shafts.Add(new Shaft { Lamp = lamp, Cone = renderer, Density = density });
         }
 
+        // Static angular depth for dusty air. The normal dynamic light still shadows moving actors.
+        internal void CaptureLampOcclusion()
+        {
+            if (shafts.Count == 0) return;
+            const int tile = 16;
+            int columns = Mathf.CeilToInt(Mathf.Sqrt(shafts.Count));
+            int rows = Mathf.CeilToInt(shafts.Count / (float)columns);
+            int width = columns * tile, height = rows * tile;
+            var pixels = new Color32[width * height];
+            for (int i = 0; i < shafts.Count; i++)
+            {
+                var shaft = shafts[i];
+                var beam = shaft.Cone.transform;
+                int left = (i % columns) * tile, bottom = (i / columns) * tile;
+                for (int y = 0; y < tile; y++)
+                for (int x = 0; x < tile; x++)
+                {
+                    var local = new Vector3(2f*x/(tile-1)-1, 2f*y/(tile-1)-1, 1);
+                    var ray = beam.TransformVector(local);
+                    float length = ray.magnitude;
+                    var direction = ray / length;
+                    byte depth = 255;
+                    if (Physics.Raycast(beam.position + direction * .085f, direction, out var hit,
+                            length - .085f, 1, QueryTriggerInteraction.Ignore))
+                        depth = (byte)Mathf.Clamp(Mathf.RoundToInt(255*(hit.distance+.085f)/length),0,255);
+                    pixels[(bottom+y)*width+left+x] = new Color32(depth,depth,depth,255);
+                }
+                shaft.Block.SetVector("_ShadowTile", new Vector4((left+.5f)/width,(bottom+.5f)/height,
+                    (tile-1f)/width,(tile-1f)/height));
+                shaft.Cone.SetPropertyBlock(shaft.Block);
+            }
+            lampDepth = new Texture2D(width,height,TextureFormat.RGBA32,false,true)
+            { name = "Practical light occlusion", wrapMode = TextureWrapMode.Clamp };
+            lampDepth.SetPixels32(pixels);
+            lampDepth.Apply(false,true);
+            shaftMaterial.SetTexture("_BathLightDepth",lampDepth);
+        }
+
         static Mesh Cone()
         {
             const int sides = 24;
@@ -101,7 +139,9 @@ namespace AfterHours
             for (int side = 0; side < sides; ++side)
             {
                 int a = side, b = side + 1, c = side + sides + 1, d = side + sides + 2;
-                triangles.AddRange(new[] { a, c, b, b, c, d });
+                triangles.AddRange(new[] { a, b, c, b, d, c });
+                if (side > 0 && side < sides - 1)
+                    triangles.AddRange(new[] { sides + 1, c, d });
             }
             var mesh = new Mesh { name = "Light shaft cone" };
             mesh.SetVertices(vertices);
@@ -297,7 +337,7 @@ namespace AfterHours
                 capture.transform.SetParent(transform, false);
                 capture.enabled = false;
                 capture.cullingMask = CaptureMask;
-                capture.clearFlags = CameraClearFlags.SolidColor;
+                capture.clearFlags = CameraClearFlags.Skybox;
                 capture.backgroundColor = RenderSettings.fogColor;
                 capture.nearClipPlane = .05f;
                 capture.farClipPlane = 48;
@@ -382,6 +422,7 @@ namespace AfterHours
         {
             foreach (var (_, cube) in probes) if (cube) cube.Release();
             if (puff) Destroy(puff);
+            if (lampDepth) Destroy(lampDepth);
         }
     }
 }

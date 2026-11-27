@@ -11,6 +11,7 @@ Shader "AfterHours/WornArchitecture"
         _GlossMapScale ("Smoothness Scale", Range(0,1)) = 1
         _StainTex ("Wear Detail", 2D) = "gray" {}
         _GrainNormal ("Scanned Detail Normal", 2D) = "bump" {}
+        _Rain ("Outdoor wet asphalt", Float) = 0
         _Wear ("Weather · Damp · Wetness · Grain", Vector) = (.35,0,0,.28)
         _FloorBounds ("Floor Center XZ · Half Size XZ", Vector) = (0,0,0,0)
         _WetSourceA ("Wet Center XZ · Radius XZ", Vector) = (0,0,0,0)
@@ -22,10 +23,15 @@ Shader "AfterHours/WornArchitecture"
         Tags { "RenderType"="Opaque" "Queue"="Geometry" }
         CGPROGRAM
         #pragma surface Surf Standard fullforwardshadows addshadow
-        #pragma target 3.0
+        #pragma target 4.0
         #include "UnityStandardUtils.cginc"
 
         sampler2D _MainTex, _BumpMap, _MetallicGlossMap, _StainTex, _GrainNormal;
+        #include "NightIndirect.cginc"
+        sampler2D _BathWater;
+        float4x4 _BathWaterProjection;
+        float _BathWaterPlane;
+        half _Rain;
         half4 _Color;
         float4 _Wear, _FloorBounds, _WetSourceA, _WetSourceB;
         half _BumpScale, _GlossMapScale;
@@ -75,7 +81,13 @@ Shader "AfterHours/WornArchitecture"
             half edge = (1 - smoothstep(.03, .42, joins)) * step(.01, _FloorBounds.z);
             half standing = max(StandingMoisture(world.xz, _WetSourceA, breakup),
                 StandingMoisture(world.xz, _WetSourceB, breakup));
-            half wet = saturate(standing + .44 * damp);
+            half facingUp = saturate((WorldNormalVector(IN, half3(0,0,1)).y - .85) * 8);
+            // Long depressions in the road collect water between islands of rough aggregate.
+            half basin = tex2D(_StainTex, world.xz * float2(.042,.17) + float2(.73,.14)).r;
+            half road = smoothstep(.17, .214, basin + (breakup-.5)*.018);
+            standing = max(standing, road * _Rain) * facingUp;
+            half film = saturate(standing * 1.8 + .25 * _Rain * islands) * facingUp;
+            half wet = saturate(standing + .44 * damp + .22 * film);
 
             half3 dry = baseColor.rgb * _Color.rgb * surface * (1 - .22 * edge);
             dry = lerp(dry, dry * .85 + half3(.031, .027, .014), residue * .58);
@@ -97,6 +109,26 @@ Shader "AfterHours/WornArchitecture"
             O.Occlusion = lerp(.69, 1, finish.g) * (1 - .29 * edge - .15 * damp);
             half matte = finish.a * _GlossMapScale * (1 - .45 * grime) + _Wear.z * (.3 * islands + .5 * damp);
             O.Smoothness = saturate(lerp(matte, .81, standing * .76));
+            O.Smoothness = lerp(O.Smoothness, .94, standing * standing);
+            half3 n = normalize(WorldNormalVector(IN, O.Normal));
+            O.Emission = O.Albedo * NightBounce(world + n * .32) * O.Occlusion;
+            if (film > .005 && abs(world.y - _BathWaterPlane) < .065)
+            {
+                float4 clip = mul(_BathWaterProjection, float4(world, 1));
+                float2 reflectionUV = clip.xy / max(clip.w, .001) * .5 + .5;
+                #if UNITY_UV_STARTS_AT_TOP
+                    reflectionUV.y = 1 - reflectionUV.y;
+                #endif
+                float2 rim = min(reflectionUV, 1-reflectionUV);
+                half edgeFade = saturate(min(rim.x, rim.y)*28);
+                half3 view = normalize(_WorldSpaceCameraPos - world);
+                half fresnel = .055 + .79 * pow(1-saturate(dot(n,view)), 4);
+                half blur = lerp(5.2, .55, standing * standing);
+                half3 reflected = tex2Dlod(_BathWater, float4(reflectionUV + n.xz*.009, 0, blur)).rgb;
+                half amount = fresnel * film * edgeFade * step(.01,clip.w);
+                O.Emission += reflected * amount;
+                O.Albedo *= 1-amount;
+            }
             O.Alpha = 1;
         }
         ENDCG
