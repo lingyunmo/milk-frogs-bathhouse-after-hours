@@ -46,6 +46,11 @@ namespace AfterHours
                 var guard = Box("顶层楼梯端墙", At(-FlightOffset, floor + .68f, takeoff),
                     new Vector3(FlightWidth, 1.36f, .18f), plaster, stair);
                 Surface(guard, plaster, 1.45f);
+
+                // The room and hall roof slabs stop at the shaft. Overlap their edges to seal the opening.
+                var roof = Box("楼梯间顶板", At(0, floor + 3.41f, BackWall * .5f),
+                    new Vector3(ShaftWidth + .22f, .12f, BackWall + .18f), ceiling, stair);
+                Surface(roof, ceiling, 2.5f);
                 return;
             }
 
