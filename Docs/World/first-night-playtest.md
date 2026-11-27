@@ -1,6 +1,6 @@
 # 五夜逃生试玩版
 
-Windows 本地输出在 `Builds/TitleSparks/AfterHours.exe`，从浴场标题画面开始五夜逃生。也可以用 Unity 6000.3.29f1 打开 `Assets/Scenes/AfterHours_Blockout.unity`，按 Play 进入同一个标题菜单。游戏会在用户数据目录建立单人存档，维修和拾取会记录进度。F5 记录当前位置和朝向。第一次开始游戏时立即建立本局存档。
+运行 `.\Tools\build_windows.ps1` 更新固定的 Windows 试玩版 `Builds/TitleSparks/AfterHours.exe`，从浴场标题画面开始五夜逃生。也可以用 Unity 6000.3.29f1 打开 `Assets/Scenes/AfterHours_Blockout.unity`，按 Play 进入同一个标题菜单。游戏会在用户数据目录建立单人存档，维修和拾取会记录进度。F5 记录当前位置和朝向。第一次开始游戏时立即建立本局存档。
 
 标题先显示带奶娃的原封面，随后切到空走廊。灯泡闪三次，同时伴随火花和电流爆响，彩色奶娃接着从门框后探出。断电压低环境声后，另一张倒置的脸在画面中央定格闪现 1.1 秒，伴随近处的擦响和呼吸。进入浴场后切到低声的空间环境音，暂停时与世界中的声音一起暂停。
 
