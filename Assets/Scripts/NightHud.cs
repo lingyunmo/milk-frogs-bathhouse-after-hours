@@ -72,6 +72,7 @@ namespace AfterHours
 
         internal void Dispose()
         {
+            ClearContactPrint();
             if (document) document.panelSettings = null;
             if (settings) UnityEngine.Object.Destroy(settings);
         }
@@ -153,6 +154,7 @@ namespace AfterHours
 
         void Draw(NightScreen screen)
         {
+            ClearContactPrint();
             root.Clear();
             switches.Clear();
             toast = null;
@@ -371,7 +373,7 @@ namespace AfterHours
                         ("W A S D", "移动"), ("鼠标", "观察"), ("Shift", "按住奔跑"), ("C", "切换蹲行"),
                         (NightGame.InteractKey.ToString(), "拾取 / 交互 / 翻窗"),
                         (NightGame.TorchKey.ToString(), "开关手电"), ("R", "更换电池"), ("G", "投掷石子"),
-                        ("B", "背包"), ("M", "地图"), ("F5", "保存"), ("Esc", "暂停"), ("Alt + Enter", "切换全屏")
+                        ("B", "背包"), ("M", "地图"), ("V", "测绘相机"), ("F5", "保存"), ("Esc", "暂停"), ("Alt + Enter", "切换全屏")
                     })
                     {
                         var row = Area(grid, "control-row");
@@ -503,7 +505,7 @@ namespace AfterHours
             Legend(legend, "legend-swatch--here", "当前位置");
             Legend(legend, "legend-swatch--seen", "已走过");
             Legend(legend, "legend-swatch--unknown", "未探索");
-            if (game.State.dispatch.accepted && !game.State.dispatch.RoadReady)
+            if (game.State.dispatch.accepted && (!game.State.RescueAccess || !game.State.survey.archive))
                 Legend(legend, "legend-swatch--here", "调度点");
             var tools = Area(footer, "atlas-tools");
             Type(tools, "滚轮缩放　·　按住拖动", "muted");
@@ -755,7 +757,7 @@ namespace AfterHours
                 Copy(task, lead.action);
                 Copy(location, lead.place);
             }
-            bool busy = game.WorkingDispatch || game.RepairView != null;
+            bool busy = game.WorkingDispatch || game.Framing || game.RepairView != null;
             bool received = now < dispatchHeardUntil;
             Visible(objectiveBlock, !busy);
             objectiveBlock.EnableInClassList("objective--updated", received || now - objectiveSince < 3.2f);
@@ -779,7 +781,8 @@ namespace AfterHours
                     areaUntil = now + 3.3f;
                 }
             }
-            areaCard.EnableInClassList("area-card--shown", now < areaUntil);
+            Visible(areaCard,!busy);
+            areaCard.EnableInClassList("area-card--shown", now < areaUntil && !busy);
 
             bool pursuing = game.InPursuit;
             Visible(status, pursuing);
@@ -807,13 +810,14 @@ namespace AfterHours
                 shownPickup = pickup.Serial;
                 SetItemArt(pickupArt, pickup.Art);
                 Copy(pickupText, pickup.Text);
-                pickupUntil = now + 3.4f;
+                pickupUntil = string.IsNullOrEmpty(pickup.Text) ? -1 : now + 3.4f;
             }
+            Visible(pickupCard,!busy);
             pickupCard.EnableInClassList("pickup--shown", now < pickupUntil);
 
             var focus = game.Focus;
             var repair = game.RepairView;
-            Visible(reticle, repair == null && !game.WorkingDispatch);
+            Visible(reticle, repair == null && !game.WorkingDispatch && !game.Framing);
             reticle.Set(focus != null, game.Hold);
             reticle.Tick();
             Visible(prompt, focus != null && !busy);

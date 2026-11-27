@@ -65,7 +65,7 @@ namespace AfterHours
         internal float Bearing { get; private set; }
         internal float Reception => Mathf.Clamp01(1f - Mathf.Abs(Mathf.DeltaAngle(Bearing, RadioHeading)) / 62f);
         internal float ChannelLock { get; private set; }
-        internal bool WorkingDispatch => ActiveGenerator >= 0 || Winding || Tuning;
+        internal bool WorkingDispatch => ActiveGenerator >= 0 || Winding || Tuning || Processing || AlbumOpen || Sluicing || Splicing || Piloting;
         static float RadioHeading => Quaternion.LookRotation(NightEvents.BackupBeacon - NightDispatch.ReceiverDish).eulerAngles.y;
         float nextRattle, workingTime, tunerClick, radioCallIn;
         NightTarget loadTarget;
@@ -73,6 +73,7 @@ namespace AfterHours
         void BuildDispatchObjectives()
         {
             BuildReturnTargets();
+            BuildSurveyTargets();
             Target(NightDispatch.Receiver, "接听夜班调度", 1.5f, AcceptDispatch,
                 () => !State.detained && !State.dispatch.accepted && !State.beacon);
             for (int slot = 0; slot < NightDispatch.Stations.Length; slot++)
@@ -120,6 +121,7 @@ namespace AfterHours
         internal void CloseDispatch()
         {
             if (Winding) world.SetBarrierLift(State.dispatch.teeth);
+            ResetSurveyTools();
             ActiveGenerator = -1;
             Winding = Tuning = false;
             workingTime = nextRattle = WoundFraction = ChannelLock = tunerClick = 0;
@@ -155,6 +157,7 @@ namespace AfterHours
                     nextRattle = Mathf.Lerp(2.7f, 1.15f, load);
                 }
             }
+            else if (Processing || AlbumOpen || Sluicing || Splicing || Piloting) TickSurveyEquipment(dt);
             else if (Winding) Wind(Input.GetKey(InteractKey), dt);
             else if (Tuning) Tune(Input.GetAxisRaw("Horizontal"), dt);
         }

@@ -72,6 +72,10 @@ namespace AfterHours
                 Add(Street, room.Name, room.Bounds);
             foreach (var pocket in NightWorld.StreetPockets)
                 Add(Street, pocket.Name, pocket.Bounds);
+            foreach (var building in NightWorld.RiverBuildings)
+                Add(Street, building.Name, building.Bounds);
+            Add(Street, "东堤步道", Rect.MinMaxRect(172, 1.8f, NightWorld.EastEdge, 5.8f), route: true);
+            Add(Street, "堤顶公路", Rect.MinMaxRect(172,-23.5f,NightWorld.EastEdge,-12.5f), route:true);
             Add(Street, "救援站牌", Rect.MinMaxRect(148, -30, 172, -9));
             Add(Street, "候车亭", Rect.MinMaxRect(90, -14, 114, -5));
             Add(Street, "停车棚", Rect.MinMaxRect(43, -2, 62, 11));
@@ -106,12 +110,14 @@ namespace AfterHours
         internal void Track(NightState state, Vector3 feet)
         {
             Vector2 point = new(feet.x, feet.z);
+            eastBank = feet.x >= 172;
             Floor = FloorAt(feet);
             Current = areas[Floor].Find(area => area.Bounds.Contains(point));
             if (Current != null && !state.explored.Contains(Current.Key)) state.explored.Add(Current.Key);
         }
 
-        internal string Place => Current?.Name ?? (Floor == Street ? "浴场外" : "过道");
+        bool eastBank;
+        internal string Place => Current?.Name ?? (Floor == Street ? (eastBank ? "石桥东堤" : "浴场外") : "过道");
     }
 
 
@@ -335,11 +341,29 @@ namespace AfterHours
                 AreaBox(paint, NightAtlas.Building, buildingFill, Wall);
                 AreaBox(paint, NightMainRing.Footprint, buildingFill, Wall);
             }
-            if (game.State.dispatch.accepted && !game.State.dispatch.RoadReady)
+            if (game.State.dispatch.accepted)
             {
                 var job = game.State.dispatch;
                 for (int i = 0; i < NightDispatch.Stations.Length; i++)
                     if (street && job.steps[i] < NightDispatch.Contacts) MarkJob(NightDispatch.Stations[i].Feet, FieldOrder.Lights);
+                if (street && !game.State.survey.ReportReady)
+                {
+                    if (!game.State.survey.camera) MarkJob(RiverSurvey.CameraDesk, FieldOrder.Survey);
+                    else if (game.State.survey.soundings < 3) MarkJob(SoundingReach.Console, FieldOrder.Survey);
+                    else if (game.State.survey.CanPrint) MarkJob(RiverSurvey.Trays, FieldOrder.Survey);
+                    else for (int i=0;i<3;i++)
+                        if (!RiverSurvey.Recorded(game.State,i)) MarkJob(RiverSurvey.Plates[i].Center, FieldOrder.Survey);
+                }
+                if(street && job.tracked==FieldOrder.Archive && !game.State.survey.archive)
+                {
+                    var s=game.State;
+                    if(!s.survey.HasSites)
+                    {
+                        for (int i=3;i<6;i++) if(!RiverSurvey.Recorded(s,i))
+                            MarkJob(RiverSurvey.Plates[i].Center,FieldOrder.Archive);
+                    }
+                    else MarkJob(s.survey.spliced ? RiverSurvey.ContactPrinter : new Vector3(295,1,-4.83f),FieldOrder.Archive);
+                }
                 if (job.teeth < NightDispatch.Teeth)
                 {
                     Vector3 point = !job.delivered && !job.carrying ? job.loadFeet : NightDispatch.Barrier;

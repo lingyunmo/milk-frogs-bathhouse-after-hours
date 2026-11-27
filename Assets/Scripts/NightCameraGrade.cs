@@ -151,6 +151,34 @@ namespace AfterHours
         }
 
         // Stage two: everything that should also touch the torch in the player's hand.
+        internal string SurveyExposure()
+        {
+            if (!world) return "";
+            var previous = RenderTexture.active;
+            int width = 480, height = Mathf.Clamp(Mathf.RoundToInt(width / world.aspect), 160, 640);
+            var target = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
+            var photo = new Texture2D(width, height, TextureFormat.RGB24, false);
+            var originalTarget = world.targetTexture;
+            try
+            {
+                bool graded = Ready && frame;
+                if (!graded) world.targetTexture = target;
+                world.Render();
+                if (graded) Present(target);
+                RenderTexture.active = target;
+                photo.ReadPixels(new Rect(0, 0, width, height), 0, 0);
+                photo.Apply();
+                return System.Convert.ToBase64String(photo.EncodeToJPG(85));
+            }
+            finally
+            {
+                world.targetTexture = originalTarget;
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(target);
+                Destroy(photo);
+            }
+        }
+
         void Present(RenderTexture destination)
         {
             if (!grade || !frame)

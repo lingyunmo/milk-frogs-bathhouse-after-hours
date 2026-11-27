@@ -131,6 +131,7 @@ namespace AfterHours
             DressStreetDistrict();
             DressStreetRelay();
             DressStreetRooms();
+            DressRiverWard();
             DressDispatch();
             DressReturnLines();
             DressAnnexEquipment();

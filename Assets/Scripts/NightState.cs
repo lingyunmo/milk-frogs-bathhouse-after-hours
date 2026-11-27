@@ -23,7 +23,9 @@ namespace AfterHours
         internal const float FullTorchCharge = 360;
         public bool torch, motorPart, seal, firstFireDoor, power, pump, uplink, contacted, beacon, escaped;
         internal bool Drained => pump || dispatch.sealedLines == 7;
-        internal bool RescueAccess => dispatch.RoadReady && Drained;
+        internal bool RescueAccess => dispatch.RoadReady && Drained && survey.ReportReady;
+        internal bool CanBoard => beacon && rescueTime == 0 && dispatch.playSeconds >= RiverSurvey.FirstBus && RescueAccess;
+        public SurveyFilm survey = new();
         public DispatchState dispatch = new();
         public bool annexIsolated, annexRelay;
         public int motorStage, sinkStage, networkStage;
@@ -59,6 +61,14 @@ namespace AfterHours
                         continue;
                     save.dispatch ??= new DispatchState();
                     save.dispatch.Normalize();
+                    save.survey ??= new SurveyFilm();
+                    save.survey.Normalize();
+                    // A pre-survey save may have signalled the bus already. Keep its road and radio work.
+                    if (save.beacon && !save.escaped && !save.survey.ReportReady)
+                    {
+                        save.beacon = false;
+                        save.rescueTime = -1;
+                    }
                     save.explored ??= new List<string>();
                     save.night = Mathf.Clamp(save.night, 1, NightState.MaxNights);
                     if (save.escaped || save.ended || save.night == 1) save.detained = false;

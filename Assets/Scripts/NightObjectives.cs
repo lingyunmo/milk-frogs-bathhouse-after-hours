@@ -94,19 +94,19 @@ namespace AfterHours
 
             Vector3 pole=new(160,1.20f,-14.76f);
             Target(pole,"阅读站牌背面的应急说明",0,()=>Notify("站牌背面的小字：「夜班车凭反光接应板停车。未收到值守回话，请勿翻板。」",7),()=>!State.contacted,2.3f);
-            Target(pole,"听接应频道",0,()=>Notify("「引路灯、积水、桥杆。哪一项没清，我都进不了街。」"),()=>State.contacted&&!State.beacon&&!State.RescueAccess,2.3f);
+            Target(pole,"听接应频道",0,()=>Notify("「灯得亮，桥杆得开。路上的水退了多少？给我看一眼水尺。」"),()=>State.contacted&&!State.beacon&&!State.RescueAccess,2.3f);
             Target(pole,"翻起反光接应板",1.25f,()=>Repair(pole,.95f,()=>
             {
                 State.beacon=true;
-                State.rescueTime=27;
-                Notify("街的另一头，有人回了两下远光。",6);
+                State.rescueTime=RiverSurvey.ArrivalDelay(State,27);
+                Notify(State.rescueTime > 30 ? "「水尺收到了。我还在过桥。到了我按喇叭，你先找地方避一避。」" : "街的另一头，有人回了两下远光。",6);
             },"tool"),()=>State.contacted&&State.RescueAccess&&!State.beacon,2.3f);
             Target(new Vector3(159.2f,1.10f,-18.76f),"登上救援车",1.15f,()=>
             {
                 State.escaped=true;
                 SaveProgress();
                 SetScreen(NightScreen.Escaped);
-            },()=>State.rescueTime==0,2.3f);
+            },()=>State.CanBoard,2.3f);
 
             Vault("翻出弱电间北窗",new Vector3(10,8.46f,23.9f),new Vector3(10,5.47f,25.3f),.68f);
             Vault("踩到二楼露台",new Vector3(10,6.08f,25.5f),new Vector3(10,3.67f,26.5f),.51f);

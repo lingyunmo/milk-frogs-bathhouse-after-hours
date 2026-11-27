@@ -5,7 +5,8 @@ namespace AfterHours
     internal sealed partial class NightWorld
     {
         internal const float WestEdge = -32;
-        internal const float EastEdge = 172;
+        internal const float EastEdge = 340;
+        const float StreetWidth = EastEdge - WestEdge, StreetMidpoint = (WestEdge + EastEdge) * .5f;
         internal const float SouthEdge = -36;
         internal const float NorthEdge = 44;
 
@@ -41,18 +42,18 @@ namespace AfterHours
             barriers.SetParent(root, false);
             var west = Box("浴场西侧围墙", new Vector3(WestEdge + .18f, .89f, 4),
                 new Vector3(.36f, 1.80f, 80), brick, barriers);
-            var north = Box("后巷围墙", new Vector3(70, .98f, NorthEdge - .18f),
-                new Vector3(204, 1.98f, .36f), brick, barriers);
-            var south = Box("街对面街沿围栏", new Vector3(70, .66f, SouthEdge + .13f),
-                new Vector3(204, 1.34f, .26f), brick, barriers);
+            var north = Box("后巷围墙", new Vector3(StreetMidpoint, .98f, NorthEdge - .18f),
+                new Vector3(StreetWidth, 1.98f, .36f), brick, barriers);
+            var south = Box("街对面街沿围栏", new Vector3(StreetMidpoint, .66f, SouthEdge + .13f),
+                new Vector3(StreetWidth, 1.34f, .26f), brick, barriers);
             var east = Box("街尾工地围墙", new Vector3(EastEdge - .18f, .87f, 4),
                 new Vector3(.36f, 1.76f, 80), brick, barriers);
             foreach (var section in new[] { west, north, south, east }) Surface(section, brick, 2.2f);
 
             CollisionBox(barriers, "西侧碰撞护栏", new Vector3(WestEdge + .10f, 1.2f, 4), new Vector3(.32f, 7.2f, 80));
             CollisionBox(barriers, "东侧碰撞护栏", new Vector3(EastEdge - .10f, 1.2f, 4), new Vector3(.32f, 7.2f, 80));
-            CollisionBox(barriers, "北侧碰撞护栏", new Vector3(70, 1.2f, NorthEdge - .10f), new Vector3(204, 7.2f, .32f));
-            CollisionBox(barriers, "南侧碰撞护栏", new Vector3(70, 1.2f, SouthEdge + .10f), new Vector3(204, 7.2f, .32f));
+            CollisionBox(barriers, "北侧碰撞护栏", new Vector3(StreetMidpoint, 1.2f, NorthEdge - .10f), new Vector3(StreetWidth, 7.2f, .32f));
+            CollisionBox(barriers, "南侧碰撞护栏", new Vector3(StreetMidpoint, 1.2f, SouthEdge + .10f), new Vector3(StreetWidth, 7.2f, .32f));
         }
 
         static Transform CollisionBox(Transform parent, string label, Vector3 center, Vector3 size)

@@ -147,3 +147,26 @@ An ORIGINAL physically based game prop ALBEDO texture atlas, landscape 3:2 aspec
 `Assets/Resources/Interface/DispatchBoard.jpg` 使用内置图像生成工具绘制无字夹板。标题、任务、状态印章与按键全部在运行时排印。底图保留原始 1536 × 1024 像素。
 
 Top-down prop photograph for a Chinese municipal bathhouse night-shift game. One horizontal landscape maintenance clipboard, aspect ratio 3:2. Orthographic flat lay, paper edges parallel to frame. A stack of warm grey-beige unprinted forms covers the entire frame, with a narrow oxidized enamel backing and a small dull metal clip at the top center. Slight pressure dents and a folded corner, fine fibrous paper, tiny water damage on the extreme edges, uneven cut leaves at bottom. The central 85% is evenly lit, blank, matte and plain so actual typeset interactive text can be added in the game. Restrained aged olive brass and neutral buff paper under a fluorescent desk lamp. Extremely realistic close photographic detail. No writing, no symbols, no ink lines, no tools, no hands, no desk clutter. Crop close to the outer edges of the clipboard.
+
+## 石桥东堤
+
+水文站的搪瓷匾、铸铁水尺和暗房里的旧照片专为本作生成。归档后的旧照与宿舍看片灯台共用同一张底片。三张洪痕记录由玩家在游戏内实拍，连同显影进度保存在当局存档。建筑内的水槽、家具、工作台和车辆沿用本页已登记的模型。
+
+| 美术 | 用途 |
+| --- | --- |
+| `Surfaces/RiverStationEnamel` | 街上可辨认的水文站门匾 |
+| `Surfaces/FloodGauge` | 三处测量点的搪瓷水尺 |
+| `Interface/SoundingDesk` | 测深仪的机身，河道、浮标和船位在运行时绘入空白荧光屏 |
+| `Interface/FloodWatch` | 夜班合影、拼接用的三块玻璃底片 |
+
+<details><summary>生成提示词</summary>
+
+Straight-on orthographic material scan of one single long horizontal weathered enamel municipal hydrology station fascia, 3:1 landscape composition. The centered, very legible, large Chinese painted lettering reads exactly “石桥水文观测站”, six characters on one line, a 1970s Chinese river observatory. To the left a faded round emblem with three simple water lines and a gauging staff. Original muted petrol-blue enamel with dirty cream strokes, narrow ivory frame, small rust pits at bolts, faint rain streaks, authentic hand signwriting. Flat diffuse lighting, sign fills the entire image edge to edge, NO wall around it, NO perspective, no other words, no UI, original design for a Chinese survival horror game material.
+
+A single wide industrial gauge backing plate from a 1980s Chinese municipal river observatory, shot flat-on for a realistic game texture. Landscape aspect 2.3:1. Entire image is a single aged ivory vitreous enamel instrument plate with a thin dark petrol blue metal edge, four battered rivet holes at corners, water scale deposits and a real old horizontal high-water stain. Left and right margins have boldly painted navy survey staff graduations like large alternating E-shaped blocks in a vertical column, evenly stepped, a diagonal thin wine-red flood datum across the lower-middle. In the middle an unlettered aged blank enamel space about one third width to apply a station-specific serial number in game. Readable in a flashlight beam. Honest mechanical detail, period industrial design, rust chips around the mounting holes, natural relief. No scenery, no wall, no modern digital elements, no extra lettering, no watermark.
+
+An authentic 1980s small-town Chinese hydrology station group photograph during a flood watch, in-game archival evidence prop for a realistic first-person horror game. A single 3:2 horizontal silver-gelatin photographic print scanned edge to edge. A pair of rain-soaked workers in old rubber boots stand at the left and right of a tall flood gauge against a tiled brick sluice wall. Their faces are natural, serious and not posed for drama. Exactly between them a much heavier round-bodied humanlike shape has been deliberately rubbed out of the silver emulsion by hand; a few curved scratches and a pale stout silhouette remain at the waterline. Steps and an empty chair make the height legible. Bleak overcast night flash, wet concrete, readable midtones, charcoal blacks and warm grey highlights, subtle fibre, slight chemical staining at the print edge. Simple compelling photographic composition, believable optical grain. No titles, no modern equipment, no UI, no added typography or watermark, no collage.
+
+Game prop texture photographed straight-on: the entire faceplate of a battered late-1980s Chinese municipal hydrographic remote sounding launch controller. Wide landscape 3:2. A large blank unlit rectangular green-black CRT window with slightly rounded corners sits exactly centrally, spanning 80% of the image width and 72% of its height. The playable radar raster will be drawn in software over that area, leave it completely empty, no reflections, text, waves, figures or maps. Thin rubbed black rubber CRT bezel, military green powder-coated cast metal body with recessed rivets, two small amber and green jewels and a knurled thumb knob in the lower metal margin only. Macro detail of fine patina, salt deposits, scars and stamped calibration markings. Flat front elevation no perspective, no hands or surrounding tabletop. The entire image is filled edge-to-edge by the instrument, corners only very slightly rounded. Neutral side lighting, realistic found industrial electrical equipment, legible midtones.
+
+</details>

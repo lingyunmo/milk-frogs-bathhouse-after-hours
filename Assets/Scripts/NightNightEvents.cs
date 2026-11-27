@@ -66,7 +66,7 @@ namespace AfterHours
             Repair(NightEvents.BackupBeacon, 1.12f, () =>
             {
                 State.beacon = true;
-                State.rescueTime = NightEvents.BackupArrivalTime;
+                State.rescueTime = RiverSurvey.ArrivalDelay(State, NightEvents.BackupArrivalTime);
                 Notify("东边的站牌亮起来了。", 5);
             }, "signal");
     }

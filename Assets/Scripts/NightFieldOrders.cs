@@ -1,14 +1,16 @@
 namespace AfterHours
 {
-    internal enum FieldOrder { Lights, Drain, Barrier, Radio }
+    internal enum FieldOrder { Lights, Drain, Barrier, Radio, Survey, Archive }
 
     // One source of directions for the field HUD, map docket and pause screen.
     internal static class NightFieldOrders
     {
-        internal static readonly FieldOrder[] List = { FieldOrder.Lights, FieldOrder.Drain, FieldOrder.Barrier, FieldOrder.Radio };
+        internal static readonly FieldOrder[] List = { FieldOrder.Lights, FieldOrder.Drain, FieldOrder.Barrier, FieldOrder.Radio, FieldOrder.Survey, FieldOrder.Archive };
 
         internal static string Name(FieldOrder order) => order switch
         {
+            FieldOrder.Survey => "东堤水尺",
+            FieldOrder.Archive => "八七年旧照",
             FieldOrder.Lights => "引路灯",
             FieldOrder.Drain => "街沟排水",
             FieldOrder.Barrier => "街尾路障",
@@ -17,6 +19,8 @@ namespace AfterHours
 
         internal static bool Done(FieldOrder order, NightState state) => order switch
         {
+            FieldOrder.Survey => state.survey.ReportReady,
+            FieldOrder.Archive => state.survey.archive,
             FieldOrder.Lights => state.dispatch.AllRunning,
             FieldOrder.Drain => state.Drained,
             FieldOrder.Barrier => state.dispatch.teeth >= NightDispatch.Teeth,
@@ -27,7 +31,7 @@ namespace AfterHours
         {
             var selected = state.dispatch.tracked;
             if (!Done(selected, state)) return selected;
-            foreach (var order in List) if (!Done(order, state)) return order;
+            foreach (var order in List) if (order != FieldOrder.Archive && !Done(order, state)) return order;
             return FieldOrder.Radio;
         }
 
@@ -36,6 +40,13 @@ namespace AfterHours
             var job = state.dispatch;
             switch (order)
             {
+                case FieldOrder.Survey: return RiverSurvey.Lead(state);
+                case FieldOrder.Archive:
+                    if (!state.survey.camera) return RiverSurvey.Lead(state);
+                    for (int i=3;i<6;i++)
+                        if (!RiverSurvey.Recorded(state,i)) return ("按铜钉的位置复拍旧址", RiverSurvey.Plates[i].Name + "　·　V 取景");
+                    if (!state.survey.spliced) return ("拼好玻璃底片", "守闸宿舍 · 看片灯台");
+                    return ("印出夜班合影", "旧照相馆 · 印相台");
                 case FieldOrder.Lights:
                     return ("启动街区的四台机组", "M 地图　·　机组位置与夜班工单");
                 case FieldOrder.Drain:
@@ -64,8 +75,11 @@ namespace AfterHours
         internal static (string action, string place) Current(NightState state)
         {
             if (state.detained) return ("拨开门上的卡簧锁", "地下室 · 门边的橙灯");
-            if (state.rescueTime == 0) return ("上救援车", "街尾 · 站牌");
-            if (state.beacon) return ("等救援车靠站", "街尾 · 站牌");
+            if (state.CanBoard) return ("上救援车", "街尾 · 站牌");
+            if (state.beacon && state.dispatch.tracked == FieldOrder.Archive && !state.survey.archive)
+                return Direction(FieldOrder.Archive,state);
+            if (state.beacon) return ("等司机过桥", state.rescueTime > 60 && !state.survey.archive
+                ? "可在 M 工单跟踪八七年旧照" : "街尾 · 站牌");
             if (!state.dispatch.accepted)
                 return !state.torch ? ("拿起长凳上的手电", "二楼 · 更衣室") : ("接听夜班电台", "一楼 · 前台");
             if (state.RescueAccess && state.contacted) return ("翻起接应板", "街尾 · 站牌");
