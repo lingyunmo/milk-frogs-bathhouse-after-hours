@@ -10,8 +10,9 @@ namespace AfterHours
         {
             internal string Name;
             internal GameObject Leaf;
-            internal Vector3 Position;
+            internal Vector3 Position, Inward;
             internal bool Fire;
+            internal NightKeyDoors.LockSpec? Key;
         }
 
         internal static readonly Vector3 FireDoorPosition = new(14, -3.6f, 10);
@@ -84,13 +85,14 @@ namespace AfterHours
                 StairAir(serviceStair);
                 StairAir(lobbyStair);
             }
+            BuildMainRing();
             DressAnnex();
             SkinArchitecture();
             ExitSigns();
             AddDoor("地下防火门",FireDoorPosition,true);
             foreach (int x in new[]{0,25,52,78,102,129,153,164})
             {
-                var p=new Vector3(x,0,-14);
+                var p=new Vector3(x == 0 ? 4.15f : x,0,-14);
                 Box("路灯杆",p+Vector3.up*2.2f,new Vector3(.13f,4.4f,.13f),wood);
                 Box("路灯灯罩",p+new Vector3(0,4.4f,-.28f),new Vector3(.3f,.16f,.8f),brass);
                 var lens=Box("路灯灯泡罩",p+new Vector3(0,4.31f,-.38f),new Vector3(.22f,.03f,.5f),StreetLens());
@@ -107,12 +109,12 @@ namespace AfterHours
             Box("露台右护栏",new Vector3(12.75f,4.02f,26.25f),new Vector3(.12f,.8f,4.4f),wood);
             Crate=Box("支援补给箱",Vector3.zero,new Vector3(.92f,.54f,.64f),olive);
             Crate.SetActive(false);
-            Pickup("receipt",new Vector3(9,1.00f,3.74f),new Vector3(.26f,.014f,.22f),brass);
-            Pickup("motor",new Vector3(-14,-2.42f,4.12f),new Vector3(.19f,.13f,.18f),brass);
-            Pickup("seal",new Vector3(8,4.80f,4.45f),new Vector3(.13f,.10f,.12f),brass);
-            Pickup("cell-reception",new Vector3(10,.98f,4),new Vector3(.12f,.09f,.11f),olive);
-            Pickup("cell-storage",new Vector3(-2,-2.54f,5),new Vector3(.12f,.10f,.11f),olive);
-            Pickup("cell-staff",new Vector3(-9,8.15f,18),new Vector3(.12f,.09f,.11f),olive);
+            Pickup("receipt",new Vector3(9,.947f,3.74f),new Vector3(.26f,.014f,.22f),brass);
+            Pickup("motor",new Vector3(-14,-2.325f,4.46f),new Vector3(.19f,.13f,.18f),brass);
+            Pickup("seal",new Vector3(8,4.682f,4.18f),new Vector3(.13f,.10f,.12f),brass);
+            Pickup("cell-reception",new Vector3(10,.985f,3.71f),new Vector3(.12f,.09f,.11f),olive);
+            Pickup("cell-storage",new Vector3(-2,-2.544f,4.66f),new Vector3(.12f,.10f,.11f),olive);
+            Pickup("cell-staff",new Vector3(-9,8.125f,18),new Vector3(.12f,.09f,.11f),olive);
             Pickup("cell-parking",new Vector3(49,.051f,4.8f),new Vector3(.12f,.09f,.11f),olive);
             Rescue=new GameObject("救援车");
             Rescue.transform.SetParent(root);
@@ -186,21 +188,34 @@ namespace AfterHours
             Font.textureRebuilt-=RefreshSignAtlas;
         }
 
-        void AddDoor(string name,Vector3 p,bool fire=false)
+        void AddDoor(string name, Vector3 p, bool fire = false, Vector3? sideInward = null,
+            NightKeyDoors.LockSpec? key = null)
         {
+            key ??= NightKeyDoors.Find(name, p.y);
+            Quaternion rotation = sideInward.HasValue ? Quaternion.Euler(0, 90, 0) : Quaternion.identity;
             var leaf=Box(name+" 门",p+new Vector3(0,1.21f,0),new Vector3(fire?1.91f:1.36f,2.42f,.10f),fire?red:wood);
+            leaf.transform.rotation = rotation;
             Surface(leaf,fire?red:planks,1.25f);
             leaf.layer=FloorRoutes.DoorLayer;
             foreach(float direction in new[]{-1f,1f})
             {
-                var handle=Box("门把",p+new Vector3(.44f,1.10f,.073f*direction),new Vector3(.135f,.055f,.092f),brass);
+                var handle=Box("门把",p+rotation*new Vector3(.44f,1.10f,.073f*direction),new Vector3(.135f,.055f,.092f),brass);
+                handle.transform.rotation = rotation;
                 handle.transform.SetParent(leaf.transform,true);
                 handle.GetComponent<Collider>().enabled=false;
             }
-            var door=new Door{Name=name,Leaf=leaf,Position=p,Fire=fire};
+            var door=new Door{Name=name,Leaf=leaf,Position=p,Fire=fire,Key=key,
+                Inward=sideInward ?? (p.z > 12 ? Vector3.forward : Vector3.back)};
             Doors.Add(door);
-            game.Target(p+Vector3.up*1.08f,fire?"推开地下防火门":"推门 · "+name,0,()=>game.ToggleDoor(door),
-                () => !NightDetention.Locks(name, game.State));
+            Vector3 target = p + Vector3.up * 1.08f;
+            game.Target(target,fire?"推开地下防火门":"推门 · "+name,0,()=>game.ToggleDoor(door),
+                () => !NightDetention.Locks(name, game.State) && !game.KeyDoorLocked(door));
+            if (key is not { } spec) return;
+            DressKeyDoor(door, spec, target, rotation);
+            if (sideInward.HasValue) return;
+            DressRoomKey(spec);
+            if (spec.SideDoor is { } sideDoor)
+                AddDoor(name + "侧门", sideDoor, sideInward: Vector3.right, key: spec);
         }
 
         void Pickup(string id,Vector3 point,Vector3 scale, Material mat)

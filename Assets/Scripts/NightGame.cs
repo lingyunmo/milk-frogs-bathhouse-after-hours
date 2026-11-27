@@ -442,6 +442,7 @@ namespace AfterHours
         internal void ToggleDoor(NightWorld.Door door)
         {
             if (NightDetention.Locks(door.Name, State)) return;
+            if (!TryUnlockDoor(door, out bool saveUnlock)) return;
             if(door.Fire)
             {
                 if(State.firstFireDoor)return;
@@ -451,6 +452,7 @@ namespace AfterHours
             else if(!State.openDoors.Remove(door.Name))State.openDoors.Add(door.Name);
             world.Refresh();
             Emit(door.Position,Player.Crouched?.25f:.57f,"tool");
+            if (saveUnlock) SaveProgress();
         }
 
         internal void OpenDoorsForHunter(Vector3 position)
@@ -459,7 +461,8 @@ namespace AfterHours
             {
                 if(!door.Leaf.activeSelf||Mathf.Abs(position.y-door.Position.y)>.55f||
                     Vector3.Distance(position,door.Position)>1.05f)continue;
-                if (NightDetention.Locks(door.Name, State) || door.Fire && position.z < door.Position.z) continue;
+                if (NightDetention.Locks(door.Name, State) || KeyDoorLocked(door) ||
+                    door.Fire && position.z < door.Position.z) continue;
                 if(door.Fire)State.firstFireDoor=true;
                 else State.openDoors.Add(door.Name);
                 door.Leaf.SetActive(false);

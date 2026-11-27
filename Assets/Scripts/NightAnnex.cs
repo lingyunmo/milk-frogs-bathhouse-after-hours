@@ -16,8 +16,8 @@ namespace AfterHours
         internal static readonly Vector3 RelayConsole = new(36.5f, 8.10f, 22.2f);
         internal static readonly (string Id, Vector3 Position, string Location)[] Supplies =
         {
-            ("cell-annex-rest", new(35.6f, 4.52f, 21.8f), "休息间"),
-            ("cell-annex-store", new(26.2f, 8.12f, 5.75f), "配件库")
+            ("cell-annex-rest", new(35.6f, 4.507f, 21.8f), "休息间"),
+            ("cell-annex-store", new(26.2f, 8.117f, 5.75f), "配件库")
         };
 
         internal static readonly (int Floor, string Name, Rect Bounds, bool Route, Vector2? Entrance)[] Areas =
@@ -67,7 +67,7 @@ namespace AfterHours
             DressAnnexLoadingBay(annex);
 
             foreach (var (id, position, _) in NightAnnexLayout.Supplies)
-                Pickup(id, position - Vector3.up * .036f, new(.12f, .09f, .11f), olive);
+                Pickup(id, position, new(.12f, .09f, .11f), olive);
         }
 
         void CutAnnexEntrance(Transform bathhouse, float height)
@@ -113,11 +113,11 @@ namespace AfterHours
             }
             WallSign("副楼", new Vector3(16.37f, height + 2.77f, 12), 90, new(1.18f, .28f), .12f);
             AddMainsLight(new Vector3(19.5f, height + 2.98f, 12), new Color(.77f, .84f, .78f), 1.22f, 5.2f);
-            var caged = Prop("industrial_wall_sconce", "连廊应急壁灯", new(21.05f, height + 2.05f, 13.48f),
+            var caged = Prop("industrial_wall_sconce", "连廊应急壁灯", new(21.25f, height + 2.05f, 13.60f),
                 new(.20f, .31f, .25f), 180, false);
             caged.transform.SetParent(storey, true);
             LightSconce(caged, upper ? .36f : 1f);
-            Fixture(new Vector3(21.05f, height + 2.02f, 13.20f), new Vector3(-.35f, -.44f, -1f),
+            Fixture(new Vector3(21.25f, height + 2.02f, 13.30f), new Vector3(-.35f, -.44f, -1f),
                 new Color(.96f, .76f, .49f), upper ? .78f : 1.65f, upper ? 4.70f : 5.8f,
                 upper ? 96 : 108, .005f);
             atmosphere.AddProbe(new Vector3(bounds.center.x, height + 1.55f, bounds.center.y),
@@ -194,7 +194,7 @@ namespace AfterHours
             foreach (float z in new[] { 6f, 13.5f, 21f })
             {
                 float y = NightAnnexLayout.RampHeight(z);
-                var lamp = Prop("industrial_wall_sconce", "折坡通道防护灯", new(42.65f, y + 2.2f, z),
+                var lamp = Prop("industrial_wall_sconce", "折坡通道防护灯", new(42.77f, y + 2.2f, z),
                     new(.20f, .34f, .27f), 90, false);
                 lamp.transform.SetParent(stairs, true);
                 bool upperLanding = z == NightAnnexLayout.UpperRampEntry;
@@ -225,17 +225,17 @@ namespace AfterHours
             if (index == 2)
             {
                 Add("metal_office_desk", "机修台", 28, 5.54f, new(2.6f, .82f, .82f));
-                Add("wall_clock", "机修间停走的钟", 28.3f, 4.14f, new(.42f, .42f, .095f), 0, 2.06f, false);
+                Add("wall_clock", "机修间停走的钟", 28.3f, 4.1325f, new(.42f, .42f, .095f), 0, 2.06f, false);
                 Add("worn_metal_rack", "轴承架", 24.0f, 6.2f, new(2.2f, 1.90f, .60f), 90);
-                Add("cardboard_box_01", "轴承架上旧包装", 24.13f, 6.76f, new(.39f, .35f, .46f), 4, 1.34f, false);
+                Add("cardboard_box_01", "轴承架上旧包装", 24.13f, 6.76f, new(.39f, .35f, .46f), 4, .012f + ShelfTop(1.90f, 3), false);
                 Add("tool_cart", "留在机修间的旧推车", 29.5f, 8.80f, new(.88f, .93f, .55f), -10);
                 Add("portable_generator", "拆下的便携式机组", 33.1f, 5.30f, new(1.24f, .92f, .61f), -15);
                 Add("worn_metal_rack", "器材钢架", 36.9f, 4.62f, new(2.45f, 1.91f, .67f));
-                Add("cardboard_box_01", "底层滤芯纸箱", 36.56f, 4.60f, new(.50f, .44f, .40f), 9, .37f, false);
-                Add("vintage_suitcase", "送修的仪器箱", 36.95f, 4.60f, new(.65f, .34f, .42f), -6, .99f, false);
+                Add("cardboard_box_01", "底层滤芯纸箱", 36.56f, 4.60f, new(.50f, .44f, .40f), 9, .012f + ShelfTop(1.91f, 1), false);
+                Add("vintage_suitcase", "送修的仪器箱", 36.95f, 4.60f, new(.65f, .34f, .42f), -6, .012f + ShelfTop(1.91f, 2), false);
                 Add("metal-bucket", "接残油的桶", 37.83f, 8.3f, new(.41f, .43f, .44f), 9);
                 Add("laundry-basket", "布草筐", 24.0f, 16.29f, new(.75f, .80f, .79f), -13);
-                Add("folded-towel-stack", "待入库的布巾", 26.25f, 20.80f, new(.60f, .23f, .46f), 8, 1.055f, false);
+                Add("folded-towel-stack", "待入库的布巾", 26.25f, 20.80f, new(.60f, .23f, .46f), 8, 1.04f, false);
                 Add("washing-machine", "带脱水桶的洗衣滚筒", 29.6f, 23.14f, new(1.02f, 1.17f, .83f), 180);
                 BuildAnnexSofaHide(storey, height);
                 Add("metal_office_desk", "休息间夜班补给桌", 35.6f, 21.95f, new(1.7f, .85f, .64f), 180);
@@ -255,8 +255,8 @@ namespace AfterHours
                 Add("vintage_radio_transceiver", "离线监听设备", 33.67f, 5.27f, new(.51f, .23f, .34f), 175, .902f, false);
                 Add("painted_wooden_chair_02", "监测台旁的椅子", 35.71f, 6.37f, new(.56f, .93f, .55f), 25);
                 Add("worn_metal_rack", "留档室的资料钢架", 24.12f, 19.65f, new(3.85f, 2.07f, .64f), 90);
-                Add("cardboard_box_01", "值班记录封存箱", 24.11f, 18.98f, new(.44f, .39f, .58f), 90, .82f, false);
-                Add("cardboard_box_01", "旧线路备份档案", 24.12f, 20.21f, new(.42f, .38f, .54f), 80, .82f, false);
+                Add("cardboard_box_01", "值班记录封存箱", 24.11f, 18.98f, new(.44f, .39f, .58f), 90, .012f + ShelfTop(2.07f, 2), false);
+                Add("cardboard_box_01", "旧线路备份档案", 24.12f, 20.21f, new(.42f, .38f, .54f), 80, .012f + ShelfTop(2.07f, 2), false);
                 Add("worn_metal_rack", "留档室后排货架", 29.55f, 17.21f, new(2.2f, 1.97f, .62f), 90);
                 Add("metal_office_desk", "留档室接线图桌", 28, 22.45f, new(2.2f, .87f, .81f), 180);
                 Add("painted_wooden_chair_02", "留档室椅子", 26.3f, 21.9f, new(.52f, .87f, .52f), 17);
@@ -269,9 +269,9 @@ namespace AfterHours
 
             // The lit work surfaces are navigation anchors even during the blackout.
             StreetRoomLight(storey, new(28.35f, height + 2.71f, index == 2 ? 5.12f : 22.94f),
-                new(-.14f, -1, index == 2 ? .30f : -.30f), tableTint, index == 2 ? 1.60f : .64f);
+                new(-.14f, -1, index == 2 ? .30f : -.30f), tableTint, index == 2 ? 1.60f : .64f, height + AnnexCeiling);
             StreetRoomLight(storey, new(36.88f, height + 2.69f, 22.89f), new(-.29f, -1, -.41f),
-                wallTint, index == 2 ? .76f : .37f);
+                wallTint, index == 2 ? .76f : .37f, height + AnnexCeiling);
             AddMainsLight(new Vector3(34.5f, height + 2.98f, 7.4f), wallTint, .94f, 4.63f);
             AddMainsLight(new Vector3(26.8f, height + 2.98f, 18.7f), wallTint, .91f, 5.32f);
             if (index == 2)
@@ -309,7 +309,7 @@ namespace AfterHours
 
         void AnnexPaper(Transform storey)
         {
-            Vector3 paper = NightAnnexLayout.WiringPlan - Vector3.up * .024f;
+            Vector3 paper = NightAnnexLayout.WiringPlan - Vector3.up * .032f;
             AnnexSurface(storey, "带编号的接线图", paper, new(.36f, .012f, .29f), ceiling, collider: false);
             for (int line = 0; line < 3; line++)
             {
@@ -337,7 +337,7 @@ namespace AfterHours
                 new(1.04f, .92f, .68f), -12);
             StreetRoomProp(annex, "cardboard_box_01", "货箱堆", new(32.05f, 0, 4.87f),
                 new(.87f, .65f, .66f), 5);
-            StreetRoomProp(annex, "cardboard_box_01", "压在货堆上的旧纸箱", new(32.08f, .64f, 4.87f),
+            StreetRoomProp(annex, "cardboard_box_01", "压在货堆上的旧纸箱", new(32.08f, .65f, 4.87f),
                 new(.55f, .51f, .46f), -12, false);
             WallSign("装卸间", new Vector3(28.7f, 3.18f, 4.03f), 0, new(2.10f, .34f), .16f);
         }

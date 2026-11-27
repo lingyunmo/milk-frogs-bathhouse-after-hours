@@ -132,6 +132,29 @@ namespace AfterHours
         void SetItemArt(VisualElement picture, string name)
         {
             if (string.IsNullOrEmpty(name)) return;
+            if (name == "key")
+            {
+                picture.generateVisualContent += context =>
+                {
+                    var pen = context.painter2D;
+                    float unit = Mathf.Min(picture.contentRect.width, picture.contentRect.height);
+                    Vector2 center = picture.contentRect.center;
+                    Vector2 Point(float x, float y) => center + new Vector2(x, y) * unit;
+                    pen.strokeColor = new Color(.76f, .62f, .35f, .94f);
+                    pen.lineWidth = Mathf.Max(1.2f, unit * .042f);
+                    pen.BeginPath();
+                    pen.Arc(Point(-.16f, .12f), unit * .115f, 0, 360);
+                    pen.Stroke();
+                    pen.BeginPath();
+                    pen.MoveTo(Point(-.068f, .052f));
+                    pen.LineTo(Point(.23f, -.21f));
+                    pen.LineTo(Point(.308f, -.118f));
+                    pen.MoveTo(Point(.155f, -.142f));
+                    pen.LineTo(Point(.214f, -.067f));
+                    pen.Stroke();
+                };
+                return;
+            }
             if (!inventoryArt.TryGetValue(name, out var texture))
             {
                 texture = Resources.Load<Texture2D>(InterfaceFolder + "Items/" + name);
@@ -147,6 +170,7 @@ namespace AfterHours
             NightItemId.Stone => "stone",
             NightItemId.Starter or NightItemId.RelayFuse => "starter",
             NightItemId.Seal => "seal",
+            NightItemId.LinenKey or NightItemId.StaffKey or NightItemId.UplinkKey => "key",
             _ => "receipt"
         };
     }

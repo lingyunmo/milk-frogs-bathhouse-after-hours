@@ -160,15 +160,28 @@ namespace AfterHours
             Prop(asset, label, at, size, yaw, solid).transform.SetParent(building, true);
         }
 
-        void StreetRoomLight(Transform building, Vector3 point, Vector3 direction, Color colour, float intensity)
+        void StreetRoomLight(Transform building, Vector3 point, Vector3 direction, Color colour, float intensity,
+            float ceilingHeight = 3.075f)
         {
             bool thirdFloor = IsThirdFloorFixture(point);
             var lamp = Prop("industrial_wall_sconce", "旧式防护罩灯", point + Vector3.down * .045f,
                 new(.20f, .31f, .25f), 0, false);
             lamp.transform.SetParent(building, true);
+            HangFromCeiling(building, point + Vector3.up * .263f, ceilingHeight);
             LightSconce(lamp, thirdFloor ? .36f : 1f);
             Fixture(point + Vector3.down * .20f, direction, colour, intensity,
                 thirdFloor ? 4.25f : 5.5f, thirdFloor ? 96 : 108, .0045f);
+        }
+
+        void HangFromCeiling(Transform building, Vector3 lampTop, float ceilingHeight)
+        {
+            float drop = ceilingHeight - lampTop.y;
+            var conduit = Box("灯具吊杆", lampTop + Vector3.up * (drop * .5f),
+                new Vector3(.038f, drop, .038f), steel, building);
+            conduit.GetComponent<Collider>().enabled = false;
+            var plate = Box("灯具接线盖", new Vector3(lampTop.x, ceilingHeight - .019f, lampTop.z),
+                new Vector3(.15f, .041f, .15f), steel, building);
+            plate.GetComponent<Collider>().enabled = false;
         }
     }
 }

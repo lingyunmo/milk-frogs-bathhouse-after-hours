@@ -29,9 +29,9 @@ namespace AfterHours
         {
             for (int level = -1; level <= 2; level++)
             {
-                int minX = level == 0 ? -31 : -19;
+                int minX = level == 0 ? -31 : level < 0 ? -23 : -19;
                 int maxX = level == 0 ? 171 : level > 0 ? Mathf.CeilToInt(NightAnnexLayout.Ramp.xMax) - 1 : 15;
-                int minZ = level == 0 ? -35 : 1, maxZ = level == 0 ? 43 : 23;
+                int minZ = level == 0 ? -35 : Mathf.CeilToInt(NightMainRing.Front), maxZ = level == 0 ? 43 : 23;
                 for (int x = minX; x <= maxX; x++)
                 for (int z = minZ; z <= maxZ; z++)
                 {
@@ -81,7 +81,7 @@ namespace AfterHours
         internal static float LevelHeight(int level) => level * FloorHeight;
 
         internal static bool IsInsideBathhouse(Vector3 feet) =>
-            LevelAt(feet.y) != 0 || NightAtlas.Building.Contains(new Vector2(feet.x, feet.z));
+            LevelAt(feet.y) != 0 || NightAtlas.MainInterior(new Vector2(feet.x, feet.z));
 
         internal Vector3 PointAt(int node) => points[node];
 

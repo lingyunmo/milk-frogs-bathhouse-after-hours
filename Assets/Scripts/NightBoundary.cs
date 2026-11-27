@@ -14,7 +14,10 @@ namespace AfterHours
             if (!float.IsFinite(point.x) || !float.IsFinite(point.y) || !float.IsFinite(point.z)) return false;
             if (point.x < WestEdge || point.x > EastEdge || point.z < SouthEdge || point.z > NorthEdge ||
                 point.y < -4.5f || point.y > 11.6f) return false;
-            return point.y >= -1.25f || (point.x >= -20.1f && point.x <= 16.1f && point.z >= -.1f && point.z <= 24.1f);
+            if (point.y >= -1.25f) return true;
+            var map = new Vector2(point.x, point.z);
+            return (point.x >= -20.1f && point.x <= 16.1f && point.z >= -.1f && point.z <= 24.1f) ||
+                NightMainRing.Footprint.Contains(map) || NightMainRing.BasementConnector.Contains(map);
         }
 
         void BoundTheStreet()

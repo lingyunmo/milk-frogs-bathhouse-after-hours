@@ -28,7 +28,7 @@ namespace AfterHours
                 foreach (var door in Doors)
                 {
                     Vector3 p = door.Position;
-                    if (Mathf.Abs(p.y - y) > .04f) continue;
+                    if (Mathf.Abs(p.y - y) > .04f || Mathf.Abs(door.Inward.x) > .50f) continue;
                     bool fireDoor = door.Fire;
                     float width = door.Leaf.transform.lossyScale.x;
                     float jamb = width * .5f + .029f;

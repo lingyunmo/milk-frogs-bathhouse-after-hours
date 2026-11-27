@@ -266,7 +266,7 @@ namespace AfterHours
             foreach (int x in new[] { -16, -7, 2, 11 })
             {
                 var mount = new Vector3(x, y + 2.67f, 13.82f);
-                var sconce = Prop("industrial_wall_sconce", "走廊旧式壁灯", mount + new Vector3(0, -.19f, -.13f),
+                var sconce = Prop("industrial_wall_sconce", "走廊旧式壁灯", mount + new Vector3(0, -.19f, -.05f),
                     new Vector3(.17f, .38f, .28f), 180, false);
                 if (x is -16 or 11 || y < 0 && x == -7)
                 {

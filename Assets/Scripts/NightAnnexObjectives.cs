@@ -57,7 +57,7 @@ namespace AfterHours
             Prop("utility_box_02", "受潮线路隔离箱", new(28, 4.432f, 5.35f), new(.63f, .49f, .37f), 0, false);
             Prop("metal_toolbox", "机修台旧工具箱", new(27.38f, 4.432f, 5.57f), new(.46f, .21f, .27f), 12, false);
             Prop("metal_toolbox", "街尾维修站工具箱", new(159.24f, .85f, 9.86f), new(.48f, .22f, .26f), -14, false);
-            Prop("utility_box_02", "泵房壁挂接线箱", new(55.70f, 1.03f, 14.32f), new(.62f, .67f, .26f), -90, false);
+            Prop("utility_box_02", "泵房壁挂接线箱", new(55.80f, 1.03f, 14.32f), new(.62f, .67f, .26f), -90, false);
 
             isolationLamp = Indicator("隔离箱指示灯", new Vector3(28.18f, 4.79f, 5.552f));
             relayLamp = Indicator("中继机指示灯", new Vector3(36.42f, 8.22f, 22.19f));

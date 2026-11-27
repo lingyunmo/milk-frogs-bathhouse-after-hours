@@ -80,6 +80,7 @@ namespace AfterHours
     internal sealed partial class NightWorld
     {
         readonly List<(string Room, GameObject Housing)> detentionLocks = new();
+        readonly List<(string Room, string AdjoiningRoom, GameObject Gate)> detentionSideGates = new();
 
         void DressDetentionRooms()
         {
@@ -112,14 +113,41 @@ namespace AfterHours
                 detentionLocks.Add((site.Room, body));
                 body.SetActive(false);
                 game.Target(point + Vector3.forward * (.13f * inward), "拨动卡簧锁", 0, game.OpenDetentionLock,
-                    () => NightDetention.Locks(site.Room, game.State), 1.8f);
+                    () => NightDetention.Locks(site.Room, game.State) &&
+                        Mathf.Abs(game.Player.Feet.y - door.Position.y) < .65f &&
+                        (game.Player.Feet.z - door.Position.z) * inward > .05f, 1.8f);
             }
+
+            // These passages are open in ordinary play. The active holding room closes both exits.
+            AddDetentionSideGate("检修工坊", "备品库", new Vector3(-8, -3.6f, 5));
+            AddDetentionSideGate("发电机房", null, new Vector3(-5, -3.6f, 19));
+        }
+
+        void AddDetentionSideGate(string room, string adjoiningRoom, Vector3 feet)
+        {
+            const float width = 1.48f, height = 2.54f;
+            Vector3 center = feet + Vector3.up * (height * .5f);
+            var gate = Box("拘留侧闸", center, new Vector3(.14f, height, width), steel);
+            Surface(gate, steel, 1.12f);
+            foreach (float side in new[] { -1f, 1f })
+            foreach (float offset in new[] { -.77f, 0, .77f })
+            {
+                var brace = Box("侧闸横撑", center + new Vector3(side * .079f, offset, 0),
+                    new Vector3(.035f, .052f, width), steel);
+                brace.transform.SetParent(gate.transform, true);
+                brace.GetComponent<Collider>().enabled = false;
+                Surface(brace, steel, 1.12f);
+            }
+            gate.SetActive(false);
+            detentionSideGates.Add((room, adjoiningRoom, gate));
         }
 
         void RefreshDetentionRooms()
         {
             foreach (var (room, housing) in detentionLocks)
                 housing.SetActive(NightDetention.Locks(room, game.State));
+            foreach (var (room, adjoiningRoom, gate) in detentionSideGates)
+                gate.SetActive(NightDetention.Locks(room, game.State) || NightDetention.Locks(adjoiningRoom, game.State));
         }
     }
 }
