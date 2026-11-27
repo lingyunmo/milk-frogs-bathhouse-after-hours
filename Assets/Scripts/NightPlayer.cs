@@ -12,6 +12,7 @@ namespace AfterHours
         const float CrouchSpeed = 1.10f;
         const float StandingHeight = 1.70f;
         const float CrouchHeight = .54f;
+        internal bool CarryingLoad, HaulTrained;
         float torchStrength = 2.64f;
         float beamAngle = 65;
         const float TorchWarmup = .15f;
@@ -192,8 +193,9 @@ namespace AfterHours
         internal float Move(Vector2 input, bool sprint, float dt)
         {
             Vector2 keys = Vector2.ClampMagnitude(input, 1);
-            Sprinting = sprint && !Crouched && !Exhausted && keys.sqrMagnitude > .01f && keys.y > -.2f;
+            Sprinting = sprint && !CarryingLoad && !Crouched && !Exhausted && keys.sqrMagnitude > .01f && keys.y > -.2f;
             float speed = Crouched ? CrouchSpeed : Sprinting ? RunSpeed : WalkSpeed;
+            if (CarryingLoad) speed *= .83f;
             var desired = (transform.right * keys.x + transform.forward * keys.y) * speed;
             if (desired.sqrMagnitude < .0001f) planarVelocity = Vector3.zero;
             else planarVelocity = Vector3.MoveTowards(planarVelocity, desired, 13 * dt);
@@ -210,11 +212,23 @@ namespace AfterHours
             return walked;
         }
 
+        internal void StrainAtWinch(float dt)
+        {
+            Stamina = Mathf.Max(0, Stamina - .143f * dt);
+            if (Stamina <= .001f) Exhausted = true;
+        }
+
+        internal void RestAtWinch(float dt)
+        {
+            Stamina = Mathf.Min(1, Stamina + .21f * dt);
+            if (Stamina >= .26f) Exhausted = false;
+        }
+
         void UpdateStamina(bool running, bool moving, float dt)
         {
             if (running)
             {
-                Stamina = Mathf.Max(0, Stamina - .218f * dt);
+                Stamina = Mathf.Max(0, Stamina - .218f * dt / (HaulTrained ? 1.25f : 1f));
                 breathDelay = .85f;
                 if (Stamina <= 0)
                 {

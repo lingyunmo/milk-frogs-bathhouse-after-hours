@@ -611,6 +611,8 @@
     transition-property: opacity;
     transition-duration: .7s;
 }
+.stamina--trained { width: 400px; }
+.compact .stamina.stamina--trained { width: 60%; }
 .stamina--shown {
     opacity: 1;
 }

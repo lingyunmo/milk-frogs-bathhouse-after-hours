@@ -104,3 +104,7 @@
     border-color: #8c8473;
     background-color: #333d37;
 }
+
+.field-synchronizer { background-color: rgba(0,0,0,0); }
+.field-synchronizer .detention-lock__plate { max-width: 360px; }
+.field-synchronizer .detention-lock__dial { height: 170px; }

@@ -36,7 +36,7 @@ namespace AfterHours
                 () => Notify("指示窗还是黑的。灯座下面写着「凭回执亮灯」。"),
                 () => NightEvents.Available(State, 4) && !State.contacted);
             Target(NightEvents.BackupBeacon, "扳开备用接应灯", 1.2f, SendBackupBeacon,
-                () => NightEvents.Available(State, 4) && State.contacted && !State.beacon && State.rescueTime < 0);
+                () => NightEvents.Available(State, 4) && State.contacted && State.RescueAccess && !State.beacon && State.rescueTime < 0);
         }
 
         void OpenDutyCase()
@@ -159,7 +159,7 @@ namespace AfterHours
             freightReadyLight.SetActive(!state.collected.Contains(NightEvents.FreightBellKey(state.night)));
 
             backupBeacon.gameObject.SetActive(state.night >= 4);
-            backupReadyLight.SetActive(state.contacted && !state.beacon);
+            backupReadyLight.SetActive(state.contacted && state.RescueAccess && !state.beacon);
             backupBeaconLight.SetActive(state.beacon);
         }
 

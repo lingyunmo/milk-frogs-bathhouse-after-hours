@@ -453,6 +453,8 @@ namespace AfterHours
             Type(column, safe ? "天亮以前" : "最后一夜", "ending-title serif");
             Area(column, "ending-rule");
             Type(column, safe ? "车门关上了。浴场的灯从后窗消失。" : "铁门合上了。走廊里只剩它的笑声。", "ending-caption serif");
+            int seconds = Mathf.FloorToInt(game.State.dispatch.playSeconds);
+            Type(column, $"在场时间　{seconds / 60:D2}′ {seconds % 60:D2}″", "ending-overline");
             var actions = Area(column, "ending-actions");
             var retry = Item(actions, "重新开始", game.NewNight, "retry", true);
             Item(actions, "返回标题", () => game.SetScreen(NightScreen.Title), "title");
@@ -490,6 +492,8 @@ namespace AfterHours
             Legend(legend, "legend-swatch--here", "当前位置");
             Legend(legend, "legend-swatch--seen", "已走过");
             Legend(legend, "legend-swatch--unknown", "未探索");
+            if (game.State.dispatch.accepted && !game.State.dispatch.RoadReady)
+                Legend(legend, "legend-swatch--here", "调度点");
             var tools = Area(footer, "atlas-tools");
             Type(tools, "滚轮缩放　·　按住拖动", "muted");
             Act(tools, "−", () => fullMap.Zoom(1 / 1.26f), "chip-button atlas-control", "map-zoom-out");
@@ -539,6 +543,7 @@ namespace AfterHours
             Type(status, "脚步逼近", "danger-text");
             Visible(status, false);
 
+            BuildDispatchHud(layer);
             var mapBox = Area(layer, "minimap");
             minimapRing = Area(mapBox, "minimap-ring");
             minimap = new NightMapView(game, true);
@@ -766,6 +771,7 @@ namespace AfterHours
 
             if (player.Stamina < .995f || player.Sprinting || player.Exhausted) staminaSeen = now;
             staminaBlock.EnableInClassList("stamina--shown", now - staminaSeen < 1.3f);
+            staminaBlock.EnableInClassList("stamina--trained", player.HaulTrained);
             stamina.Set(player.Stamina, player.Exhausted || player.Stamina < .20f);
 
             float amount = state.torch ? Mathf.Clamp01(state.charge / NightState.FullTorchCharge) : 0f;
@@ -790,7 +796,7 @@ namespace AfterHours
 
             var focus = game.Focus;
             var repair = game.RepairView;
-            Visible(reticle, repair == null);
+            Visible(reticle, repair == null && !game.WorkingDispatch);
             reticle.Set(focus != null, game.Hold);
             reticle.Tick();
             Visible(prompt, focus != null);
@@ -800,6 +806,7 @@ namespace AfterHours
                 Visible(promptHold, focus.Hold > 0 && game.Hold <= 0);
             }
             DrawRepair(repair);
+            TickDispatchHud();
 
             // Heading-up minimap: the plan turns under a fixed arrow, and north circles the bezel.
             float yaw = player.transform.eulerAngles.y;
@@ -824,13 +831,15 @@ namespace AfterHours
             if (state.detained) return "门闩另一边有道弹簧响";
             if (state.rescueTime == 0) return "车门还开着";
             if (state.beacon) return "远处有引擎声";
+            if (!state.dispatch.accepted && state.torch) return "前台的夜班电台一直在响";
+            if (state.contacted && !state.RescueAccess) return "街口还没清出来";
             if (state.contacted) return "司机看得见街尾的反光板吗？";
             if (!state.torch) return "更衣凳旁，有一圈金属反光";
-            if (!state.power && state.motorStage == 0 && !state.motorPart && !state.collected.Contains("receipt"))
+            if (!state.dispatch.accepted && !state.power && state.motorStage == 0 && !state.motorPart && !state.collected.Contains("receipt"))
                 return "前台还摊着昨晚的交班簿";
             if (!state.power) return "地下的机器没了动静";
             if (!state.annexIsolated) return "副楼二层有股焦糊味";
-            if (!state.collected.Contains(NightGame.AnnexDiagramId) && !state.annexRelay) return "缺的那张图，会归在哪一档？";
+            if (!state.collected.Contains(NightGame.AnnexDiagramId) && !state.annexRelay) return "接通副楼旁路，或试试街尾维修站的天线";
             if (!state.annexRelay) return "副楼三层，机柜还空着一排端子";
             if (!state.uplink) return "楼上的电话线通向街口";
             return "听筒里终于有了长音";
