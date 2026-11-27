@@ -93,6 +93,7 @@ namespace AfterHours
 
         void BuildAnnexBridge(Transform storey, float height, Material glazing)
         {
+            bool upper = height == NightAnnexLayout.Upper;
             Rect bounds = NightAnnexLayout.Bridge;
             AnnexDeck(storey, bounds, height, "东连廊地坪", terrazzo);
             AnnexRoof(storey, bounds, height, "东连廊屋面", steel);
@@ -115,9 +116,10 @@ namespace AfterHours
             var caged = Prop("industrial_wall_sconce", "连廊应急壁灯", new(21.05f, height + 2.05f, 13.48f),
                 new(.20f, .31f, .25f), 180, false);
             caged.transform.SetParent(storey, true);
-            LightSconce(caged);
+            LightSconce(caged, upper ? .36f : 1f);
             Fixture(new Vector3(21.05f, height + 2.02f, 13.20f), new Vector3(-.35f, -.44f, -1f),
-                new Color(.96f, .76f, .49f), 1.65f, 5.8f, 108, .005f);
+                new Color(.96f, .76f, .49f), upper ? .78f : 1.65f, upper ? 4.70f : 5.8f,
+                upper ? 96 : 108, .005f);
             atmosphere.AddProbe(new Vector3(bounds.center.x, height + 1.55f, bounds.center.y),
                 new Vector3(bounds.width, AnnexCeiling, bounds.height));
         }
@@ -154,7 +156,7 @@ namespace AfterHours
             for (int x = 25; x <= 37; x += 6)
                 AddMainsLight(new Vector3(x, height + 2.98f, 12), new Color(.73f, .84f, .80f), .94f, 5.5f);
             Fixture(new Vector3(30.65f, height + 2.51f, 13.4f), new Vector3(.17f, -1, -.60f),
-                new Color(.63f, .78f, .75f), .52f, 5.0f, 105);
+                new Color(.63f, .78f, .75f), lower ? .52f : .28f, lower ? 5.0f : 4.15f, 105);
             WallSign("楼梯", new Vector3(38.85f, height + 2.73f,
                 lower ? NightAnnexLayout.LowerRampEntry : NightAnnexLayout.UpperRampEntry), 90, new(1.24f, .29f), .13f);
         }
@@ -195,9 +197,10 @@ namespace AfterHours
                 var lamp = Prop("industrial_wall_sconce", "折坡通道防护灯", new(42.65f, y + 2.2f, z),
                     new(.20f, .34f, .27f), 90, false);
                 lamp.transform.SetParent(stairs, true);
-                LightSconce(lamp);
+                bool upperLanding = z == NightAnnexLayout.UpperRampEntry;
+                LightSconce(lamp, upperLanding ? .36f : 1f);
                 Fixture(new Vector3(42.49f, y + 2.42f, z), new Vector3(-.52f, -1, .19f),
-                    new Color(.92f, .67f, .39f), .61f, 4.37f, 110);
+                    new Color(.92f, .67f, .39f), upperLanding ? .26f : .61f, upperLanding ? 3.4f : 4.37f, 110);
             }
 
             void Sloped(string label, Vector3 position, Vector3 size, Material material, bool collision = true)
@@ -266,8 +269,9 @@ namespace AfterHours
 
             // The lit work surfaces are navigation anchors even during the blackout.
             StreetRoomLight(storey, new(28.35f, height + 2.71f, index == 2 ? 5.12f : 22.94f),
-                new(-.14f, -1, index == 2 ? .30f : -.30f), tableTint, 1.60f);
-            StreetRoomLight(storey, new(36.88f, height + 2.69f, 22.89f), new(-.29f, -1, -.41f), wallTint, .76f);
+                new(-.14f, -1, index == 2 ? .30f : -.30f), tableTint, index == 2 ? 1.60f : .64f);
+            StreetRoomLight(storey, new(36.88f, height + 2.69f, 22.89f), new(-.29f, -1, -.41f),
+                wallTint, index == 2 ? .76f : .37f);
             AddMainsLight(new Vector3(34.5f, height + 2.98f, 7.4f), wallTint, .94f, 4.63f);
             AddMainsLight(new Vector3(26.8f, height + 2.98f, 18.7f), wallTint, .91f, 5.32f);
             if (index == 2)

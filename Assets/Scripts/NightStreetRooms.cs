@@ -162,11 +162,13 @@ namespace AfterHours
 
         void StreetRoomLight(Transform building, Vector3 point, Vector3 direction, Color colour, float intensity)
         {
+            bool thirdFloor = IsThirdFloorFixture(point);
             var lamp = Prop("industrial_wall_sconce", "旧式防护罩灯", point + Vector3.down * .045f,
                 new(.20f, .31f, .25f), 0, false);
             lamp.transform.SetParent(building, true);
-            LightSconce(lamp);
-            Fixture(point + Vector3.down * .20f, direction, colour, intensity, 5.5f, 108, .0045f);
+            LightSconce(lamp, thirdFloor ? .36f : 1f);
+            Fixture(point + Vector3.down * .20f, direction, colour, intensity,
+                thirdFloor ? 4.25f : 5.5f, thirdFloor ? 96 : 108, .0045f);
         }
     }
 }

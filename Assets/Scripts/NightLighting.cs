@@ -10,7 +10,7 @@ namespace AfterHours
         const float TubeRiseSeconds = .25f;
         static readonly Color TubeGlow = new(.43f, .53f, .48f);
         const float TubeBloom = 3.1f;
-        readonly List<(Light Lamp, Renderer Diffuser, float Intensity, float Delay)> circuits = new();
+        readonly List<(Light Lamp, Renderer Diffuser, float Intensity, float Delay, float Glow)> circuits = new();
         readonly MaterialPropertyBlock tubeResponse = new();
         Material litDiffuser, practicalBulb;
         Coroutine powerRestoration;
@@ -74,7 +74,7 @@ namespace AfterHours
             return lamp;
         }
 
-        void LightSconce(GameObject sconce)
+        void LightSconce(GameObject sconce, float glowScale = 1)
         {
             foreach (var surface in sconce.GetComponentsInChildren<Renderer>())
             {
@@ -91,6 +91,12 @@ namespace AfterHours
                         practicalBulb.SetColor("_EmissionColor", new Color(.69f, .32f, .095f) * 5.2f);
                     }
                     materials[i] = practicalBulb;
+                    if (glowScale < 1)
+                    {
+                        var dimmed = new MaterialPropertyBlock();
+                        dimmed.SetColor("_EmissionColor", practicalBulb.GetColor("_EmissionColor") * glowScale);
+                        surface.SetPropertyBlock(dimmed, i);
+                    }
                     changed = true;
                 }
                 if (changed) surface.sharedMaterials = materials;
@@ -125,21 +131,34 @@ namespace AfterHours
             return practicalProfile;
         }
 
+        static bool IsThirdFloorFixture(Vector3 position) => position.y >= NightAnnexLayout.Upper + 2f;
+
         void AddMainsLight(Vector3 position, Color colour, float power, float range)
         {
-            power *= 1.35f;
+            bool thirdFloor = IsThirdFloorFixture(position);
+            bool annex = thirdFloor && position.x >= NightAnnexLayout.Bridge.xMin;
+            // The third-floor circuit has short pools of light around working fixtures.
+            var (scale, maxRange, angle, glow) = (thirdFloor, annex) switch
+            {
+                (true, true) => (.70f, 4.70f, 94f, 1.12f),
+                (true, false) => (1.03f, 5.40f, 99f, 1.55f),
+                _ => (1.35f, range, 109f, TubeBloom)
+            };
+            power *= scale;
+            range = Mathf.Min(range, maxRange);
             var body = Box("熄灭的荧光灯槽", position + Vector3.up * .12f,
                 new Vector3(.85f, .17f, .32f), steel);
             var diffuser = Box("荧光灯磨砂罩", position + Vector3.up * .022f,
                 new Vector3(.67f, .034f, .21f), emergencyGlass);
             body.GetComponent<Collider>().enabled = false;
             diffuser.GetComponent<Collider>().enabled = false;
-            var lamp = Fixture(position + Vector3.down * .065f, Vector3.down, colour, power, range, 109, .006f);
+            var lamp = Fixture(position + Vector3.down * .065f, Vector3.down, colour, power, range,
+                angle, thirdFloor ? .003f : .006f);
             lamp.enabled = false;
             float distanceFromBreaker = Mathf.Abs(position.x - 8) + Mathf.Abs(position.z - 3.38f);
             float floor = Mathf.Clamp(Mathf.Floor((position.y + 3.60f) / 3.60f), 0, 3);
             float delay = .045f + floor * .13f + distanceFromBreaker * .0045f;
-            circuits.Add((lamp, diffuser.GetComponent<Renderer>(), power, delay));
+            circuits.Add((lamp, diffuser.GetComponent<Renderer>(), power, delay, glow));
         }
 
         Material LitDiffuser()
@@ -169,7 +188,7 @@ namespace AfterHours
                     entry.Lamp.enabled = rise > 0;
                     entry.Lamp.intensity = entry.Intensity * rise;
                     entry.Diffuser.sharedMaterial = rise > 0 ? LitDiffuser() : emergencyGlass;
-                    tubeResponse.SetColor("_EmissionColor", TubeGlow * TubeBloom * rise);
+                    tubeResponse.SetColor("_EmissionColor", TubeGlow * entry.Glow * rise);
                     entry.Diffuser.SetPropertyBlock(tubeResponse);
                 }
                 yield return null;
@@ -194,7 +213,8 @@ namespace AfterHours
                 entry.Lamp.enabled = power;
                 entry.Lamp.intensity = entry.Intensity;
                 entry.Diffuser.sharedMaterial = power ? LitDiffuser() : emergencyGlass;
-                entry.Diffuser.SetPropertyBlock(null);
+                tubeResponse.SetColor("_EmissionColor", TubeGlow * entry.Glow);
+                entry.Diffuser.SetPropertyBlock(power ? tubeResponse : null);
             }
 
             // Reflections were shot under the other lighting state. Re-shoot them a few faces a frame.
@@ -235,11 +255,14 @@ namespace AfterHours
             var support = position + new Vector3(.94f, -.55f, -.96f);
             var colour = basement ? new Color(1f, .54f, .31f) :
                 wet ? new Color(.64f, .83f, .84f) : new Color(.93f, .71f, .50f);
-            Fixture(support, new Vector3(-.4f, -1f, .42f), colour, basement ? .44f : .39f, 4.75f, 84);
+            bool thirdFloor = IsThirdFloorFixture(position);
+            Fixture(support, new Vector3(-.4f, -1f, .42f), colour, thirdFloor ? .28f : basement ? .44f : .39f,
+                thirdFloor ? 4.0f : 4.75f, 84);
         }
 
         void CorridorLighting(float y)
         {
+            bool thirdFloor = y >= NightAnnexLayout.Upper - .1f;
             foreach (int x in new[] { -16, -7, 2, 11 })
             {
                 var mount = new Vector3(x, y + 2.67f, 13.82f);
@@ -247,12 +270,13 @@ namespace AfterHours
                     new Vector3(.17f, .38f, .28f), 180, false);
                 if (x is -16 or 11 || y < 0 && x == -7)
                 {
-                    LightSconce(sconce);
+                    LightSconce(sconce, thirdFloor ? .48f : 1f);
                     // The weak basement wash marks the next bay without carrying far down the hall.
                     bool guide = x == -7;
                     var tint = y < 0 ? new Color(.98f, .62f, .39f) : new Color(.91f, .72f, .52f);
                     Fixture(mount + new Vector3(0, -.155f, -.28f), new Vector3(.20f, -1f, -.58f),
-                        tint, guide ? .38f : .76f, guide ? 3.6f : 5.0f, 99);
+                        tint, thirdFloor ? .46f : guide ? .38f : .76f,
+                        guide ? 3.6f : thirdFloor ? 4.25f : 5.0f, thirdFloor ? 90 : 99);
                 }
                 AddMainsLight(new Vector3(x + 2, y + 3.06f, 12), new Color(.70f, .84f, .82f), 1.08f, 5.55f);
             }
@@ -261,7 +285,7 @@ namespace AfterHours
             {
                 var position = new Vector3(x, y + 2.42f, x < 0 ? 14.8f : 9.16f);
                 Fixture(position, new Vector3(0, -1, x < 0 ? .15f : -.15f),
-                    new Color(.94f, .72f, .53f), .90f, 5.5f, 104);
+                    new Color(.94f, .72f, .53f), thirdFloor ? .63f : .90f, thirdFloor ? 4.95f : 5.5f, 104);
             }
         }
     }
