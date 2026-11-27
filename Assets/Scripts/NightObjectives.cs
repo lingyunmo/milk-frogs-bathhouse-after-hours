@@ -18,13 +18,15 @@ namespace AfterHours
                 SaveProgress();
             },()=>!State.torch);
 
-            Supply(FaultNoteId, new(9,1.05f,3.92f), "读夜班故障单", "故障单 · B 查看", sound: "paper");
-            Supply("motor", new(-14,-2.43f,4.13f), "取发电机启动件", "发电机启动件", () => State.motorPart = true);
-            Supply("seal", new(8,4.8f,4.43f), "取回水接头密封圈", "回水密封圈", () => State.seal = true);
-            Cell("cell-reception", new(10,.99f,4.1f), "前台");
-            Cell("cell-storage", new(-2,-2.53f,5), "备品库");
+            Supply(FaultNoteId, new(9,1.00f,3.74f), "读夜班故障单", "故障单 · B 查看", sound: "paper");
+            Supply("motor", new(-14,-2.30f,4.46f), "取发电机启动件", "发电机启动件", () => State.motorPart = true);
+            Supply("seal", new(8,4.72f,4.20f), "取回水接头密封圈", "回水密封圈", () => State.seal = true);
+            Cell("cell-reception", new(10,1.015f,3.71f), "前台");
+            Cell("cell-storage", new(-2,-2.53f,4.67f), "备品库");
             Cell("cell-staff", new(-9,8.15f,18), "值班室");
             Cell("cell-parking", new(49,.17f,4.8f), "停车棚");
+            foreach (var supply in NightMainRing.Batteries)
+                Cell(supply.Id, supply.Target, supply.Place);
             foreach (var supply in NightWorld.StreetSupplies)
                 Cell(supply.Id, supply.Position, supply.Location);
             foreach (var supply in NightWorld.StreetRoomSupplies)
@@ -120,7 +122,7 @@ namespace AfterHours
             {
                 if (Player.Vault(to)) LandingNoise = sound;
                 else Notify("落脚处被挡住了。");
-            }, available, 1.48f);
+            }, () => !State.detained && (available == null || available()), 1.48f);
         }
 
         void Repair(Vector3 point,float noise,Action advance,string sound="tool")

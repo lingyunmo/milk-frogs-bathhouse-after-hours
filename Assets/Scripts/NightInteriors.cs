@@ -18,6 +18,9 @@ namespace AfterHours
         const string NightFinish = "Finishes/Night/";
         Material plaster, paint, glazed, brick, tiles, terrazzo, planks, asphalt, steel, emergencyGlass;
 
+        // These are the tray surfaces in the model's original 1.90 m envelope.
+        static float ShelfTop(float rackHeight, int tier) => (.42f + .49f * (tier - 1)) * rackHeight / 1.90f;
+
         static Material Pbr(string name, string color, string normal, string finish, Color tint, float shine,
             bool ao = false, Shader shader = null)
         {
@@ -253,7 +256,7 @@ namespace AfterHours
             if(solid)
             {
                 var collision=group.AddComponent<BoxCollider>();
-                collision.size=size*.96f;
+                collision.size=new Vector3(size.x*.96f,size.y,size.z*.96f);
                 collision.center=Vector3.up*size.y*.5f;
             }
             return group;
@@ -262,8 +265,8 @@ namespace AfterHours
         void Replace(string old, string asset, string label, Vector3 bottom, Vector3 size, float yaw = 0)
         {
             var placeholder=GameObject.Find(old);
-            if(placeholder)placeholder.GetComponent<Renderer>().enabled=false;
-            Prop(asset,label,bottom,size,yaw,false);
+            if(placeholder)placeholder.SetActive(false);
+            Prop(asset,label,bottom,size,yaw);
         }
 
         GameObject Shape(string label, PrimitiveType type, Vector3 position, Vector3 size, Material material, Vector3 angles)
@@ -299,13 +302,13 @@ namespace AfterHours
 
             Prop("kitchen-base-unit-sink","茶座备餐水槽台",new Vector3(-10.76f,0,1.08f),new Vector3(2.4f,1.08f,.78f));
             Prop("kitchen-base-unit-drawers","备餐抽屉柜",new Vector3(-8.9f,0,1.08f),new Vector3(1.2f,.89f,.78f));
-            Prop("white-kitchen-wall-cabinet","茶座墙上餐具柜",new Vector3(-10.55f,1.62f,.92f),new Vector3(2.72f,.64f,.44f));
-            Prop("tea_set_01","水槽旁茶壶",new Vector3(-9.1f,.91f,1.2f),new Vector3(.51f,.23f,.46f),0,false);
+            Prop("white-kitchen-wall-cabinet","茶座墙上餐具柜",new Vector3(-10.55f,1.62f,.30f),new Vector3(2.72f,.64f,.44f));
+            Prop("tea_set_01","水槽旁茶壶",new Vector3(-8.83f,.89f,1.12f),new Vector3(.45f,.23f,.38f),0,false);
         }
 
         void DressRooms()
         {
-            // Work surfaces and hiding spots keep their original interaction collision.
+            // Fit the obstructions to the visible work surfaces.
             Replace("发电机组","portable_generator","带启动面板的发电机",new Vector3(-10,-3.60f,20),new Vector3(3.7f,1.70f,1.72f));
             Replace("求援终端台","metal_office_desk","前台接待桌",new Vector3(9,0,3.5f),new Vector3(2.4f,.94f,.77f));
             Replace("密封圈备品架","worn_metal_rack","毛巾库钢架",new Vector3(8,3.60f,4),new Vector3(2,1.40f,.65f));
@@ -320,11 +323,13 @@ namespace AfterHours
                 if (part.name != "上沿")
                     part.localScale = new Vector3(.18f, .60f, .18f);
             }
-            GameObject.Find("宿舍 床架").transform.Find("上沿").GetComponent<Renderer>().enabled=false;
+            var placeholderBed = GameObject.Find("宿舍 床架");
+            if (placeholderBed) placeholderBed.SetActive(false);
             Prop("sofa_02","有布裙的旧沙发",new Vector3(-15,3.60f,5),new Vector3(3.4f,1.20f,1.50f),0,false,"Raised");
             Fixture(new Vector3(-17.5f,5.96f,7.35f),new Vector3(.7f,-.46f,-.68f),new Color(.95f,.73f,.53f),.42f,4.5f,86);
-            Prop("vintage_day_bed","铁架宿舍床",new Vector3(-3,8.02f,20),new Vector3(2.3f,.75f,1.50f),90,false);
-            Prop("television_02","前台报警终端",new Vector3(9,1.0f,3.53f),new Vector3(.49f,.37f,.36f),180,false);
+            Prop("vintage_day_bed","铁架宿舍床",new Vector3(-3,7.2f,20),new Vector3(2.04f,1.08f,.92f));
+            DressDormDesk();
+            Prop("television_02","前台报警终端",new Vector3(9,.94f,3.53f),new Vector3(.49f,.37f,.36f),180,false);
             Prop("television_02","走廊录像监视器",new Vector3(-14.2f,8.04f,2.2f),new Vector3(.51f,.43f,.41f),0,false);
             Prop("television_02","放映柜小电视",new Vector3(-7.5f,4.34f,2.0f),new Vector3(.73f,.56f,.55f),0,false);
             Prop("tea_set_01","没收走的茶具",new Vector3(-9.2f,.70f,7.02f),new Vector3(.65f,.22f,.64f),0,false);
@@ -353,7 +358,7 @@ namespace AfterHours
                 ("WoodenTable_01","折叠台",new(-12.8f,3.6f,21.5f),new(2.2f,.81f,1.1f),0),
                 ("cardboard_box_01","折叠间封箱",new(-7.9f,3.6f,22),new(.68f,.47f,.47f),-20),
                 ("painted_wooden_bench","更衣室第二排长凳",new(-4.6f,3.6f,22.72f),new(2.1f,.56f,.53f),0),
-                ("vintage_day_bed","靠墙按摩榻",new(12,3.6f,20.2f),new(1.9f,.82f,.80f),90),
+                ("vintage_day_bed","靠墙按摩榻",new(12,3.6f,20.2f),new(1.90f,1.04f,.84f),90),
                 ("metal_stool_01","按摩室手推凳",new(13.8f,3.6f,20.5f),new(.50f,.60f,.46f),0),
                 ("WoodenTable_01","沙发厅靠墙茶几",new(-17.6f,3.6f,2.44f),new(1.54f,.49f,.79f),0),
                 ("metal_office_desk","放映室器材桌",new(-7.5f,3.6f,2),new(2.0f,.74f,.72f),0),
@@ -378,6 +383,18 @@ namespace AfterHours
             var van=Prop("kei-van","救援车车身",new Vector3(160,0,-20),new Vector3(2.08f,2.13f,5.0f),90,false);
             van.transform.SetParent(Rescue.transform,true);
             SetDressingDetails();
+        }
+
+        void DressDormDesk()
+        {
+            Vector3 feet = new(1.55f, 7.2f, 23.39f);
+            var desk = Prop("metal_office_desk", "宿舍换班桌", feet, new Vector3(2.08f, .87f, .76f), 0, false);
+            CollisionBox(desk.transform, "宿舍桌面", feet + Vector3.up * .771f, new Vector3(2.06f, .198f, .75f));
+            foreach (float side in new[] { -.72f, .72f })
+                CollisionBox(desk.transform, "宿舍桌两侧抽屉",
+                    feet + new Vector3(side, .335f, 0), new Vector3(.56f, .67f, .70f));
+            CollisionBox(desk.transform, "宿舍桌背板",
+                feet + new Vector3(0, .335f, .34f), new Vector3(.88f, .67f, .06f));
         }
     }
 }

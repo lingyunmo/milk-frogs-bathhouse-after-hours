@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram }
+    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey }
 
     internal readonly struct NightInventoryItem
     {
@@ -68,6 +68,19 @@ namespace AfterHours
                     !State.collected.Contains(NightStreetRelay.SeatedId))
                     yield return new NightInventoryItem(NightItemId.RelayFuse, "备用保险管", "维修",
                         "后场检修棚拾得。街对面值守点的转接机正缺这支保险管。");
+                foreach (var key in NightKeyDoors.Locks)
+                {
+                    if (!State.collected.Contains(key.KeyId)) continue;
+                    var itemId = key.Slot switch
+                    {
+                        NightKeyDoors.KeySlot.Linen => NightItemId.LinenKey,
+                        NightKeyDoors.KeySlot.Staff => NightItemId.StaffKey,
+                        _ => NightItemId.UplinkKey
+                    };
+                    yield return new NightInventoryItem(itemId, key.KeyName, "钥匙",
+                        "开" + key.Room + "的门。对准门锁按 F。",
+                        status: NightKeyDoors.IsUnlocked(key, State) ? "已开锁" : "");
+                }
                 if (State.collected.Contains(FaultNoteId))
                     yield return new NightInventoryItem(NightItemId.Receipt, "夜班故障单", "记录",
                         "地下设备层负责供电。维修副楼的旁路还没接好，机修间和留档室都有线索。接通外线后，可回前台或去街外值守点求援。",

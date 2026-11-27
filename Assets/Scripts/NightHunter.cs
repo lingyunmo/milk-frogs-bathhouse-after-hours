@@ -607,6 +607,7 @@ namespace AfterHours
 
         bool CanTraverse(Vector3 from, Vector3 to)
         {
+            if (!game.CanCrossKeyDoors(from, to)) return false;
             Vector3 delta = to - from;
             float lengthSquared = delta.sqrMagnitude;
             if (lengthSquared < .000001f) return true;
@@ -775,7 +776,7 @@ namespace AfterHours
             bool TryRoute()
             {
                 goals.Sort(static (a, b) => b.Rank.CompareTo(a.Rank));
-                Func<Vector3, Vector3, bool> allowed = !game.State.firstFireDoor || blockedTraversals.Count > 0
+                Func<Vector3, Vector3, bool> allowed = !game.State.firstFireDoor || blockedTraversals.Count > 0 || game.HasLockedKeyDoors
                     ? CanTraverse : null;
                 int attempts = 0;
                 foreach (var goal in goals)

@@ -49,7 +49,7 @@ namespace AfterHours
             Dress("kei-van", "商铺后巷的送货车", new(68.10f, 0, 23.14f), new(1.95f, 1.89f, 4.62f), -78);
             Dress("painted_wooden_bench", "转角人行道木凳", new(82.8f, 0, -.12f), new(2.25f, .50f, .63f), -8);
             Dress("metal_trash_can", "转角店垃圾桶", new(83.05f, 0, 18.29f), new(.7f, .89f, .67f), 14);
-            StreetLampAt(new Vector3(81.4f, 2.71f, .52f), .67f, 5.4f);
+            StreetLampAt(new Vector3(81.4f, 2.71f, .935f), .67f, 5.4f);
 
             Dress("mixed-tenant-block", "路对面的商住楼", new(116.68f, -.01f, -30.60f), new(12.28f, 21.0f, 8.50f));
             StreetShelter(district, "街对面值守点", new(117.10f, 0, -25.88f), 5.44f, 3.06f, structure, -1);
@@ -122,7 +122,7 @@ namespace AfterHours
 
             Prop("metal_office_desk", "工具间备品架", new Vector3(5.66f, .45f, 37.64f),
                 new Vector3(1.39f, .79f, .58f), 0).transform.SetParent(district, true);
-            StreetLampAt(new Vector3(5.12f, 2.28f, 36.88f), .83f, 3.45f);
+            StreetLampAt(new Vector3(5.12f, 2.28f, 36.88f), .83f, 3.45f, 2.95f);
         }
 
         void StreetShelter(Transform district, string name, Vector3 feet, float width, float depth,
@@ -141,13 +141,17 @@ namespace AfterHours
             }
             Vector3 back = feet + new Vector3(0, .69f, depth * .43f * northBack);
             Surface(Box(name + "矮挡墙", back, new Vector3(width * .86f, 1.38f, .18f), brick, district), brick, 1.7f);
-            StreetLampAt(roof + new Vector3(0, -.21f, depth * .09f * northBack), .90f, 5.15f);
+            Vector3 light = roof + new Vector3(0, -.21f, depth * .09f * northBack);
+            float soffit = roof.y - .065f - Mathf.Tan(3.5f * Mathf.Deg2Rad * northBack) * (light.z - roof.z);
+            StreetLampAt(light, .90f, 5.15f, soffit);
         }
 
-        void StreetLampAt(Vector3 point, float intensity, float range)
+        void StreetLampAt(Vector3 point, float intensity, float range, float? ceilingHeight = null)
         {
             var lamp = Prop("industrial_wall_sconce", "街巷罩灯", point + Vector3.down * .13f,
                 new Vector3(.17f, .25f, .21f), 0, false);
+            if (ceilingHeight.HasValue)
+                HangFromCeiling(root, point + Vector3.up * .119f, ceilingHeight.Value);
             LightSconce(lamp);
             Fixture(point + Vector3.down * .08f, Vector3.down, new Color(.95f, .72f, .46f), intensity, range, 112, .0045f);
         }

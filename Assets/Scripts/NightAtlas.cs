@@ -10,6 +10,8 @@ namespace AfterHours
         internal const int Street = 4;
         internal static readonly string[] FloorNames = { "地下室", "一楼", "二楼", "三楼", "街区" };
         internal static readonly Rect Building = Rect.MinMaxRect(-20, 0, 16, 24);
+        internal static bool MainInterior(Vector2 point) =>
+            Building.Contains(point) || NightMainRing.Footprint.Contains(point);
         internal static readonly Rect StreetBounds = Rect.MinMaxRect(NightWorld.WestEdge, NightWorld.SouthEdge,
             NightWorld.EastEdge, NightWorld.NorthEdge);
 
@@ -61,6 +63,9 @@ namespace AfterHours
             Add(3, "检修平台", Rect.MinMaxRect(8.75f, 24, 11.25f, 26.7f));
             Add(2, "卸货平台", Rect.MinMaxRect(-13.3f, 24, -9.7f, 27.4f));
             Add(2, "西侧雨棚", Rect.MinMaxRect(-22.6f, 3.7f, -20, 6.3f));
+            for (int floor = 0; floor < 4; floor++)
+            foreach (var area in NightMainRing.Areas(floor))
+                Add(floor, area.Name, area.Bounds, route: area.Route, entrance: area.Entrance);
             foreach (var area in NightAnnexLayout.Areas)
                 Add(area.Floor, area.Name, area.Bounds, route: area.Route, entrance: area.Entrance);
             foreach (var room in NightWorld.StreetRoomAreas)
@@ -88,7 +93,8 @@ namespace AfterHours
             bool inAnnex = feet.y > NightAnnexLayout.Lower - .55f &&
                 (NightAnnexLayout.Bridge.Contains(point) || NightAnnexLayout.Footprint.Contains(point) ||
                 NightAnnexLayout.Ramp.Contains(point));
-            if (!Building.Contains(point) && !inAnnex)
+            bool undergroundConnector = level == 0 && NightMainRing.BasementConnector.Contains(point);
+            if (!MainInterior(point) && !inAnnex && !undergroundConnector)
             {
                 if (feet.y > 4.8f && point.y >= 24) level = 3;
                 else level = feet.y > 1.1f ? 2 : Street;
@@ -238,7 +244,7 @@ namespace AfterHours
             }
 
             plan = sheet == NightAtlas.Street ? NightAtlas.StreetBounds :
-                Rect.MinMaxRect(-23, -1, sheet is 2 or 3 ? NightAnnexLayout.Ramp.xMax + 1 : 18, 31);
+                Rect.MinMaxRect(-25, NightMainRing.Front - 1f, sheet is 2 or 3 ? NightAnnexLayout.Ramp.xMax + 1 : 18, 31);
             float fitScale = Mathf.Max(.01f, Mathf.Min((width - 96) / plan.width, (height - 58) / plan.height));
             scale = fitScale * zoom;
             origin = new Vector2((width - plan.width * scale) / 2, (height - plan.height * scale) / 2) + pan;
@@ -317,7 +323,12 @@ namespace AfterHours
                     Line(paint, Point(opening.x - .65f, opening.y), Point(opening.x + .65f, opening.y),
                         SeenBefore(area) ? Amber : QuietWall, small ? 1.6f : 2.4f);
 
-            if (street) AreaBox(paint, NightAtlas.Building, new Color(.10f, .13f, .12f, .88f), Wall);
+            if (street)
+            {
+                var buildingFill = new Color(.10f, .13f, .12f, .88f);
+                AreaBox(paint, NightAtlas.Building, buildingFill, Wall);
+                AreaBox(paint, NightMainRing.Footprint, buildingFill, Wall);
+            }
             if (!small) DrawScale(paint, street);
             if (floor != game.Atlas.Floor) return;
 
