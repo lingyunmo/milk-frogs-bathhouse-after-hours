@@ -118,7 +118,34 @@ namespace AfterHours
             game.Player.SetTorch(true);
             var radio = Visit("接听夜班调度");
             Check(radio.Hold >= 1,"Radio must be held");
+            ui.Tick();
+            Check(Field<Label>(ui,"task").text == "接听夜班电台", "No actionable radio lead");
             radio.Use();
+            Invoke(game,"FocusTarget",0f);
+            ShowEstablishedView();
+            ui.Tick();
+            Check(Field<Label>(ui,"objectiveTag").text.Contains("已接单"), "No radio receipt");
+            if (preview != null)
+            {
+                var shot = CaptureInstrument(SiblingPreview("radio"));
+                while (shot.MoveNext()) yield return shot.Current;
+            }
+            game.SetScreen(NightScreen.Map);
+            var root = Field<VisualElement>(ui,"root");
+            Submit(root.Q<Button>("switch-orders"));
+            Check(root.Query<Button>(className:"order-entry").ToList().Count == 4, "Missing order sheets");
+            if (preview != null)
+            {
+                yield return new WaitForSecondsRealtime(.45f);
+                var shot = CaptureInstrument(SiblingPreview("orders"));
+                while (shot.MoveNext()) yield return shot.Current;
+            }
+            Submit(root.Q<Button>("order-Barrier"));
+            Check(NightSave.Read().dispatch.tracked == FieldOrder.Barrier, "Tracking selection not saved");
+            game.ContinueNight();
+            ui.Tick();
+            Check(Field<Label>(ui,"task").text.Contains("取配重") &&
+                !Field<Label>(ui,"objectiveTag").text.Contains("已接单"), "Continue lost tracked lead or replayed receipt");
             var job = game.State.dispatch;
             var normal = Target("翻起反光接应板");
             var backupBeacon = Target("扳开备用接应灯");
@@ -153,15 +180,15 @@ namespace AfterHours
                     dial = Field<NightDetentionLock>(ui,"synchronizer");
                     Check(dial.Seated==1,"Partial generator lost on continue");
                     for(int n=0;n<4;n++) Stroke(dial,true);
-                    game.Player.SetTorch(true);
-                    game.Player.SetTorchVisible(true);
-                    game.Player.AdvanceTorch(game,.3f);
-                    typeof(NightInterface).GetField("arrival",Private).SetValue(ui,Time.unscaledTime-12f);
+                    ShowEstablishedView();
+                    Check(Field<VisualElement>(ui,"objectiveBlock").style.display.value == DisplayStyle.None &&
+                        Field<VisualElement>(ui,"dispatchStrip").style.display.value == DisplayStyle.Flex,
+                        "Repair must keep the four circuits and clear unrelated directions");
                     ui.Tick();
                     game.Player.SettleView(.1f);
                     if (preview != null)
                     {
-                        var shot = CaptureInstrument();
+                        var shot = CaptureInstrument(preview);
                         while (shot.MoveNext()) yield return shot.Current;
                     }
                 }
@@ -170,6 +197,7 @@ namespace AfterHours
                 ui.Tick();
             }
             Check(job.AllRunning && !job.RoadReady,"Winch bypass");
+            Check(NightFieldOrders.Tracking(game.State)==FieldOrder.Barrier, "Generator completion replaced player's tracking choice");
             Visit("背起绞盘配重").Use();
             Check(game.Player.CarryingLoad,"Carrying speed modifier missing");
             game.Player.Move(Vector2.up,true,.02f);
@@ -182,6 +210,7 @@ namespace AfterHours
             Check(!job.carrying && job.loadFeet==NightDispatch.LoadDepot && job.AllRunning,"Capture destroyed progress");
             game.ContinueNight();
             Check(game.State.detained && game.State.dispatch.AllRunning,"Capture not saved");
+            Check(NightFieldOrders.Current(game.State).action.Contains("卡簧锁"), "Dispatch obscured confinement objective");
             game.OpenDetentionLock();
             game.ReleaseDetention();
             var next = game.State.dispatch;
@@ -205,6 +234,9 @@ namespace AfterHours
                 game.Wind(!rest,Dt); winchSeconds+=Dt;
             }
             Check(next.RoadReady && !game.Winding,"Could not raise barrier");
+            ui.Tick();
+            Check(NightFieldOrders.Tracking(game.State)==FieldOrder.Drain &&
+                Field<Label>(ui,"location").text==NightReturnLines.Zones[0], "Completed order didn't advance to drain");
             Check(!game.State.RescueAccess && !normal.Available(),"Flooded road permits escape");
             game.State.pump = true;
             Check(game.State.RescueAccess,"Original pump route no longer drains the road");
@@ -234,6 +266,7 @@ namespace AfterHours
             Check(game.Reception>=.95f,"Cannot acquire carrier");
             for(int n=0;n<185;n++) if(game.Tuning)game.Tune(0,Dt);
             Check(game.State.contacted && !game.Tuning,"Cannot confirm directional radio");
+            Check(NightFieldOrders.Current(game.State).action=="翻起接应板", "No actionable rescue lead");
             game.State.night=4;
             Check(normal.Available() && backupBeacon.Available(),"Beacon not reachable on either route");
             Visit("翻起反光接应板").Use();
@@ -242,7 +275,27 @@ namespace AfterHours
             Check(game.State.escaped && game.ScreenState==NightScreen.Escaped,"Could not board");
         }
 
-        IEnumerator CaptureInstrument()
+        void ShowEstablishedView()
+        {
+            game.Player.SetTorch(true);
+            game.Player.SetTorchVisible(true);
+            game.Player.AdvanceTorch(game,.3f);
+            typeof(NightInterface).GetField("arrival",Private).SetValue(ui,Time.unscaledTime-20f);
+            game.Player.SettleView(.1f);
+        }
+
+        static void Submit(Button button)
+        {
+            Check(button != null && button.enabledInHierarchy, "Missing or disabled button");
+            using var ev = NavigationSubmitEvent.GetPooled();
+            ev.target = button;
+            button.SendEvent(ev);
+        }
+
+        string SiblingPreview(string suffix) => Path.Combine(Path.GetDirectoryName(preview),
+            Path.GetFileNameWithoutExtension(preview) + "-" + suffix + Path.GetExtension(preview));
+
+        IEnumerator CaptureInstrument(string path)
         {
             const int width=1280, height=720;
             var camera=game.Player.Eyes.GetComponent<Camera>();
@@ -266,7 +319,7 @@ namespace AfterHours
                 var image=new Texture2D(width,height,TextureFormat.RGB24,false);
                 image.ReadPixels(new Rect(0,0,width,height),0,0);
                 image.Apply();
-                File.WriteAllBytes(preview,image.EncodeToJPG(89));
+                File.WriteAllBytes(path,image.EncodeToJPG(89));
                 Destroy(image);
             }
             finally

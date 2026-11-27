@@ -141,3 +141,9 @@ An ORIGINAL physically based game prop ALBEDO texture atlas, landscape 3:2 aspec
 ### 房间内的布料与收口
 
 洗衣房的换洗帘和副楼折叠台的布挡采用 Poly Haven 的 Rough Linen（CC0），在双面褶皱网格上按米铺设颜色和切线法线。墙裙、管夹、门套、厨房与检修用铁件沿用现有浴场材质。斜光检查使用独立 QA 玩家中的 `Tools/QA/AfterHoursRoomSurfaceAudit.cs`；先用 `-afterhours-room-surfaces <输出目录> baseline` 记录机位，再以 `adjusted` 重拍同一组位置。[Rough Linen](https://polyhaven.com/a/rough_linen)
+
+## 夜班工单
+
+`Assets/Resources/Interface/DispatchBoard.jpg` 使用内置图像生成工具绘制无字夹板。标题、任务、状态印章与按键全部在运行时排印。底图保留原始 1536 × 1024 像素。
+
+Top-down prop photograph for a Chinese municipal bathhouse night-shift game. One horizontal landscape maintenance clipboard, aspect ratio 3:2. Orthographic flat lay, paper edges parallel to frame. A stack of warm grey-beige unprinted forms covers the entire frame, with a narrow oxidized enamel backing and a small dull metal clip at the top center. Slight pressure dents and a folded corner, fine fibrous paper, tiny water damage on the extreme edges, uneven cut leaves at bottom. The central 85% is evenly lit, blank, matte and plain so actual typeset interactive text can be added in the game. Restrained aged olive brass and neutral buff paper under a fluorescent desk lamp. Extremely realistic close photographic detail. No writing, no symbols, no ink lines, no tools, no hands, no desk clutter. Crop close to the outer edges of the clipboard.
