@@ -8,6 +8,8 @@ namespace AfterHours
         const float TitleCycle = 19.5f;
         const float LampStutter = .76f;
         const float CornerReveal = 2.35f;
+        const float CornerRelight = .20f;
+        const float IntruderHold = 1.10f;
 
         VisualElement titleBackdrop, titleHaze, titleLamp, titleLampShade, titleLampCore, titleCornerLight, titleHallFrog, titleIntruder;
         float titleElapsed;
@@ -75,17 +77,19 @@ namespace AfterHours
             float phase = elapsed % TitleCycle;
             float relay = phase - LampStutter;
             float reveal = phase - CornerReveal;
+            float intruderCut = CornerRelight + IntruderHold;
+            bool intruderVisible = reveal >= CornerRelight && reveal < intruderCut;
             float power = .87f + .13f * Mathf.PerlinNoise(elapsed * 3.1f, 2.7f);
             if (relay >= 0 && relay < .52f)
                 power *= relay < .19f ? .16f : relay < .34f ? .94f : .28f;
-            if (reveal >= 0 && reveal < 1.19f)
-                power *= reveal < .20f ? .12f : reveal < .95f ? 1f : .15f;
+            if (reveal >= 0 && reveal < intruderCut + .19f && !intruderVisible)
+                power *= reveal < CornerRelight ? .12f : .15f;
 
             float level = Mathf.Lerp(.69f, 1f, power);
             titleBackdrop.style.unityBackgroundImageTintColor = new Color(level, level, level, 1);
             titleLampShade.style.opacity = Mathf.Pow(1 - power, .8f);
             titleLamp.style.opacity = power * .77f;
-            bool reigniting = relay is >= .19f and < .34f || reveal is >= .20f and < .36f;
+            bool reigniting = relay is >= .19f and < .34f || reveal is >= CornerRelight and < .36f;
             titleLampCore.style.opacity = power * (reigniting ? .86f : .14f);
 
             float hallApproach = Mathf.SmoothStep(0, 1, (phase - .94f) / .62f);
@@ -98,13 +102,8 @@ namespace AfterHours
             titleHallFrog.style.unityBackgroundImageTintColor =
                 new Color(hallLight, hallLight * .92f, hallLight * .81f, 1);
 
-            // The second figure lives in screen space, independent of the hallway and doorframe.
-            float closeApproach = Mathf.SmoothStep(0, 1, (reveal - .15f) / .23f);
-            float closeRetreat = Mathf.SmoothStep(0, 1, (reveal - .88f) / .26f);
-            float foregroundPeek = closeApproach * (1 - closeRetreat);
-            titleIntruder.style.opacity = foregroundPeek * Mathf.Lerp(.31f, 1, power);
-            titleIntruder.style.translate = new Translate(Length.Percent(27 * (1 - foregroundPeek)),
-                Length.Percent(32 * (1 - foregroundPeek)), 0);
+            // A fixed foreground pose cuts in with the relight and cuts out at the next blackout.
+            titleIntruder.style.opacity = intruderVisible ? 1f : 0f;
 
             float drift = .5f + .5f * Mathf.Sin(elapsed * .19f);
             titleBackdrop.style.scale = new Scale(Vector3.one * (1.015f + game.Preferences.CameraMotion * drift * .034f));

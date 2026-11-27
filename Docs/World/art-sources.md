@@ -86,7 +86,7 @@ Create a single game-ready material plate as an original photograph/scan. 16:9 l
 
 - [走廊底图](../../Assets/Resources/Interface/AfterHoursCorridor.png)用内置 ImageGen 把角色与原[标题图](../../Assets/Resources/Interface/AfterHoursTitle.png)的场景拆开。灯、长凳和右侧门框沿用原构图。
 - [门后的彩色奶娃](../../Assets/Resources/Interface/AfterHoursHallFrog.png)复用本项目透明背景的[奶娃右前视图](../../ArtSource/HorrorMilkFrog/haunted-fullbody-skin-03/08-front-right-look.png)，灯亮时以原有色彩从门框后探出。
-- [闯入画面的奶娃](../../Assets/Resources/Interface/AfterHoursIntruder.png)由内置 ImageGen 参考同一角色新画，保留透明背景。它从屏幕边缘近距离探出，露出眼睛和手，再退回画面外。
+- [近景黑影](../../Assets/Resources/Interface/AfterHoursIntruder.png)由内置 ImageGen 参考同一角色新画，保留透明背景。灯重新亮起时，眼睛和手在屏幕右下的固定位置短暂显现。
 - 标题环境音使用 congusbongus 的《Lost in a bad place》，CC0，编辑了 120 毫秒循环接缝。 [原曲与许可](https://opengameart.org/content/lost-in-a-bad-place-horror-ambience-loop)
 - 浴场环境音使用 TinyWorlds 的《Deep Humidity》，CC0，处理高低频和 2.1 秒循环接缝。标题故障灯的电流声在 Unity 中独立合成。 [原曲与许可](https://opengameart.org/content/deep-humidity)
 
