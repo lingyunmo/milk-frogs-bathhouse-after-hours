@@ -129,6 +129,14 @@
     height: 15%;
     -unity-background-image-tint-color: rgba(255, 218, 149, .94);
 }
+.title-lamp-sparks {
+    position: absolute;
+    left: 55.6%;
+    top: 15.2%;
+    width: 24%;
+    height: 46%;
+    translate: -50% -22%;
+}
 .title-corner-light {
     left: 82%;
     top: 43%;
@@ -161,10 +169,12 @@
 }
 .title-intruder {
     position: absolute;
-    right: -6%;
-    bottom: -12%;
+    left: -6%;
+    top: -6%;
     width: 64%;
     height: 87%;
+    rotate: 180deg;
+    -unity-background-image-tint-color: rgb(187, 198, 194);
     background-repeat: no-repeat;
     background-size: contain;
     background-position: right bottom;

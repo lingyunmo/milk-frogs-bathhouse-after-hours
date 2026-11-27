@@ -92,6 +92,11 @@ namespace AfterHours
             if (ScreenState == NightScreen.Title) soundscape.PlayTitleLightFlicker(strength);
         }
 
+        internal void PlayTitleSpark(float strength = 1f)
+        {
+            if (ScreenState == NightScreen.Title) soundscape.PlayTitleSpark(strength);
+        }
+
         internal void SetTitleBlackout(bool dark)
         {
             if (ScreenState == NightScreen.Title) soundscape.SetTitleBlackout(dark);

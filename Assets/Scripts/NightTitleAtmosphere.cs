@@ -6,11 +6,13 @@ namespace AfterHours
     internal sealed partial class NightInterface
     {
         const float TitleCycle = 19.5f;
-        const float LampStutter = .76f;
-        const float CornerBlackout = 3.10f;
+        const float CoverCut = 1.25f;
+        const float CornerBlackout = 3.82f;
         const float CornerRelight = .58f;
         const float IntruderHold = 1.10f;
+        static readonly float[] LampBursts = { 1.54f, 1.81f, 2.12f };
 
+        NightTitleSparks titleSparks;
         VisualElement titleBackdrop, titleHaze, titleLamp, titleLampShade, titleLampCore, titleCornerLight, titleHallFrog;
         VisualElement titleBlackout, titleIntruder;
         float titleElapsed;
@@ -18,7 +20,6 @@ namespace AfterHours
         void BuildTitleArt(VisualElement theater)
         {
             titleBackdrop = Area(theater, "title-backdrop");
-            titleBackdrop.style.backgroundImage = new StyleBackground(titleImage);
             theater.RegisterCallback<GeometryChangedEvent>(e => LayoutTitleArt(e.newRect.size));
 
             titleHaze = Area(titleBackdrop, "screen title-haze");
@@ -29,6 +30,8 @@ namespace AfterHours
             titleLamp.style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
             titleLampCore = Area(titleBackdrop, "title-lamp-core");
             titleLampCore.style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
+            titleSparks = new NightTitleSparks();
+            titleBackdrop.Add(titleSparks);
             titleCornerLight = Area(titleBackdrop, "title-corner-light");
             titleCornerLight.style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
             var corner = Area(titleBackdrop, "title-corner");
@@ -48,6 +51,7 @@ namespace AfterHours
         {
             titleBackdrop = titleHaze = titleLamp = titleLampShade = titleLampCore = titleCornerLight = titleHallFrog = null;
             titleBlackout = titleIntruder = null;
+            titleSparks = null;
         }
 
         void LayoutTitleArt(Vector2 viewport)
@@ -70,7 +74,13 @@ namespace AfterHours
             if (Application.isFocused || NightGame.Capturing)
                 titleElapsed += Mathf.Min(Time.unscaledDeltaTime, .075f);
             float phase = titleElapsed % TitleCycle;
-            if (before < LampStutter && phase >= LampStutter) game.PlayTitleLightFlicker(.67f);
+            if (before < LampBursts[0] && phase >= LampBursts[0]) game.PlayTitleLightFlicker(.67f);
+            for (int burst = 0; burst < LampBursts.Length; burst++)
+            {
+                float start = LampBursts[burst];
+                if (before < start && phase >= start)
+                    game.PlayTitleSpark(burst == 1 ? .8f : 1f);
+            }
             if (before < CornerBlackout && phase >= CornerBlackout) game.PlayTitleLightFlicker(.78f);
             if (before < CornerBlackout + CornerRelight && phase >= CornerBlackout + CornerRelight)
                 game.PlayTitleContact();
@@ -80,27 +90,36 @@ namespace AfterHours
         void DrawTitleAtmosphere(float elapsed)
         {
             float phase = elapsed % TitleCycle;
-            float relay = phase - LampStutter;
+            var plate = phase < CoverCut && titlePoster ? titlePoster : titleImage;
+            if (titleBackdrop.style.backgroundImage.value.texture != plate)
+                titleBackdrop.style.backgroundImage = new StyleBackground(plate);
+
+            int burst = LampBursts.Length - 1;
+            while (burst > 0 && phase < LampBursts[burst]) burst--;
+            float arcAge = phase - LampBursts[burst];
+            titleSparks.SetBurst(burst, arcAge);
             float reveal = phase - CornerBlackout;
             float intruderCut = CornerRelight + IntruderHold;
             bool intruderVisible = reveal >= CornerRelight && reveal < intruderCut;
             bool blackout = reveal is >= 0 and < CornerRelight ||
                 reveal >= intruderCut && reveal < intruderCut + .25f;
             float power = .87f + .13f * Mathf.PerlinNoise(elapsed * 3.1f, 2.7f);
-            if (relay >= 0 && relay < .52f)
-                power *= relay < .19f ? .16f : relay < .34f ? .94f : .28f;
+            bool fault = phase >= LampBursts[0] && phase < LampBursts[^1] + NightTitleSparks.BurstDuration;
+            if (fault)
+                power = arcAge < .078f ? 1f : arcAge < .158f ? .13f : .27f;
             if (blackout) power *= .055f;
             else if (intruderVisible) power *= .62f;
 
-            float level = Mathf.Lerp(.69f, 1f, power);
+            float level = Mathf.Lerp(fault ? .54f : .69f, 1f, power);
             titleBackdrop.style.unityBackgroundImageTintColor = new Color(level, level, level, 1);
             titleLampShade.style.opacity = Mathf.Pow(1 - power, .8f);
             titleLamp.style.opacity = power * .77f;
-            bool reigniting = relay is >= .19f and < .34f || reveal >= CornerRelight && reveal < CornerRelight + .13f;
+            bool reigniting = fault && arcAge < .078f ||
+                reveal >= CornerRelight && reveal < CornerRelight + .13f;
             titleLampCore.style.opacity = power * (reigniting ? .86f : .14f);
 
-            float hallApproach = Mathf.SmoothStep(0, 1, (phase - .94f) / .62f);
-            float hallRetreat = Mathf.SmoothStep(0, 1, (phase - 3.37f) / .64f);
+            float hallApproach = Mathf.SmoothStep(0, 1, (phase - 2.44f) / .62f);
+            float hallRetreat = Mathf.SmoothStep(0, 1, (phase - 4.17f) / .64f);
             float hallPeek = hallApproach * (1 - hallRetreat);
             float hallLight = Mathf.Lerp(.35f, .81f, power);
             titleCornerLight.style.opacity = hallPeek * power * .31f;

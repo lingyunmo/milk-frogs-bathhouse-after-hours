@@ -11,7 +11,7 @@ namespace AfterHours
         const float TitleAmbience = .62f;
         const float RoomAmbience = .46f;
         const float PursuitAmbience = .18f;
-        readonly AudioSource generator, entrance, ambience, titleLight, titleContact;
+        readonly AudioSource generator, entrance, ambience, titleLight, titleSpark, titleContact;
         readonly AudioSource captureLaugh, menu;
         readonly AudioClip menuClick, menuTick;
         float nextMenuTick;
@@ -55,9 +55,14 @@ namespace AfterHours
             titleLight.panStereo = .48f;
             titleLight.clip = LightBallast();
 
+            titleSpark = Source(root, "Title lamp spark");
+            titleSpark.spatialBlend = 0;
+            titleSpark.panStereo = .14f;
+            titleSpark.clip = LampSpark();
+
             titleContact = Source(root, "Title near contact");
             titleContact.spatialBlend = 0;
-            titleContact.panStereo = .67f;
+            titleContact.panStereo = -.67f;
             titleContact.volume = .57f;
             titleContact.clip = NearContact();
 
@@ -104,6 +109,7 @@ namespace AfterHours
             }
             entrance.Stop();
             titleLight.Stop();
+            titleSpark.Stop();
             titleContact.Stop();
             // The shared listener pauses this source in menus and preserves its playhead.
             if (screen == NightScreen.Play && ambience.clip && !ambience.isPlaying) ambience.Play();
@@ -114,6 +120,12 @@ namespace AfterHours
         {
             titleLight.volume = .56f * Mathf.Clamp01(strength);
             titleLight.Play();
+        }
+
+        internal void PlayTitleSpark(float strength)
+        {
+            titleSpark.volume = .7f * Mathf.Clamp01(strength);
+            titleSpark.Play();
         }
 
         internal void SetTitleBlackout(bool dark)
@@ -170,6 +182,32 @@ namespace AfterHours
                     + contact * .25f * (white - filtered));
             }
             return Ready("Broken light ballast", wave, rate);
+        }
+
+        static AudioClip LampSpark()
+        {
+            const int rate = 24000;
+            var wave = new float[rate * 18 / 100];
+            var noise = new System.Random(529);
+            float[] popTimes = { .002f, .029f, .067f, .119f };
+            float[] popStrengths = { 1f, .57f, .83f, .42f };
+            for (int pop = 0; pop < popTimes.Length; pop++)
+            {
+                int start = Mathf.RoundToInt(popTimes[pop] * rate);
+                int end = Mathf.Min(start + rate / 25, wave.Length);
+                float filtered = 0f;
+                float ringFrequency = 1320f + pop * 175f;
+                for (int i = start; i < end; i++)
+                {
+                    float time = (float)(i - start) / rate;
+                    float white = 2f * (float)noise.NextDouble() - 1f;
+                    filtered = Mathf.Lerp(filtered, white, .24f);
+                    float envelope = Mathf.Min(time * 2600f, 1f) * Mathf.Exp(-time * 158f);
+                    float ring = Mathf.Sin(time * 2f * Mathf.PI * ringFrequency);
+                    wave[i] += popStrengths[pop] * envelope * (.44f * (white - filtered) + .10f * ring);
+                }
+            }
+            return Ready("Lamp arc crackle", wave, rate);
         }
 
         internal void Tick(bool powered, bool pursuing, float dt)
