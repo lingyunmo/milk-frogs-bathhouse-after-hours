@@ -927,11 +927,6 @@
 .station-selected { color: #ffdb97; -unity-font-style: bold; }
 .station-track { height: 6px; background-color: #484840; overflow: hidden; }
 .station-fill { height: 100%; background-color: #dcaf67; }
-.dispatch-feed {
-    position: absolute; left: 3.2%; top: 39%; max-width: 25%;
-    border-left-width: 2px; border-left-color: #b49666;
-    padding: 6px 12px 8px; background-color: rgba(12,16,14,.79);
-}
 .dispatch-heading { margin: 0 0 4px; color: #e7c792; font-size: 20px; letter-spacing: 2px; }
 .dispatch-line { margin: 2px 0; color: #ede4d4; font-size: 16px; white-space: normal; }
 .field-instrument {
@@ -944,4 +939,41 @@
 .compact .station-channel { width: 82px; margin: 0 2px; }
 .compact .station-name { font-size: 12px; }
 .compact .station-strip { top: 8px; }
-.compact .dispatch-feed { left: 2%; max-width: 26%; }
+
+/* The receiver is the player's single active lead. The full docket lives on the map. */
+.play-hud .objective { left: 3.4%; top: 36%; max-width: 32%; }
+.play-hud .objective-tag { font-size: 16px; letter-spacing: 2px; text-shadow: 0 1px 5px #080907; }
+.field-call-sign { width: 21px; height: 20px; margin-right: 7px; }
+.play-hud .objective-text { font-size: 27px; -unity-font-style: bold; letter-spacing: 1px; }
+.play-hud .objective-place { font-size: 17px; color: #d0c7b5; letter-spacing: 1px; margin-top: 4px; }
+.field-danger { position: absolute; left: 3.4%; top: 22%; }
+/* A dispatch sheet carried inside the folded bathhouse map. */
+.dispatch-board {
+    width: 90%; height: 86%; max-width: 1020px; max-height: 680px;
+    padding: 70px 62px 45px;
+    background-image: url("DispatchBoard.jpg");
+    -unity-background-scale-mode: stretch-to-fill;
+}
+.dispatch-board .atlas-header { border-bottom-color: #58513d; padding-bottom: 8px; }
+.dispatch-board .atlas-heading { color: #332f25; font-size: 44px; letter-spacing: 6px; text-shadow: 0 0 0 rgba(0,0,0,0); }
+.dispatch-board .overline { color: #514334; font-size: 16px; letter-spacing: 2px; }
+.dispatch-board .chip-button { color: #3e3527; border-color: #7e7159; background-color: rgba(0,0,0,0); }
+.dispatch-board .chip-button:hover, .dispatch-board .chip-button:focus { color: #f3e1bd; background-color: #514637; }
+.order-book { flex-grow: 1; min-height: 0; margin-top: 9px; }
+.order-entry {
+    flex-direction: row; align-items: center; justify-content: space-between;
+    padding: 8px 10px 9px 14px; margin: 0; min-height: 71px;
+    background-color: rgba(0,0,0,0); border-width: 0; border-radius: 0;
+    border-bottom-width: 1px; border-bottom-color: rgba(64,54,38,.43);
+}
+.order-entry:hover, .order-entry:focus { background-color: rgba(90,64,35,.13); }
+.order-entry--tracked { border-left-width: 3px; border-left-color: #75392a; }
+.order-entry:disabled { opacity: .74; }
+.order-copy { flex-shrink: 1; flex-grow: 1; margin-right: 14px; align-items: flex-start; }
+.order-name { -unity-text-align: middle-left; font-size: 24px; margin: 0; color: #332e25; }
+.order-note { -unity-text-align: middle-left; white-space: normal; font-size: 17px; margin: 2px 0 0; color: #4a4234; }
+.order-stamp { font-size: 17px; color: #544938; padding: 2px 7px; }
+.order-entry--tracked .order-stamp { color: #75392a; border-width: 1px; border-color: #854834; rotate: -4deg; }
+.compact .dispatch-board { padding: 48px 32px 28px; }
+.compact .play-hud .objective { max-width: 43%; }
+.compact .play-hud .objective-text { font-size: 22px; }

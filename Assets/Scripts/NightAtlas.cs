@@ -86,7 +86,7 @@ namespace AfterHours
         void Add(int floor, string name, Rect bounds, bool stair = false, bool route = false, Vector2? entrance = null) =>
             areas[floor].Add(new Area(floor, name, bounds, stair, route, entrance));
 
-        internal void Track(NightState state, Vector3 feet)
+        internal int FloorAt(Vector3 feet)
         {
             Vector2 point = new(feet.x, feet.z);
             int level = Mathf.Clamp(Mathf.RoundToInt((feet.y - .07f) / 3.6f) + 1, 0, 3);
@@ -100,8 +100,14 @@ namespace AfterHours
                 else level = feet.y > 1.1f ? 2 : Street;
             }
 
-            Floor = level;
-            Current = areas[level].Find(area => area.Bounds.Contains(point));
+            return level;
+        }
+
+        internal void Track(NightState state, Vector3 feet)
+        {
+            Vector2 point = new(feet.x, feet.z);
+            Floor = FloorAt(feet);
+            Current = areas[Floor].Find(area => area.Bounds.Contains(point));
             if (Current != null && !state.explored.Contains(Current.Key)) state.explored.Add(Current.Key);
         }
 
@@ -333,14 +339,13 @@ namespace AfterHours
             {
                 var job = game.State.dispatch;
                 for (int i = 0; i < NightDispatch.Stations.Length; i++)
-                    if (street && job.steps[i] < NightDispatch.Contacts) MarkJob(NightDispatch.Stations[i].Feet);
+                    if (street && job.steps[i] < NightDispatch.Contacts) MarkJob(NightDispatch.Stations[i].Feet, FieldOrder.Lights);
                 if (job.teeth < NightDispatch.Teeth)
                 {
                     Vector3 point = !job.delivered && !job.carrying ? job.loadFeet : NightDispatch.Barrier;
-                    int markerFloor = FloorRoutes.IsInsideBathhouse(point) ? FloorRoutes.LevelAt(point.y) + 1 : NightAtlas.Street;
-                    if (markerFloor == floor) MarkJob(point);
+                    if (game.Atlas.FloorAt(point) == floor) MarkJob(point, FieldOrder.Barrier);
                 }
-                void MarkJob(Vector3 at)
+                void MarkJob(Vector3 at, FieldOrder order)
                 {
                     Vector2 c = Point(at.x, at.z);
                     float r = small ? 4 : 6;
@@ -350,8 +355,18 @@ namespace AfterHours
                     paint.LineTo(c - Vector2.up * r);
                     paint.LineTo(c - Vector2.right * r);
                     paint.ClosePath();
-                    paint.fillColor = Amber;
-                    paint.Fill();
+                    bool tracked = NightFieldOrders.Tracking(game.State) == order;
+                    if (tracked)
+                    {
+                        paint.fillColor = Amber;
+                        paint.Fill();
+                    }
+                    else
+                    {
+                        paint.strokeColor = Wall;
+                        paint.lineWidth = 1.6f;
+                        paint.Stroke();
+                    }
                 }
             }
             if (!small) DrawScale(paint, street);

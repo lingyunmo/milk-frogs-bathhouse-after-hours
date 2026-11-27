@@ -25,6 +25,7 @@ namespace AfterHours
     internal sealed class DispatchState
     {
         public bool accepted, carrying, delivered;
+        public FieldOrder tracked;
         public int[] steps = new int[4];
         public int teeth, leakPattern, sealedLines;
         public float playSeconds;
@@ -42,6 +43,7 @@ namespace AfterHours
         }
         internal void Normalize()
         {
+            if (!Enum.IsDefined(typeof(FieldOrder), tracked)) tracked = FieldOrder.Lights;
             if (steps == null || steps.Length != NightDispatch.Stations.Length)
                 Array.Resize(ref steps, NightDispatch.Stations.Length);
             for (int i = 0; i < steps.Length; i++) steps[i] = Mathf.Clamp(steps[i], 0, NightDispatch.Contacts);
@@ -96,7 +98,15 @@ namespace AfterHours
             world.RefreshDispatch();
             world.RefreshReturnLines();
             Emit(NightDispatch.Receiver, .42f, "signal");
-            Notify("「四角亮灯，桥杆升起来，我就进街。路口有积水，听听哪路管子在漏。」", 7);
+            hud.ReceiveDispatch();
+            Notify("「喂？我是末班车司机。路上没灯，我看不见。先帮我把灯打开。」", 5);
+            SaveProgress();
+        }
+
+        internal void TrackOrder(FieldOrder order)
+        {
+            if (!State.dispatch.accepted || NightFieldOrders.Done(order, State)) return;
+            State.dispatch.tracked = order;
             SaveProgress();
         }
 
@@ -127,7 +137,7 @@ namespace AfterHours
             if (job.steps[i] == NightDispatch.Contacts)
             {
                 world.RefreshDispatch();
-                Notify(job.AllRunning ? "四盏引路灯，全亮了。" : "机油味里，亮起一盏小灯。");
+                Notify(job.AllRunning ? "四台机组已全部送电" : NightDispatch.Stations[i].Name + "已送电");
                 CloseDispatch();
             }
             SaveProgress();
@@ -154,7 +164,7 @@ namespace AfterHours
             State.dispatch.carrying = true;
             RefreshLoad();
             Emit(Player.Feet, .68f, "tool");
-            Notify("铁块贴住了背。Q 可以把它放下。");
+            Notify("背起配重　·　Q 放下");
             SaveProgress();
         }
 
@@ -193,7 +203,7 @@ namespace AfterHours
             State.dispatch.delivered = true;
             RefreshLoad();
             Emit(NightDispatch.Winch, .83f, "tool");
-            Notify("配重就位。肩头一轻，能多跑一段了。");
+            Notify("配重已挂好。握住曲柄就能抬杆。");
             SaveProgress();
         }
 
@@ -222,7 +232,7 @@ namespace AfterHours
             if (job.teeth == NightDispatch.Teeth)
             {
                 CloseDispatch();
-                Notify("棘爪扣死。桥杆悬在了头顶。");
+                Notify("路障已升起");
             }
             world.RefreshDispatch();
             SaveProgress();

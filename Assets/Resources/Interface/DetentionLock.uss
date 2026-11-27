@@ -105,6 +105,41 @@
     background-color: #333d37;
 }
 
-.field-synchronizer { background-color: rgba(0,0,0,0); }
-.field-synchronizer .detention-lock__plate { max-width: 360px; }
-.field-synchronizer .detention-lock__dial { height: 170px; }
+/* Let the player keep sight of the approach while working the generator. */
+.field-synchronizer {
+    background-color: rgba(0,0,0,0);
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+.field-synchronizer .detention-lock__plate {
+    margin-right: 8%; margin-bottom: 11%;
+    width: 280px; padding: 0;
+    align-items: center;
+    border-width: 0; background-color: rgba(0,0,0,0);
+}
+.field-synchronizer .detention-lock__title {
+    font-size: 19px; letter-spacing: 2px;
+    color: #f2d5a0;
+    text-shadow: 0 1px 4px #090908;
+}
+.field-synchronizer .detention-lock__dial { width: 217px; height: 217px; flex-shrink: 0; }
+.field-synchronizer .detention-lock__status {
+    position: absolute; left: 0; right: 0; bottom: 22%; margin: 0;
+    font-size: 16px; -unity-text-align: middle-center;
+}
+.field-synchronizer .detention-lock__help { font-size: 16px; margin: 1px 0 0; color: #fff4e0; text-shadow: 0 1px 4px #060604; }
+.field-synchronizer .detention-lock__contacts { display: none; }
+.field-synchronizer .detention-lock__status {
+    position: absolute; top: 63%; left: 0; right: 0; margin: 0;
+    font-size: 15px; -unity-font-style: bold;
+}
+.field-synchronizer .detention-lock__actions { margin-top: 5px; }
+.field-synchronizer .detention-lock__confirm, .field-synchronizer .detention-lock__cancel {
+    width: auto; height: 32px; padding: 0 10px;
+    background-color: rgba(12,15,13,.86); border-width: 0;
+    border-bottom-width: 1px; border-bottom-color: #877455;
+}
+.field-synchronizer .detention-lock__confirm--ready, .field-synchronizer .detention-lock__confirm:hover,
+.field-synchronizer .detention-lock__confirm:focus { background-color: #e5c58f; color: #1a1710; }
+.field-synchronizer .detention-lock__cancel:hover, .field-synchronizer .detention-lock__cancel:focus { background-color: #574d40; }
+.compact .field-synchronizer .detention-lock__plate { margin-right: 2%; margin-bottom: 14%; }

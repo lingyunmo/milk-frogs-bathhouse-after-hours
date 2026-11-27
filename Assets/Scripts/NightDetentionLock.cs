@@ -21,7 +21,7 @@ namespace AfterHours
         readonly int night, station;
         bool Generator => station >= 0;
         float sweep, feedbackTime, entrance;
-        bool lastHit;
+        bool lastHit, lostContact;
 
         internal int Seated { get; private set; }
         internal int ContactCount { get; }
@@ -53,26 +53,27 @@ namespace AfterHours
             plate.AddToClassList("detention-lock__plate");
             Add(plate);
 
-            var title = new Label(Generator ? NightDispatch.Stations[station].Name + " · 同步表" : "检修门锁");
+            var title = new Label(Generator ? NightDispatch.Stations[station].Name + "机组" : "检修门锁");
             title.AddToClassList("detention-lock__title");
             plate.Add(title);
 
-            var help = new Label(Generator ? "指针进入铜刻线时，按空格合闸。" : "指针进入双刻线时，按空格扣合锁簧。");
+            var help = new Label(Generator ? "指针到达亮区时合闸" : "指针进入双刻线时，按空格扣合锁簧。");
             help.AddToClassList("detention-lock__help");
-            plate.Add(help);
+            if (!Generator) plate.Add(help);
 
             dial = new VisualElement { pickingMode = PickingMode.Ignore, name = "detention-dial" };
             dial.AddToClassList("detention-lock__dial");
             dial.generateVisualContent += DrawDial;
             plate.Add(dial);
 
+            if (Generator) plate.Add(help);
             var contactRow = new VisualElement();
             contactRow.AddToClassList("detention-lock__contacts");
-            plate.Add(contactRow);
-            contacts = new Label[ContactCount];
-            for (int i = 0; i < ContactCount; i++)
+            if (!Generator) plate.Add(contactRow);
+            contacts = new Label[Generator ? 0 : ContactCount];
+            for (int i = 0; i < contacts.Length; i++)
             {
-                contacts[i] = new Label(Generator ? (i + 1).ToString() : i < Seated ? "◈" : "◇");
+                contacts[i] = new Label(i < Seated ? "◈" : "◇");
                 contacts[i].EnableInClassList("detention-lock__contact--seated", i < Seated);
                 contacts[i].AddToClassList("detention-lock__contact");
                 contactRow.Add(contacts[i]);
@@ -80,7 +81,7 @@ namespace AfterHours
 
             status = new Label { name = "detention-status" };
             status.AddToClassList("detention-lock__status");
-            plate.Add(status);
+            (Generator ? dial : plate).Add(status);
             RefreshStatus();
 
             var actions = new VisualElement();
@@ -125,19 +126,21 @@ namespace AfterHours
             if (Seated >= ContactCount || feedbackTime > 0) return;
 
             lastHit = InWindow;
+            lostContact = !lastHit && Seated > 0;
             feedbackTime = lastHit ? .28f : .43f;
             if (lastHit)
             {
-                if (!Generator) contacts[Seated].text = "◈";
-                contacts[Seated].AddToClassList("detention-lock__contact--seated");
+                if (!Generator)
+                {
+                    contacts[Seated].text = "◈";
+                    contacts[Seated].AddToClassList("detention-lock__contact--seated");
+                }
                 Seated++;
                 sweep = 0;
             }
             else if (Generator)
             {
                 Seated = Mathf.Max(0, Seated - 1);
-                contacts[Seated].text = (Seated + 1).ToString();
-                contacts[Seated].RemoveFromClassList("detention-lock__contact--seated");
                 sweep = 0;
             }
             feedback?.Invoke(lastHit);
@@ -152,7 +155,7 @@ namespace AfterHours
             status.EnableInClassList("detention-lock__status--miss", missed);
             if (Generator)
             {
-                status.text = missed ? "跳闸。警铃响了。" : $"接点  {Seated:D2} / 10";
+                status.text = missed ? (lostContact ? "跳闸　退一格" : "跳闸") : $"接点　{Seated:D2} / {ContactCount}";
                 return;
             }
             status.text = missed ? "锁簧滑开了。等指针再回来。" : $"锁簧  {Seated}/{ContactCount}";

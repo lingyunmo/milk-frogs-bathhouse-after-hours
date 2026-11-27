@@ -19,7 +19,7 @@ namespace AfterHours
 
         Label task, objectiveTag, location, mapFloor, mapPlace, toast, charge, cellCount, stoneCount;
         Label promptText, pickupText, areaFloor, areaName, chapterOverline, chapterTitle;
-        VisualElement objectiveBlock, prompt, promptHold, status, repairSlot, torchSlot, runHint, crouchHint;
+        VisualElement objectiveBlock, equipmentHints, prompt, promptHold, status, repairSlot, torchSlot, runHint, crouchHint;
         VisualElement staminaBlock, pickupCard, pickupArt, areaCard, minimapRing, north, curtain, chapter, letterbox;
         VisualElement grainLayer, toastBox;
         NightReticle reticle;
@@ -318,8 +318,9 @@ namespace AfterHours
             var state = game.State;
             var brief = Area(veil, "pause-brief");
             Reveal(brief);
-            Type(brief, "惦记的事", "overline");
-            Type(brief, Objective(state), "brief-objective serif");
+            var lead = NightFieldOrders.Current(state);
+            Type(brief, lead.place, "overline");
+            Type(brief, lead.action, "brief-objective serif");
             Area(brief, "brief-rule");
             int explored = 0, total = 0;
             for (int floor = 0; floor < NightAtlas.FloorNames.Length; ++floor)
@@ -469,11 +470,21 @@ namespace AfterHours
             veil.AddToClassList("atlas-veil");
             var card = Area(veil, "atlas-card");
             Reveal(card);
+            bool docket = subpage == "orders";
+            if (docket) card.AddToClassList("dispatch-board");
             var header = Area(card, "atlas-header");
             var titles = Area(header, "atlas-titles");
-            Type(titles, "位置 · " + LocationName(), "overline");
-            Type(titles, "浴场地图", "atlas-heading serif");
-            Act(header, "M　收起", Resume, "chip-button", "close-map");
+            Type(titles, docket ? "奶娃浴场　/　" + game.State.NightLabel : LocationName(), "overline");
+            Type(titles, docket ? "夜班工单" : "浴场地图", "atlas-heading serif");
+            var tabs = Area(header, "atlas-tools");
+            if (game.State.dispatch.accepted)
+                Act(tabs, docket ? "查看地图" : "夜班工单", () => Open(docket ? "" : "orders"), "chip-button", "switch-orders");
+            Act(tabs, "M　收起", Resume, "chip-button", "close-map");
+            if (docket)
+            {
+                BuildOrderBook(card);
+                return;
+            }
             var body = Area(card, "atlas-body");
             var rail = Area(body, "floor-rail");
             mapTabs = new Button[NightAtlas.FloorNames.Length];
@@ -534,11 +545,12 @@ namespace AfterHours
 
             objectiveBlock = Area(layer, "objective");
             var tagline = Area(objectiveBlock, "objective-tagline");
-            Area(tagline, "objective-diamond");
-            objectiveTag = Type(tagline, "惦记的事", "objective-tag");
+            var radioMark = Area(tagline, "field-call-sign");
+            radioMark.generateVisualContent += DrawCallSign;
+            objectiveTag = Type(tagline, "", "objective-tag");
             task = Type(objectiveBlock, shownObjective, "objective-text serif");
             location = Type(objectiveBlock, "", "objective-place");
-            status = Area(objectiveBlock, "danger");
+            status = Area(layer, "danger field-danger");
             Area(status, "danger-dot");
             Type(status, "脚步逼近", "danger-text");
             Visible(status, false);
@@ -603,7 +615,8 @@ namespace AfterHours
             Slot(equipment, "R", "电池", "cell", out cellCount);
             Slot(equipment, "G", "石子", "stone", out stoneCount);
 
-            var hints = Area(layer, "hint-row");
+            equipmentHints = Area(layer, "hint-row");
+            var hints = equipmentHints;
             runHint = Bind(hints, "Shift", "奔跑");
             crouchHint = Bind(hints, "C", "蹲行");
             Bind(hints, "B", "背包");
@@ -644,6 +657,7 @@ namespace AfterHours
         {
             arrival = Time.unscaledTime;
             arrivalIsNew = newNight;
+            dispatchHeardUntil = -1;
             areaSeen.Clear();
             shownArea = game.Atlas.Current?.Key ?? "";
             if (chapter == null) return;
@@ -733,19 +747,22 @@ namespace AfterHours
             var player = game.Player;
             var state = game.State;
 
-            string objective = Objective(state);
-            if (objective != shownObjective)
+            var lead = NightFieldOrders.Current(state);
+            if (lead.action != shownObjective || lead.place != location.text)
             {
-                bool first = shownObjective.Length == 0;
-                shownObjective = objective;
-                if (!first) objectiveSince = now;
+                shownObjective = lead.action;
+                objectiveSince = now;
+                Copy(task, lead.action);
+                Copy(location, lead.place);
             }
-            Copy(task, objective);
-            bool updated = now - objectiveSince < 3.2f;
-            objectiveBlock.EnableInClassList("objective--updated", updated);
-            Copy(objectiveTag, state.NightLabel + (updated ? "　·　目标更新" : "　·　惦记的事"));
-            objectiveBlock.EnableInClassList("objective--quiet", now - Mathf.Max(objectiveSince, arrival) > 14 && !game.InPursuit);
-            Copy(location, LocationName());
+            bool busy = game.WorkingDispatch || game.RepairView != null;
+            bool received = now < dispatchHeardUntil;
+            Visible(objectiveBlock, !busy);
+            objectiveBlock.EnableInClassList("objective--updated", received || now - objectiveSince < 3.2f);
+            Copy(objectiveTag, received ? "已接单　/　夜班调度" :
+                state.dispatch.accepted && !state.detained && !state.beacon && !(state.contacted && state.RescueAccess)
+                    ? OrderName(NightFieldOrders.Tracking(state)) : state.NightLabel);
+            Visible(equipmentHints, !busy && !game.InPursuit && now - arrival < 13);
             Copy(mapFloor, NightAtlas.FloorNames[game.Atlas.Floor]);
             Copy(mapPlace, game.Atlas.Place);
 
@@ -799,8 +816,8 @@ namespace AfterHours
             Visible(reticle, repair == null && !game.WorkingDispatch);
             reticle.Set(focus != null, game.Hold);
             reticle.Tick();
-            Visible(prompt, focus != null);
-            if (focus != null)
+            Visible(prompt, focus != null && !busy);
+            if (focus != null && !busy)
             {
                 Copy(promptText, focus.Label);
                 Visible(promptHold, focus.Hold > 0 && game.Hold <= 0);
@@ -824,25 +841,6 @@ namespace AfterHours
                 minimap.MarkDirtyRepaint();
             }
             UpdateArrival();
-        }
-
-        static string Objective(NightState state)
-        {
-            if (state.detained) return "门闩另一边有道弹簧响";
-            if (state.rescueTime == 0) return "车门还开着";
-            if (state.beacon) return "远处有引擎声";
-            if (!state.dispatch.accepted && state.torch) return "前台的夜班电台一直在响";
-            if (state.contacted && !state.RescueAccess) return "街口还没清出来";
-            if (state.contacted) return "司机看得见街尾的反光板吗？";
-            if (!state.torch) return "更衣凳旁，有一圈金属反光";
-            if (!state.dispatch.accepted && !state.power && state.motorStage == 0 && !state.motorPart && !state.collected.Contains("receipt"))
-                return "前台还摊着昨晚的交班簿";
-            if (!state.power) return "地下的机器没了动静";
-            if (!state.annexIsolated) return "副楼二层有股焦糊味";
-            if (!state.collected.Contains(NightGame.AnnexDiagramId) && !state.annexRelay) return "接通副楼旁路，或试试街尾维修站的天线";
-            if (!state.annexRelay) return "副楼三层，机柜还空着一排端子";
-            if (!state.uplink) return "楼上的电话线通向街口";
-            return "听筒里终于有了长音";
         }
 
         void Resume() => game.SetScreen(NightScreen.Play);

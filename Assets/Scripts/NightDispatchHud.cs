@@ -5,15 +5,14 @@ namespace AfterHours
 {
     internal sealed partial class NightInterface
     {
-        VisualElement dispatchFeed, dispatchStrip, fieldWork;
-        Label feedText, loadText, drainText, instrumentTitle, instrumentReadout, instrumentKeys;
+        VisualElement dispatchStrip, fieldWork;
+        Label instrumentTitle, instrumentReadout, instrumentKeys;
         readonly Meter[] stationMeters = new Meter[4];
         readonly Label[] stationLabels = new Label[4];
         Meter instrumentMeter;
         NightDetentionLock synchronizer;
-        int dialStation = -1, lastCount = -1, lastTeeth = -1;
-        bool lastCarrying, lastDelivered;
-        int lastDrain;
+        int dialStation = -1;
+        float dispatchHeardUntil = -1;
 
         void BuildDispatchHud(VisualElement layer)
         {
@@ -24,21 +23,86 @@ namespace AfterHours
                 stationLabels[i] = Type(column, NightDispatch.Stations[i].Name, "station-name");
                 stationMeters[i] = new Meter(column, "station-track", "station-fill", NightDispatch.Contacts);
             }
-            dispatchFeed = Area(layer, "dispatch-feed");
-            Type(dispatchFeed, "夜班调度", "dispatch-heading serif");
-            feedText = Type(dispatchFeed, "", "dispatch-line");
-            drainText = Type(dispatchFeed, "", "dispatch-line");
-            loadText = Type(dispatchFeed, "", "dispatch-line");
             fieldWork = Area(layer, "field-instrument");
             instrumentTitle = Type(fieldWork, "", "dispatch-heading serif");
             instrumentReadout = Type(fieldWork, "", "instrument-reading");
             instrumentMeter = new Meter(fieldWork, "station-track", "station-fill");
             instrumentKeys = Type(fieldWork, "", "dispatch-line");
             Visible(dispatchStrip, false);
-            Visible(dispatchFeed, false);
             Visible(fieldWork, false);
             synchronizer = null;
-            dialStation = lastCount = lastTeeth = lastDrain = -1;
+            dialStation = -1;
+        }
+
+        internal void ReceiveDispatch() => dispatchHeardUntil = Time.unscaledTime + 4f;
+
+        static string OrderName(FieldOrder order) => order switch
+        {
+            FieldOrder.Lights => "街区引路灯",
+            FieldOrder.Drain => "街沟排水",
+            FieldOrder.Barrier => "街尾路障",
+            _ => "联络司机"
+        };
+
+        static readonly float[] CallSignHeights = { 4, 10, 17, 8, 4 };
+
+        static void DrawCallSign(MeshGenerationContext context)
+        {
+            var pen = context.painter2D;
+            pen.strokeColor = new Color(.88f, .73f, .51f);
+            pen.lineWidth = 2;
+            pen.lineCap = LineCap.Round;
+            for (int i = 0; i < CallSignHeights.Length; i++)
+            {
+                float half = CallSignHeights[i] * .5f;
+                float x = 2 + i * 4;
+                pen.BeginPath();
+                pen.MoveTo(new Vector2(x, 10 - half));
+                pen.LineTo(new Vector2(x, 10 + half));
+                pen.Stroke();
+            }
+        }
+
+        void BuildOrderBook(VisualElement card)
+        {
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("order-book");
+            card.Add(scroll);
+            var state = game.State;
+            var selected = NightFieldOrders.Tracking(state);
+            Button first = null;
+            foreach (FieldOrder order in NightFieldOrders.List)
+            {
+                bool done = NightFieldOrders.Done(order, state);
+                var row = Act(scroll.contentContainer, "", () =>
+                {
+                    game.TrackOrder(order);
+                    Open("");
+                    if (order == FieldOrder.Lights) OpenFloor(NightAtlas.Street);
+                    if (order == FieldOrder.Barrier)
+                    {
+                        var job = state.dispatch;
+                        OpenFloor(game.Atlas.FloorAt(job.delivered || job.carrying ? NightDispatch.Barrier : job.loadFeet));
+                    }
+                }, "order-entry", "order-" + order);
+                var copy = Area(row, "order-copy");
+                Type(copy, OrderName(order), "order-name serif");
+                if (!done)
+                {
+                    var lead = NightFieldOrders.Direction(order, state);
+                    string note = order == FieldOrder.Drain && !(state.power && state.sinkStage == 2)
+                        ? lead.place + "　/　或修水槽，开排水泵"
+                        : order == FieldOrder.Radio && state.power && state.annexIsolated && !state.annexRelay
+                            ? lead.place + "　/　也可修复副楼中继机"
+                            : order == FieldOrder.Lights ? "机位已标在街区地图上" : lead.place;
+                    Type(copy, lead.action + "　·　" + note, "order-note");
+                }
+                Type(row, done ? "完工" : selected == order ? "跟踪中" : "跟踪", "order-stamp");
+                row.EnableInClassList("order-entry--tracked", !done && selected == order);
+                row.SetEnabled(!done);
+                if (selected == order && !done) first = row;
+            }
+            Focus(first ?? root.Q<Button>("switch-orders"));
         }
 
         void TickDispatchHud()
@@ -47,28 +111,8 @@ namespace AfterHours
             var job = state.dispatch;
             bool show = job.accepted && !state.detained && !state.beacon;
             Visible(dispatchStrip, show && !job.AllRunning);
-            Visible(dispatchFeed, show && !state.RescueAccess);
             if (show)
             {
-                int drain = state.Drained ? 7 : job.sealedLines;
-                if (drain != lastDrain)
-                {
-                    int pending = (drain & 1) == 0 ? 0 : (drain & 2) == 0 ? 1 : 2;
-                    Copy(drainText, state.Drained ? "街沟已排空" : "听漏 · " + NightReturnLines.Zones[pending] + "　/　开泵排水");
-                    lastDrain = drain;
-                }
-                int count = job.Running;
-                if (count != lastCount || job.teeth != lastTeeth || job.carrying != lastCarrying || job.delivered != lastDelivered)
-                {
-                    Copy(feedText, $"引路机组　{count} / 4");
-                    Copy(loadText, job.teeth == NightDispatch.Teeth ? "桥杆已抬起"
-                        : job.delivered ? $"摇起桥杆　{job.teeth} / {NightDispatch.Teeth}"
-                        : job.carrying ? "把配重送到街尾桥杆　·　Q 放下" : "泵房取配重 → 街尾桥杆");
-                    lastCount = count;
-                    lastTeeth = job.teeth;
-                    lastCarrying = job.carrying;
-                    lastDelivered = job.delivered;
-                }
                 for (int i = 0; i < stationMeters.Length; i++)
                 {
                     stationMeters[i].Set(job.steps[i] / (float)NightDispatch.Contacts);
