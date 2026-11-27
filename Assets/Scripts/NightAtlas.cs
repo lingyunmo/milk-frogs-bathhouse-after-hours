@@ -61,6 +61,8 @@ namespace AfterHours
             Add(3, "检修平台", Rect.MinMaxRect(8.75f, 24, 11.25f, 26.7f));
             Add(2, "卸货平台", Rect.MinMaxRect(-13.3f, 24, -9.7f, 27.4f));
             Add(2, "西侧雨棚", Rect.MinMaxRect(-22.6f, 3.7f, -20, 6.3f));
+            foreach (var room in NightWorld.StreetRoomAreas)
+                Add(Street, room.Name, room.Bounds);
             foreach (var pocket in NightWorld.StreetPockets)
                 Add(Street, pocket.Name, pocket.Bounds);
             Add(Street, "救援站牌", Rect.MinMaxRect(148, -30, 172, -9));

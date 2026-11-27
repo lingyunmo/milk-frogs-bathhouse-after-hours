@@ -339,7 +339,7 @@ namespace AfterHours
             if(State.power && Vector3.Distance(point,new Vector3(-10,-3.6f,20))<10 && sound=="step")
                 volume*=.58f;
             soundscape.Play(point+Vector3.up*.25f,sound,volume);
-            hunter?.Hear(point,volume);
+            hunter?.HearNoise(point, volume, sound);
         }
         internal void PlayCreatureStep(Vector3 point) => soundscape.Play(point,"hunter",.55f);
 
