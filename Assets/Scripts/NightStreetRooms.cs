@@ -37,6 +37,17 @@ namespace AfterHours
                 new(.96f, .88f, .59f), 12);
             StreetRoomSurface(laundry, "洗衣店换洗隔断", new(32.34f, 1.06f, 34.81f),
                 new(.19f, 2.11f, 3.16f), glazed, 1.05f);
+            var partition=Trim(new(32.34f,1,34.81f),steel);
+            foreach (float z in new[]{33.23f,36.39f})
+                partition.Box(new(32.34f,1.065f,z),new(.222f,2.12f,.061f));
+            partition.Box(new(32.34f,2.104f,34.81f),new(.224f,.050f,3.21f));
+            // Hooks on the cubicle side are below the rim, leaving the passage clear.
+            for(int hook=0;hook<3;hook++)
+            {
+                var mount=new Vector3(32.45f,1.61f,34.05f+hook*.52f);
+                partition.Pipe(mount,mount+new Vector3(.058f,-.012f,0),.012f);
+                partition.Pipe(mount+new Vector3(.058f,-.012f,0),mount+new Vector3(.075f,.038f,0),.012f);
+            }
             StreetRoomLight(laundry, new(26.38f, 2.6f, 37.32f), new(.18f, -1, -.11f),
                 new(.66f, .79f, .87f), 1.42f);
             StreetRoomLight(laundry, new(35.71f, 2.60f, 38.07f), new(-.28f, -1, -.56f),
@@ -72,6 +83,15 @@ namespace AfterHours
                 new(1.23f, 1.04f, .68f), -17);
             StreetRoomSurface(workshop, "维修站工具屏", new(156.98f, 1.01f, 5.97f),
                 new(3.33f, 2.01f, .18f), paint, 1.55f);
+            var board = Trim(new(156.98f,1.01f,5.97f),paintedIron);
+            foreach (float y in new[]{.44f,1.25f,1.64f})
+                board.Box(new(156.98f,y,5.855f),new(3.12f,.06f,.073f));
+            for (int i=0;i<6;i++)
+            {
+                Vector3 hook=new(155.75f+i*.47f,1.25f,5.832f);
+                board.Pipe(hook,hook+new Vector3(0,-.025f,-.085f),.013f);
+                board.Pipe(hook+new Vector3(0,-.025f,-.085f),hook+new Vector3(0,.019f,-.098f),.013f);
+            }
             StreetRoomProp(workshop, "locker-room-tall-lockers", "屏后值班工具柜", new(157.35f, .02f, 6.44f),
                 new(2.08f, 1.94f, .58f), 0);
             StreetRoomProp(workshop, "rollershutter_window_01", "维修站卷帘窗", new(161.3f, .96f, .87f),
@@ -111,6 +131,9 @@ namespace AfterHours
                 Vector3 position = alongX ? new(center, altitude, fixedAxis) : new(fixedAxis, altitude, center);
                 Vector3 size = alongX ? new(end - start, top - bottom, .20f) : new(.20f, top - bottom, end - start);
                 StreetRoomSurface(building, "实心墙体", position, size, walls, 1.65f);
+                int inward = Mathf.Abs(fixedAxis-(alongX?bounds.yMin:bounds.xMin))<.01f ? 1 : -1;
+                if (bottom == 0) WallSegment(position,size,walls==plaster?WallUse.Wash:
+                    walls==paint?WallUse.Plant:WallUse.Staff,inward);
             }
 
             void Side(float start, float end, float fixedAxis, bool alongX, float? opening = null)
@@ -120,6 +143,8 @@ namespace AfterHours
                     Segment(start, end, fixedAxis, alongX, 0, height);
                     return;
                 }
+                var foot = alongX ? new Vector3(opening.Value,0,fixedAxis) : new Vector3(fixedAxis,0,opening.Value);
+                DoorSurround(foot,alongX,doorHalfWidth,doorHeight,.10f,walls==brick?wood:steel);
                 float left = opening.Value - doorHalfWidth;
                 float right = opening.Value + doorHalfWidth;
                 Segment(start, left, fixedAxis, alongX, 0, height);

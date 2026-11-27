@@ -369,6 +369,8 @@ namespace AfterHours
             Segment(start, left, 0, top);
             Segment(right, end, 0, top);
             Segment(left, right, AnnexHeadroom, top);
+            var foot = alongX ? new Vector3(door.Value,height,axis) : new Vector3(axis,height,door.Value);
+            DoorSurround(foot,alongX,AnnexDoorHalf,AnnexHeadroom,.12f,steel);
             Frame(left - .028f, .065f, AnnexHeadroom);
             Frame(right + .028f, .065f, AnnexHeadroom);
             Frame(door.Value, right - left + .12f, .067f, AnnexHeadroom - .012f);
@@ -381,6 +383,10 @@ namespace AfterHours
                 Vector3 position = alongX ? new(center, y, axis) : new(axis, y, center);
                 Vector3 size = alongX ? new(to - from, topY - bottom, .18f) : new(.18f, topY - bottom, to - from);
                 AnnexSurface(storey, "副楼墙体", position, size, material);
+                var bounds = NightAnnexLayout.Footprint;
+                float lo = alongX?bounds.yMin:bounds.xMin, hi = alongX?bounds.yMax:bounds.xMax;
+                int inward = Mathf.Abs(axis-lo)<.01f ? 1 : Mathf.Abs(axis-hi)<.01f ? -1 : 0;
+                if (bottom==0) WallSegment(position,size,height<6?WallUse.Plant:WallUse.Rest,inward);
             }
 
             void Frame(float center, float width, float sizeY, float baseY = 0)
@@ -407,7 +413,9 @@ namespace AfterHours
             piece.GetComponent<Collider>().enabled = collider;
             if (material.renderQueue == (int)RenderQueue.Transparent)
                 piece.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
-            Surface(piece, material, 1.7f, floor: floor);
+            if (label == "折叠台垂下的布挡") FoldedScreen(piece);
+            else Surface(piece, material, 1.7f, floor: floor);
+            if (label == "布草折叠台面") BenchApron(piece.GetComponent<Renderer>().bounds,wood);
         }
     }
 }

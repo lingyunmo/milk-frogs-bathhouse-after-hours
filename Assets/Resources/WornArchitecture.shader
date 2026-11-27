@@ -24,7 +24,7 @@ Shader "AfterHours/WornArchitecture"
     {
         Tags { "RenderType"="Opaque" "Queue"="Geometry" }
         CGPROGRAM
-        #pragma surface Surf Standard fullforwardshadows addshadow
+        #pragma surface Surf Standard fullforwardshadows addshadow finalcolor:WallLight
         #pragma target 4.0
         #pragma multi_compile_local __ WALL_RELIEF
         #include "UnityStandardUtils.cginc"
@@ -59,10 +59,18 @@ Shader "AfterHours/WornArchitecture"
             return (1 - smoothstep(.54, 1., edge)) * step(.02, source.z);
         }
 
+        void WallLight(Input IN, SurfaceOutputStandard surface, inout fixed4 color)
+        {
+            #if defined(WALL_RELIEF) && defined(UNITY_PASS_FORWARDADD)
+                color.rgb *= surface.Alpha;
+            #endif
+        }
+
         void Surf(Input IN, inout SurfaceOutputStandard O)
         {
             float2 uv = IN.uv_MainTex;
             half recess = 0;
+            half lightVisibility = 1;
             #ifdef WALL_RELIEF
                 float strength = _WallDepth * (1 - smoothstep(5, 12, distance(_WorldSpaceCameraPos, IN.worldPos)));
                 float upright = abs(WorldNormalVector(IN, half3(0,0,1)).y);
@@ -85,6 +93,26 @@ Shader "AfterHours/WornArchitecture"
                         above = below;
                     }
                     half h = tex2Dgrad(_HeightMap, uv, dx, dy).r;
+                    // Trace from the displaced hit towards this light. Only its own direct
+                    // contribution can be blocked by the lip of a brick or a glaze joint.
+                    #ifdef UNITY_PASS_FORWARDADD
+                        float3 L = normalize(UnityWorldSpaceLightDir(IN.worldPos));
+                        float3 t = normalize(WorldNormalVector(IN,half3(1,0,0)));
+                        float3 b = normalize(WorldNormalVector(IN,half3(0,1,0)));
+                        float incidence = dot(L,normalize(WorldNormalVector(IN,half3(0,0,1))));
+                        if (incidence > .04 && incidence < .85)
+                        {
+                            float2 slope = float2(dot(L,t),dot(L,b)) * strength / max(.12,incidence);
+                            half occluder = 0;
+                            [unroll] for (int stepIndex=1; stepIndex<=3; stepIndex++)
+                            {
+                                float rise = stepIndex * .13;
+                                float sampled = tex2Dgrad(_HeightMap,uv+slope*rise,dx,dy).r;
+                                occluder = max(occluder,sampled-h-rise);
+                            }
+                            lightVisibility -= .67 * smoothstep(.012,.13,occluder) * (1-smoothstep(.60,.85,incidence));
+                        }
+                    #endif
                     recess = (1 - smoothstep(.18, .52, h)) * saturate(strength / .008);
                 }
             #endif
@@ -162,7 +190,7 @@ Shader "AfterHours/WornArchitecture"
                 O.Emission += reflected * amount;
                 O.Albedo *= 1-amount;
             }
-            O.Alpha = 1;
+            O.Alpha = lightVisibility;
         }
         ENDCG
     }

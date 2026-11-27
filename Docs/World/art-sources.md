@@ -136,3 +136,8 @@ An ORIGINAL physically based game prop ALBEDO texture atlas, landscape 3:2 aspec
 砖、漆面、湿区釉砖和水泥墙沿用各自扫描材质的 2K 原始高度图；色图、法线和高度使用相同 UV。墙面近处使用视差，真实墙裙和压条参与手电投影。[Brick Moss 001](https://polyhaven.com/a/brick_moss_001) · [Painted Concrete 02](https://polyhaven.com/a/painted_concrete_02) · [Worn Tile Floor](https://polyhaven.com/a/worn_tile_floor) · [Scuffed Cement](https://polyhaven.com/a/scuffed_cement)
 
 浴场题字采用马善政毛笔楷书，道具、交班簿和章节采用霞鹜文楷。操作键与数字沿用思源黑体。随游戏分发静态字形子集，完整许可见 [马善政 OFL](../../Assets/Resources/Interface/TitleTypeface-OFL.txt) 与 [霞鹜文楷 OFL](../../Assets/Resources/Typeface/Ledger-OFL.txt)。[马善政源字体](https://github.com/google/fonts/tree/main/ofl/mashanzheng) · [霞鹜文楷源字体](https://github.com/lxgw/LxgwWenKai)
+
+
+### 房间内的布料与收口
+
+洗衣房的换洗帘和副楼折叠台的布挡采用 Poly Haven 的 Rough Linen（CC0），在双面褶皱网格上按米铺设颜色和切线法线。墙裙、管夹、门套、厨房与检修用铁件沿用现有浴场材质。斜光检查使用独立 QA 玩家中的 `Tools/QA/AfterHoursRoomSurfaceAudit.cs`；先用 `-afterhours-room-surfaces <输出目录> baseline` 记录机位，再以 `adjusted` 重拍同一组位置。[Rough Linen](https://polyhaven.com/a/rough_linen)
