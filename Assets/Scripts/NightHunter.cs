@@ -39,6 +39,7 @@ namespace AfterHours
         readonly float[] hiddenA=new float[24],hiddenB=new float[16], features=new float[11];
         readonly List<Vector3> path=new();
         readonly Dictionary<int,float> visits=new();
+        readonly float[] patrolRetryUntil;
         readonly Vector3[] posts=
         {
             new(-8,0,12),new(10,0,12),new(-6,0,17),new(-16,0,19),new(-1,0,4),
@@ -73,6 +74,7 @@ namespace AfterHours
         internal NightHunter(NightGame game)
         {
             this.game=game;
+            patrolRetryUntil = new float[posts.Length];
             routing=new FloorRoutes();
             actor=new GameObject("奶娃").transform;
             actor.SetParent(game.transform);
@@ -281,6 +283,7 @@ namespace AfterHours
             visual.localPosition=fullOffset;
             noises.Clear();
             visits.Clear();
+            Array.Clear(patrolRetryUntil, 0, patrolRetryUntil.Length);
             path.Clear();
             lastPost=-1;
             sinceSeen = 40;
@@ -456,18 +459,18 @@ namespace AfterHours
         {
             Vector3 target = path[waypoint];
             Vector3 direction = Vector3.ProjectOnPlane(target - Position, Vector3.up);
-            if (direction.sqrMagnitude > .005f)
-                actor.rotation = Quaternion.RotateTowards(actor.rotation, Quaternion.LookRotation(direction), dt * 430);
             float speed = Pursuing ? Mathf.Lerp(3.22f, 3.41f, NightPressure) : activeIntent == Intent.Patrol ? 1.46f : 1.77f;
             Vector3 next = Vector3.MoveTowards(Position, target, speed * dt);
             if (!FloorRoutes.CanMove(Position, next) || !PassDoor(next))
             {
-                RememberBlocked(destination);
+                RememberBlocked(activeIntent, destination, activeSlot);
                 path.Clear();
                 Pursuing = false;
                 nextDecision = 0;
                 return;
             }
+            if (direction.sqrMagnitude > .005f)
+                actor.rotation = Quaternion.RotateTowards(actor.rotation, Quaternion.LookRotation(direction), dt * 430);
             actor.position = next;
             if ((Position - target).sqrMagnitude < .06f * .06f) waypoint++;
             if (waypoint == path.Count) ReachedGoal();
@@ -503,7 +506,14 @@ namespace AfterHours
 
         void ReachedGoal()
         {
-            if (activeIntent == Intent.Patrol || activeIntent == Intent.Pursue) return;
+            if (activeIntent == Intent.Patrol)
+            {
+                lastPost = activeSlot;
+                visits[activeSlot] = Time.time;
+                nextDecision = 0;
+                return;
+            }
+            if (activeIntent == Intent.Pursue) return;
             if (activeIntent == Intent.Search) searched |= 1 << activeSlot;
             else
             {
@@ -535,18 +545,22 @@ namespace AfterHours
 
         void Decide(bool sees)
         {
-            goals.Clear();
             bool underway = waypoint < path.Count;
+            bool patrolInProgress = underway && activeIntent == Intent.Patrol;
+            bool hasTrail = sinceSeen < Mathf.Lerp(10.5f, 16f, NightPressure);
+            if (patrolInProgress && !sees && !hasTrail && noises.Count == 0) return;
+
+            goals.Clear();
             void Consider(Intent kind, Vector3 point, float age, float strength, int slot = -1, float recent = 0, float repeats = 0, float bias = 0)
             {
-                if (Time.time < retry && (point - unreachable).sqrMagnitude < 1.96f) return;
+                if (kind != Intent.Patrol && Time.time < retry && (point - unreachable).sqrMagnitude < 1.96f) return;
                 float rank = Score((int)kind, point, age, strength, recent, repeats, sees) + bias;
                 if (underway && kind == activeIntent && (point - destination).sqrMagnitude < .81f) rank += .10f;
                 goals.Add((kind, point, rank, slot));
             }
 
             if (sees) Consider(Intent.Pursue, lastSeen, 0, 1, bias: .20f);
-            else if (sinceSeen < Mathf.Lerp(10.5f, 16f, NightPressure))
+            else if (hasTrail)
             {
                 Vector3 right = Vector3.Cross(Vector3.up, lastHeading);
                 for (int i = 0; i < SearchSpots.Length; i++)
@@ -563,12 +577,20 @@ namespace AfterHours
                 Consider(Intent.Investigate, cue.Place, cue.Age, cue.Loudness,
                     bias: cue.Footstep ? 0 : .14f * cue.Loudness);
             }
-            for (int i = 0; i < posts.Length; i++)
+            if (patrolInProgress)
             {
-                if ((posts[i] - Position).sqrMagnitude < 2.25f) continue;
-                float recent = visits.TryGetValue(i, out float visit) ? Mathf.Clamp01(1 - (Time.time - visit) / 75f) : 0;
-                float repeat = (i == lastPost ? .85f : 0) + .12f * Mathf.PerlinNoise(i * .8f, cycle * .17f);
-                Consider(Intent.Patrol, posts[i], 5, .2f, i, recent, repeat);
+                // Only an observed trail, a sound or a sighting can compete with this patrol leg.
+                Consider(Intent.Patrol, destination, 5, .2f, activeSlot);
+            }
+            else
+            {
+                for (int i = 0; i < posts.Length; i++)
+                {
+                    if (Time.time < patrolRetryUntil[i] || (posts[i] - Position).sqrMagnitude < 2.25f) continue;
+                    float recent = visits.TryGetValue(i, out float visit) ? Mathf.Clamp01(1 - (Time.time - visit) / 75f) : 0;
+                    float repeat = (i == lastPost ? .85f : 0) + .12f * Mathf.PerlinNoise(i * .8f, cycle * .17f);
+                    Consider(Intent.Patrol, posts[i], 5, .2f, i, recent, repeat);
+                }
             }
 
             goals.Sort(static (a, b) => b.Rank.CompareTo(a.Rank));
@@ -586,9 +608,8 @@ namespace AfterHours
                 if (++attempts > 3) break;
                 if (!routing.Find(Position, goal.Place, proposedPath))
                 {
-                    RememberBlocked(goal.Place);
+                    RememberBlocked(goal.Kind, goal.Place, goal.Slot);
                     if (goal.Kind == Intent.Search) searched |= 1 << goal.Slot;
-                    if (goal.Kind == Intent.Patrol) visits[goal.Slot] = Time.time;
                     continue;
                 }
 
@@ -600,11 +621,6 @@ namespace AfterHours
                 activeIntent = goal.Kind;
                 activeSlot = goal.Slot;
                 Pursuing = goal.Kind == Intent.Pursue;
-                if (goal.Kind == Intent.Patrol)
-                {
-                    lastPost = goal.Slot;
-                    visits[goal.Slot] = Time.time;
-                }
                 if (goal.Kind == Intent.Investigate && !sees && listenCooldown <= 0 &&
                     (destination - recentListenTarget).sqrMagnitude > 4)
                     BeginListening(destination);
@@ -614,8 +630,14 @@ namespace AfterHours
             if (!underway) path.Clear();
         }
 
-        void RememberBlocked(Vector3 point)
+        void RememberBlocked(Intent kind, Vector3 point, int slot)
         {
+            if (kind == Intent.Patrol)
+            {
+                patrolRetryUntil[slot] = Time.time + 6f;
+                return;
+            }
+
             unreachable = point;
             retry = Time.time + 2.4f;
         }
