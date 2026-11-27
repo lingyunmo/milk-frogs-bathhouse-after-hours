@@ -23,6 +23,7 @@ namespace AfterHours
         readonly SortedSet<(float Score, int Node)> open = new();
         readonly int[] previous;
         readonly float[] distance;
+        readonly int[] components;
 
         internal FloorRoutes()
         {
@@ -54,6 +55,55 @@ namespace AfterHours
 
             previous = new int[points.Count];
             distance = new float[points.Count];
+            components = new int[points.Count];
+            Array.Fill(components, -1);
+            var frontier = new Queue<int>();
+            for (int start = 0; start < points.Count; start++)
+            {
+                if (components[start] >= 0) continue;
+                components[start] = start;
+                frontier.Enqueue(start);
+                while (frontier.Count > 0)
+                {
+                    foreach (int next in edges[frontier.Dequeue()])
+                    {
+                        if (components[next] >= 0) continue;
+                        components[next] = start;
+                        frontier.Enqueue(next);
+                    }
+                }
+            }
+        }
+
+        internal static int LevelAt(float height) => Mathf.Clamp(Mathf.RoundToInt(height / FloorHeight), -1, 2);
+        internal static float LevelHeight(int level) => level * FloorHeight;
+
+        internal static bool IsInsideBathhouse(Vector3 feet) =>
+            LevelAt(feet.y) != 0 || NightAtlas.Building.Contains(new Vector2(feet.x, feet.z));
+
+        internal Vector3 PointAt(int node) => points[node];
+
+        // Sample existing supported floor cells on the hunter's connected graph.
+        internal void CollectPatrolNodes(Vector3 from, Vector3 center, bool inside, int radius, int spacing, List<int> result)
+        {
+            result.Clear();
+            int start = Nearest(from, true);
+            if (start < 0) return;
+            int component = components[start];
+            int level = LevelAt(center.y);
+            int cx = Mathf.RoundToInt(center.x), cz = Mathf.RoundToInt(center.z);
+            for (int dx = -radius; dx <= radius; dx += spacing)
+            for (int dz = -radius; dz <= radius; dz += spacing)
+            {
+                int distanceSquared = dx * dx + dz * dz;
+                if (distanceSquared < 9 || distanceSquared > radius * radius ||
+                    !cells.TryGetValue((cx + dx, cz + dz, level), out int node) || components[node] != component)
+                    continue;
+                Vector3 point = points[node];
+                if (IsInsideBathhouse(point) == inside &&
+                    (Mathf.Abs(point.y - from.y) > 1.5f || (point - from).sqrMagnitude >= 16))
+                    result.Add(node);
+            }
         }
 
         int Add(Vector3 point)
@@ -166,7 +216,7 @@ namespace AfterHours
         {
             int closest = -1;
             float best = float.PositiveInfinity;
-            int level = Mathf.Clamp(Mathf.RoundToInt(desired.y / FloorHeight), -1, 2);
+            int level = LevelAt(desired.y);
             int x = Mathf.RoundToInt(desired.x), z = Mathf.RoundToInt(desired.z);
             for (int dx = -3; dx <= 3; dx++)
             for (int dz = -3; dz <= 3; dz++)
