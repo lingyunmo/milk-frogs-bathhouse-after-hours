@@ -8,7 +8,9 @@ namespace AfterHours
     {
         readonly Dictionary<string,AudioClip> clips=new();
         readonly AudioSource[] emitters=new AudioSource[10];
-        readonly AudioSource generator, entrance;
+        const float RoomAmbience = .46f;
+        const float PursuitAmbience = .18f;
+        readonly AudioSource generator, entrance, ambience, titleLight;
         readonly AudioSource captureLaugh, menu;
         readonly AudioClip menuClick, menuTick;
         float nextMenuTick;
@@ -35,11 +37,22 @@ namespace AfterHours
             generator.clip=Clip("motor",2,46,.077f,6,true);
             generator.transform.position=new Vector3(-10,-2.5f,20);
             generator.Play();
-            entrance = Source(root);
+            entrance = Source(root, "Title ambience");
             entrance.spatialBlend = 0;
             entrance.loop = true;
-            entrance.clip = TitleTone();
-            entrance.volume = .38f;
+            entrance.clip = Resources.Load<AudioClip>("Audio/after-hours-title");
+            entrance.volume = .62f;
+
+            ambience = Source(root, "Bathhouse ambience");
+            ambience.spatialBlend = 0;
+            ambience.loop = true;
+            ambience.clip = Resources.Load<AudioClip>("Audio/bathhouse-ambience");
+            ambience.volume = 0f;
+
+            titleLight = Source(root, "Title light ballast");
+            titleLight.spatialBlend = 0;
+            titleLight.panStereo = .48f;
+            titleLight.clip = LightBallast();
 
             captureLaugh = Source(root, "Hunter capture laugh");
             captureLaugh.clip = Resources.Load<AudioClip>("Audio/haunted-laugh-v1");
@@ -71,33 +84,55 @@ namespace AfterHours
             menu.PlayOneShot(menuTick, .47f);
         }
 
-        internal void SetTitle(bool visible)
+        internal void SetScreen(NightScreen screen)
         {
-            if (visible)
+            if (screen == NightScreen.Title)
             {
                 generator.volume = 0;
-                if (!entrance.isPlaying) entrance.Play();
+                ambience.Stop();
+                ambience.volume = 0f;
+                if (entrance.clip && !entrance.isPlaying) entrance.Play();
+                return;
             }
-            else entrance.Stop();
+            entrance.Stop();
+            titleLight.Stop();
+            // The shared listener pauses this source in menus and preserves its playhead.
+            if (screen == NightScreen.Play && ambience.clip && !ambience.isPlaying) ambience.Play();
+            if (screen == NightScreen.Capture) ambience.volume = PursuitAmbience;
         }
 
-        static AudioClip TitleTone()
+        internal void PlayTitleLightFlicker(float strength)
+        {
+            titleLight.volume = .56f * Mathf.Clamp01(strength);
+            titleLight.Play();
+        }
+
+        static AudioClip LightBallast()
         {
             const int rate = 24000;
-            const int length = 12;
-            var wave = new float[rate * length];
+            var wave = new float[rate * 24 / 100];
+            var noise = new System.Random(178);
+            var filtered = 0f;
             for (int i = 0; i < wave.Length; i++)
             {
                 float t = (float)i / rate;
-                float phase = t * 2 * Mathf.PI;
-                float tide = .54f + .22f * Mathf.Sin(phase / length);
-                wave[i] = tide * (.18f * Mathf.Sin(phase * 43) + .066f * Mathf.Sin(phase * 47.5f) +
-                    .023f * Mathf.Sin(phase * 86 + .38f * Mathf.Sin(phase / 3)));
+                float white = 2f * (float)noise.NextDouble() - 1f;
+                filtered = .72f * filtered + .28f * white;
+                float power = Mathf.Min(t * 180f, 1f) * Mathf.Pow(1f - (float)i / wave.Length, 2f);
+                float contact = Mathf.Exp(-t * 64f) + .48f * Mathf.Exp(-Mathf.Abs(t - .072f) * 105f);
+                float phase = t * 2f * Mathf.PI * 100f;
+                wave[i] = power * (.10f * Mathf.Sin(phase) + .036f * Mathf.Sin(3f * phase)
+                    + contact * .25f * (white - filtered));
             }
-            return Ready("Old ventilation", wave, rate);
+            return Ready("Broken light ballast", wave, rate);
         }
 
-        internal void Tick(bool powered) => generator.volume=powered?.22f:0;
+        internal void Tick(bool powered, bool pursuing, float dt)
+        {
+            generator.volume = powered ? .22f : 0f;
+            float target = pursuing ? PursuitAmbience : RoomAmbience;
+            ambience.volume = Mathf.MoveTowards(ambience.volume, target, dt * .5f);
+        }
 
         static AudioSource Source(Transform root, string name = "Spatial sound")
         {
