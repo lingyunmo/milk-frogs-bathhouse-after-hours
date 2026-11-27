@@ -1,0 +1,46 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "noodle0_color",
+      "normal": "noodle0_normal",
+      "arm": "noodle0_orm_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    },
+    {
+      "name": "Surface_1",
+      "color": "",
+      "normal": "",
+      "arm": "",
+      "tint": [
+        0.8600000143051147,
+        0.8999999761581421,
+        0.8999999761581421,
+        1
+      ],
+      "metal": 0,
+      "rough": 0.029999999329447746
+    },
+    {
+      "name": "Surface_2",
+      "color": "noodle0_color",
+      "normal": "noodle0_normal",
+      "arm": "noodle0_orm_Unity",
+      "tint": [
+        0.2199999988079071,
+        0.2199999988079071,
+        0.2199999988079071,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

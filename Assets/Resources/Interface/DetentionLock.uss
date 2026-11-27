@@ -1,0 +1,106 @@
+/* The latch floats over the world as a single instrument. */
+.detention-lock {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(4, 7, 7, .54);
+}
+.detention-lock__plate {
+    width: 92%;
+    max-width: 430px;
+    max-height: 95%;
+    padding: 16px 23px 17px;
+    align-items: stretch;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-color: rgba(184, 152, 101, .42);
+    background-color: rgba(14, 19, 17, .90);
+}
+.detention-lock__title {
+    margin: 0;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    font-size: 27px;
+    letter-spacing: 4px;
+    color: #f1e8d3;
+}
+.detention-lock__help {
+    margin: 7px 0 0;
+    -unity-text-align: middle-center;
+    white-space: normal;
+    font-size: 14px;
+    color: #c8beaa;
+}
+.detention-lock__dial {
+    height: 240px;
+    min-height: 106px;
+    flex-shrink: 1;
+    margin: 4px 0 0;
+}
+.detention-lock__contacts {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    height: 25px;
+}
+.detention-lock__contact {
+    margin: 0 4px;
+    min-width: 20px;
+    -unity-text-align: middle-center;
+    font-size: 19px;
+    color: #8c8473;
+}
+.detention-lock__contact--seated {
+    color: #edca8c;
+}
+.detention-lock__status {
+    height: 24px;
+    margin: 2px 0 0;
+    -unity-text-align: middle-center;
+    font-size: 14px;
+    color: #f0d09b;
+}
+.detention-lock__status--miss {
+    color: #ef9c89;
+}
+.detention-lock__actions {
+    flex-direction: row;
+    align-items: stretch;
+    margin-top: 12px;
+}
+.detention-lock__confirm, .detention-lock__cancel {
+    height: 36px;
+    margin: 0;
+    border-width: 1px;
+    border-radius: 0;
+    font-size: 15px;
+    -unity-text-align: middle-center;
+}
+.detention-lock__confirm {
+    flex-grow: 1;
+    color: #f3dab1;
+    border-color: #816746;
+    background-color: #31291f;
+}
+.detention-lock__confirm:hover, .detention-lock__confirm:focus,
+.detention-lock__confirm--ready {
+    color: #1a1710;
+    border-color: #f1d19a;
+    background-color: #d5ae72;
+}
+.detention-lock__cancel {
+    width: 100px;
+    margin-left: 10px;
+    color: #c7c3b6;
+    border-color: rgba(199, 195, 182, .25);
+    background-color: #1b221f;
+}
+.detention-lock__cancel:hover, .detention-lock__cancel:focus {
+    color: #f1e8d3;
+    border-color: #8c8473;
+    background-color: #333d37;
+}

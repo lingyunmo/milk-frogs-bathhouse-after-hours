@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt }
+    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse }
 
     internal readonly struct NightInventoryItem
     {
@@ -64,6 +64,10 @@ namespace AfterHours
                 if (State.seal)
                     yield return new NightInventoryItem(NightItemId.Seal, "回水密封圈", "维修",
                         "关掉盥洗室的进水阀，再换上密封圈。");
+                if (State.collected.Contains(NightStreetRelay.FuseId) &&
+                    !State.collected.Contains(NightStreetRelay.SeatedId))
+                    yield return new NightInventoryItem(NightItemId.RelayFuse, "备用保险管", "维修",
+                        "后场检修棚拾得。街对面值守点的转接机正缺这支保险管。");
                 if (State.collected.Contains(FaultNoteId))
                     yield return new NightInventoryItem(NightItemId.Receipt, "夜班故障单", "记录",
                         "先去地下设备层恢复供电。三楼弱电间接好外线。最后回前台，用终端呼叫接应。",

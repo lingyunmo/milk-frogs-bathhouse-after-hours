@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 
 namespace AfterHours
 {
-    internal enum NightScreen { Title, Play, Map, Inventory, Pause, Capture, Caught, Escaped }
+    internal enum NightScreen { Title, Play, Map, Inventory, Pause, Capture, Detention, Caught, Escaped }
 
     internal sealed partial class NightGame : MonoBehaviour
     {
@@ -33,7 +33,7 @@ namespace AfterHours
         NightInterface hud;
         NightCameraGrade grade;
         NightTarget focus, held;
-        float holdTime, messageTime, pauseTime, caughtTime;
+        float holdTime, messageTime, pauseTime, caughtTime, releaseGrace;
         string message = "";
         struct ThrownStone
         {
@@ -110,11 +110,15 @@ namespace AfterHours
         static NightState LoadUnfinished()
         {
             var saved = NightSave.Read();
-            return saved != null && !saved.escaped ? saved : null;
+            return saved != null && !saved.escaped && !saved.ended ? saved : null;
         }
 
         internal void NewNight() => Begin(null);
-        internal void ContinueNight() => Begin(LoadUnfinished());
+        internal void ContinueNight()
+        {
+            var save = LoadUnfinished();
+            if (save != null) Begin(save);
+        }
 
         void Begin(NightState save)
         {
@@ -124,16 +128,19 @@ namespace AfterHours
             world.Refresh();
             hunter.Reset();
             Physics.SyncTransforms();
+            if (State.detained) SetDetentionCheckpoint();
             State.spawn = WalkableSavePosition(State.spawn);
             Player.ResetPosition(State.spawn, State.yaw);
             if (save == null) Player.LookDown(8);
             Player.SetTorch(false);
             caughtTime = 0;
+            releaseGrace = 0;
             panel = null;
             messageTime = 0;
             LastPickup = default;
             Atlas.Track(State, Player.Feet);
             if (grade) grade.SetFear(0);
+            if (save == null) SaveProgress();
             SetScreen(NightScreen.Play);
             hud.Arrive(save == null);
         }
@@ -144,12 +151,7 @@ namespace AfterHours
             if (ScreenState == NightScreen.Capture)
             {
                 caughtTime += Time.deltaTime;
-                if (caughtTime >= soundscape.CaptureDuration)
-                {
-                    ResumableSave = LoadUnfinished();
-                    hunter.EndCapture();
-                    SetScreen(NightScreen.Caught);
-                }
+                if (caughtTime >= soundscape.CaptureDuration) FinishCapture();
                 else
                 {
                     hunter.LaughAt(Player.Feet, caughtTime);
@@ -159,7 +161,8 @@ namespace AfterHours
             else if (ScreenState == NightScreen.Play) TickPlay(Time.deltaTime);
             else if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if (hud.CloseSubpage())
+                if (ScreenState == NightScreen.Detention) CloseDetentionLock();
+                else if (hud.CloseSubpage())
                     PlayMenuSound();
                 else if (ScreenState is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory)
                     SetScreen(NightScreen.Play);
@@ -227,11 +230,15 @@ namespace AfterHours
                 ReadRepairInput();
             }
             Atlas.Track(State, Player.Feet);
-            hunter.Tick(dt);
-            if (ScreenState != NightScreen.Play) return;
-            TickWorld(dt);
+            if (!State.detained)
+            {
+                releaseGrace = Mathf.Max(0, releaseGrace - dt);
+                hunter.Tick(dt);
+                if (ScreenState != NightScreen.Play) return;
+                TickWorld(dt);
+            }
             if (panel != null) return;
-            if (Input.GetKeyDown(KeyCode.G)) ThrowStone();
+            if (!State.detained && Input.GetKeyDown(KeyCode.G)) ThrowStone();
             if (Input.GetKeyDown(KeyCode.F5)) SaveHere();
             FocusTarget(dt);
         }
@@ -246,10 +253,10 @@ namespace AfterHours
             SyncCursor(Application.isFocused);
             Player.Eyes.GetComponent<Camera>().enabled = screen != NightScreen.Title;
             if (grade) grade.SetMenu(screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
-                or NightScreen.Caught or NightScreen.Escaped);
+                or NightScreen.Detention or NightScreen.Caught or NightScreen.Escaped);
             Player.SetTorchVisible(screen == NightScreen.Play && State.torch);
             soundscape.SetScreen(screen);
-            if (screen is not (NightScreen.Capture or NightScreen.Caught)) soundscape.StopCaptureLaugh();
+            if (screen != NightScreen.Capture) soundscape.StopCaptureLaugh();
             if (screen == NightScreen.Play) pauseTime = .12f;
             if (screen == NightScreen.Title)
             {
@@ -281,9 +288,17 @@ namespace AfterHours
 
         internal void Captured()
         {
-            if (ScreenState != NightScreen.Play) return;
+            if (ScreenState != NightScreen.Play || State.detained || releaseGrace > 0) return;
             panel = null;
             caughtTime = 0;
+            if (State.night == NightState.MaxNights) State.ended = true;
+            else
+            {
+                State.night++;
+                State.detained = true;
+                SetDetentionCheckpoint();
+            }
+            SaveProgress();
             SetScreen(NightScreen.Capture);
             if (grade) grade.Shock();
             soundscape.PlayCaptureLaugh(hunter.LaughSource);
@@ -423,6 +438,7 @@ namespace AfterHours
 
         internal void ToggleDoor(NightWorld.Door door)
         {
+            if (NightDetention.Locks(door.Name, State)) return;
             if(door.Fire)
             {
                 if(State.firstFireDoor)return;
@@ -440,7 +456,7 @@ namespace AfterHours
             {
                 if(!door.Leaf.activeSelf||Mathf.Abs(position.y-door.Position.y)>.55f||
                     Vector3.Distance(position,door.Position)>1.05f)continue;
-                if(door.Fire&&position.z<10)continue;
+                if (NightDetention.Locks(door.Name, State) || door.Fire && position.z < 10) continue;
                 if(door.Fire)State.firstFireDoor=true;
                 else State.openDoors.Add(door.Name);
                 door.Leaf.SetActive(false);

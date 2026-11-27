@@ -23,6 +23,7 @@ namespace AfterHours
         VisualElement staminaBlock, pickupCard, pickupArt, areaCard, minimapRing, north, curtain, chapter, letterbox;
         VisualElement grainLayer, toastBox;
         NightReticle reticle;
+        NightDetentionLock detentionLock;
         Meter stamina, torch;
         NightMapView minimap;
         NightPursuitVignette pursuitVignette;
@@ -157,6 +158,7 @@ namespace AfterHours
             ClearTitleArt();
             grainLayer = null;
             reticle = null;
+            detentionLock = null;
             curtain = chapter = letterbox = null;
             screenOpened = Time.unscaledTime;
             switch (screen)
@@ -172,6 +174,11 @@ namespace AfterHours
                     return;
                 case NightScreen.Title:
                     BuildTitle();
+                    return;
+                case NightScreen.Detention:
+                    detentionLock = new NightDetentionLock(game.State.night, game.ReleaseDetention,
+                        game.CloseDetentionLock, game.DetentionFeedback);
+                    root.Add(detentionLock);
                     return;
             }
 
@@ -208,12 +215,12 @@ namespace AfterHours
             }
             var chapterRow = Area(block, "title-chapter-row");
             Area(chapterRow, "title-chapter-rule");
-            Type(chapterRow, "第一夜", "title-chapter serif");
+            Type(chapterRow, game.ResumableSave?.NightLabel ?? "五夜逃生", "title-chapter serif");
             Area(chapterRow, "title-chapter-rule");
             Stagger(block, 0);
 
             var footer = Area(stage, "title-footer");
-            Type(footer, "单人试玩版", "title-edition");
+            Type(footer, "单人逃生", "title-edition");
             var hints = Area(footer, "key-hints");
             Keys(hints, "↑ / ↓", "选择");
             Keys(hints, "Enter", "确认");
@@ -231,7 +238,7 @@ namespace AfterHours
             Button first = null;
             if (game.ResumableSave != null)
                 first = Item(menu, "继续游戏", game.ContinueNight, "continue-night", true);
-            var fresh = Item(menu, "开始新一夜", () =>
+            var fresh = Item(menu, "开始新游戏", () =>
             {
                 if (game.ResumableSave == null) game.NewNight();
                 else Open("restart");
@@ -439,13 +446,12 @@ namespace AfterHours
             Classes(veil, safe ? "ending-veil ending--dawn" : "ending-veil ending--caught");
             Area(veil, "screen ending-vignette").style.backgroundImage = new StyleBackground(NightInterfaceArt.Vignette);
             var column = Area(veil, "ending");
-            Type(column, safe ? "第一夜　·　完" : "第一夜", "ending-overline");
-            Type(column, safe ? "天亮以前" : "它找到你了", "ending-title serif");
+            Type(column, safe ? game.State.NightLabel + "　·　完" : game.State.NightLabel, "ending-overline");
+            Type(column, safe ? "天亮以前" : "最后一夜", "ending-title serif");
             Area(column, "ending-rule");
-            Type(column, safe ? "车门关上了。浴场的灯从后窗消失。" : "走廊里只剩它的笑声。", "ending-caption serif");
+            Type(column, safe ? "车门关上了。浴场的灯从后窗消失。" : "铁门合上了。走廊里只剩它的笑声。", "ending-caption serif");
             var actions = Area(column, "ending-actions");
-            string action = safe ? "再玩一次" : game.ResumableSave != null ? "从存档继续" : "重试";
-            var retry = Item(actions, action, safe ? game.NewNight : game.ContinueNight, "retry", true);
+            var retry = Item(actions, "重新开始", game.NewNight, "retry", true);
             Item(actions, "返回标题", () => game.SetScreen(NightScreen.Title), "title");
             Stagger(column, 0);
             Focus(retry);
@@ -633,8 +639,8 @@ namespace AfterHours
             areaSeen.Clear();
             shownArea = game.Atlas.Current?.Key ?? "";
             if (chapter == null) return;
-            Copy(chapterOverline, newNight ? "第一夜" : "继续");
-            Copy(chapterTitle, newNight ? "打烊后" : LocationName());
+            Copy(chapterOverline, game.State.NightLabel);
+            Copy(chapterTitle, newNight && !game.State.detained ? "打烊后" : LocationName());
             UpdateArrival();
         }
 
@@ -704,6 +710,8 @@ namespace AfterHours
                 grainLayer.style.backgroundPositionY = new BackgroundPosition(BackgroundPositionKeyword.Top, (frame * 113) % 192);
             }
             if (screen == NightScreen.Title) TickTitle();
+            if (screen == NightScreen.Detention && Application.isFocused)
+                detentionLock?.Tick(Mathf.Min(Time.unscaledDeltaTime, .075f));
             if (screen != NightScreen.Play || reticle == null) return;
 
             var player = game.Player;
@@ -719,7 +727,7 @@ namespace AfterHours
             Copy(task, objective);
             bool updated = now - objectiveSince < 3.2f;
             objectiveBlock.EnableInClassList("objective--updated", updated);
-            Copy(objectiveTag, updated ? "目标更新" : "当前目标");
+            Copy(objectiveTag, state.NightLabel + (updated ? "　·　目标更新" : "　·　当前目标"));
             objectiveBlock.EnableInClassList("objective--quiet", now - Mathf.Max(objectiveSince, arrival) > 14 && !game.InPursuit);
             Copy(location, LocationName());
             Copy(mapFloor, NightAtlas.FloorNames[game.Atlas.Floor]);
@@ -802,6 +810,7 @@ namespace AfterHours
 
         static string Objective(NightState state)
         {
+            if (state.detained) return "拨开门上的卡簧锁";
             if (state.rescueTime == 0) return "从车侧登车";
             if (state.beacon) return "等待救援车";
             if (state.contacted) return "去街尾翻起接应板";

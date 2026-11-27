@@ -25,6 +25,9 @@ namespace AfterHours
             Cell("cell-storage", new(-2,-2.53f,5), "备品库");
             Cell("cell-staff", new(-9,8.15f,18), "值班室");
             Cell("cell-parking", new(49,.17f,4.8f), "停车棚");
+            foreach (var supply in NightWorld.StreetSupplies)
+                Cell(supply.Id, supply.Position, supply.Location);
+            BuildStreetRelayObjectives();
             Supply("stones", new(24,.13f,-10), "捡三颗石子", "石子 × 3", () => State.stones += 3);
 
             Vector3 motor=new(-10,-2.57f,18.92f);
@@ -147,7 +150,7 @@ namespace AfterHours
         static string SupplyArt(string id) => id switch
         {
             FaultNoteId => "receipt",
-            "motor" => "starter",
+            "motor" or NightStreetRelay.FuseId => "starter",
             "seal" => "seal",
             "stones" => "stone",
             _ => id.StartsWith("cell", StringComparison.Ordinal) ? "cell" : ""

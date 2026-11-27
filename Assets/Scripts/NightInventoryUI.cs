@@ -145,7 +145,7 @@ namespace AfterHours
             NightItemId.Torch => "torch",
             NightItemId.Battery => "cell",
             NightItemId.Stone => "stone",
-            NightItemId.Starter => "starter",
+            NightItemId.Starter or NightItemId.RelayFuse => "starter",
             NightItemId.Seal => "seal",
             _ => "receipt"
         };
