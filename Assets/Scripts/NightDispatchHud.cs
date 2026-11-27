@@ -23,6 +23,7 @@ namespace AfterHours
                 stationLabels[i] = Type(column, NightDispatch.Stations[i].Name, "station-name");
                 stationMeters[i] = new Meter(column, "station-track", "station-fill", NightDispatch.Contacts);
             }
+            BuildSurveyHud(layer);
             fieldWork = Area(layer, "field-instrument");
             instrumentTitle = Type(fieldWork, "", "dispatch-heading serif");
             instrumentReadout = Type(fieldWork, "", "instrument-reading");
@@ -38,6 +39,8 @@ namespace AfterHours
 
         static string OrderName(FieldOrder order) => order switch
         {
+            FieldOrder.Survey => "东堤水尺",
+            FieldOrder.Archive => "八七年旧照",
             FieldOrder.Lights => "街区引路灯",
             FieldOrder.Drain => "街沟排水",
             FieldOrder.Barrier => "街尾路障",
@@ -73,12 +76,13 @@ namespace AfterHours
             Button first = null;
             foreach (FieldOrder order in NightFieldOrders.List)
             {
+                if (order == FieldOrder.Archive && !state.survey.camera) continue;
                 bool done = NightFieldOrders.Done(order, state);
                 var row = Act(scroll.contentContainer, "", () =>
                 {
                     game.TrackOrder(order);
                     Open("");
-                    if (order == FieldOrder.Lights) OpenFloor(NightAtlas.Street);
+                    if (order is FieldOrder.Lights or FieldOrder.Survey or FieldOrder.Archive) OpenFloor(NightAtlas.Street);
                     if (order == FieldOrder.Barrier)
                     {
                         var job = state.dispatch;
@@ -86,7 +90,7 @@ namespace AfterHours
                     }
                 }, "order-entry", "order-" + order);
                 var copy = Area(row, "order-copy");
-                Type(copy, OrderName(order), "order-name serif");
+                Type(copy, order == FieldOrder.Archive ? "八七年旧照　·　选做" : OrderName(order), "order-name serif");
                 if (!done)
                 {
                     var lead = NightFieldOrders.Direction(order, state);
@@ -108,6 +112,7 @@ namespace AfterHours
         void TickDispatchHud()
         {
             var state = game.State;
+            TickSurveyHud();
             var job = state.dispatch;
             bool show = job.accepted && !state.detained && !state.beacon;
             Visible(dispatchStrip, show && !job.AllRunning);

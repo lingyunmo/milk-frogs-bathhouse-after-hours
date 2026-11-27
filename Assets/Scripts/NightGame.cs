@@ -201,7 +201,7 @@ namespace AfterHours
             }
             if (Input.GetKeyDown(KeyCode.Escape))
             {
-                if (WorkingDispatch) CloseDispatch();
+                if (WorkingDispatch || Framing) CloseDispatch();
                 else if (panel != null) panel = null;
                 else SetScreen(NightScreen.Pause);
                 return;
@@ -254,6 +254,15 @@ namespace AfterHours
             }
             if (panel != null || WorkingDispatch) return;
             if (Input.GetKeyDown(KeyCode.Q) && State.dispatch.carrying) SetLoadDown();
+            if (Input.GetKeyDown(KeyCode.V)) ToggleFinder();
+            if (Framing)
+            {
+                focus = held = null;
+                holdTime = 0;
+                AimSurvey();
+                if (Input.GetKeyDown(InteractKey)) ExposeSurvey();
+                return;
+            }
             if (!State.detained && Input.GetKeyDown(KeyCode.G)) ThrowStone();
             if (Input.GetKeyDown(KeyCode.F5)) SaveHere();
             FocusTarget(dt);

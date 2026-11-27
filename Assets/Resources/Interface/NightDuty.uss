@@ -977,3 +977,41 @@
 .compact .dispatch-board { padding: 48px 32px 28px; }
 .compact .play-hud .objective { max-width: 43%; }
 .compact .play-hud .objective-text { font-size: 22px; }
+
+/* Dark glass, brass fiducials and an unlabelled centre leave the subject in view. */
+.survey-finder { background-color: rgba(24,29,26,.08); }
+.finder-frame { position: absolute; left: 25%; right: 25%; top: 24%; bottom: 24%; }
+.finder-corner { position: absolute; width: 30px; height: 24px; border-color: #dddacc; }
+.finder-ready .finder-corner { border-color: #efbf75; }
+.tl { left: 0; top: 0; border-left-width: 2px; border-top-width: 2px; }
+.tr { right: 0; top: 0; border-right-width: 2px; border-top-width: 2px; }
+.bl { left: 0; bottom: 0; border-left-width: 2px; border-bottom-width: 2px; }
+.br { right: 0; bottom: 0; border-right-width: 2px; border-bottom-width: 2px; }
+.finder-pin { position: absolute; width: 19px; height: 19px; translate: -50% -50%;
+    border-width: 1px; border-radius: 11px; border-color: #e4d8c4; }
+.pin-ready { border-width: 2px; border-color: #ffd18b; }
+.finder-legend { position: absolute; top: 11%; align-self: center; align-items: center; }
+.finder-subject { margin: 0; font-size: 24px; color: #f4d498; letter-spacing: 2px; text-shadow: 0 1px 5px #0a0806; }
+.finder-hint { font-size: 18px; margin: 5px; color: #f4ebda; text-shadow: 0 1px 4px #080706; }
+.shutter-glint { background-color: rgba(235,217,179,.25); }
+.contact-table { position: absolute; align-self: center; top: 18%; width: 45%; height: 56%; align-items: center; }
+.contact-mount { width: 100%; height: 94%; padding: 12px 12px 4px; background-color: #cabea6; rotate: -1deg; }
+.contact-image { flex-grow: 1; background-color: #181815; -unity-background-scale-mode: scale-to-fit; }
+.contact-caption { font-size: 19px; color: #40362d; padding: 6px 5px; }
+.river-weirs { position: absolute; right: 6%; bottom: 16%; width: 370px; padding: 14px 16px;
+    background-color: rgba(16,23,21,.92); border-left-width: 2px; border-left-color: #bba77d; }
+.weir-bank { flex-direction: row; margin: 8px 0; }
+.weir-valve { flex-grow: 1; font-size: 20px; color: #b0ada1; padding: 5px; border-bottom-width: 2px; border-bottom-color: #4b4e46; }
+.valve-open { color: #b2d0b3; }
+.valve-selected { border-bottom-color: #e9b76a; }
+
+.splice-glass { width: 100%; height: 94%; background-color: #b5aa8c; overflow: hidden; border-width: 6px; border-color: #403f36; }
+.splice-strip { position: absolute; width: 33.333%; height: 76%; }
+.splice-active { border-bottom-width: 4px; border-bottom-color: #f6c074; }
+
+.sounding-desk { position: absolute; align-self: center; top: 17%; width: 600px; height: 400px;
+    background-image: resource("Interface/SoundingDesk"); -unity-background-scale-mode: stretch-to-fill; }
+.sounding-raster { position: absolute; left: 8%; right: 8%; top: 15%; bottom: 22%; overflow: hidden; }
+.sounding-label { position: absolute; top: 14%; left: 10%; color: #b4d6b4; font-size: 16px; background-color: rgba(9,23,14,.84); padding: 2px 5px; }
+.sounding-keys { position: absolute; top: 100%; align-self: center; color: #e5dcbe; }
+.compact .sounding-desk { top: 14%; width: 390px; height: 260px; }

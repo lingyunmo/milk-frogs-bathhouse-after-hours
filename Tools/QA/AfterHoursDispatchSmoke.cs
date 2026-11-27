@@ -21,6 +21,7 @@ namespace AfterHours
         List<NightTarget> targets;
         float walkingMetres, dialSeconds, winchSeconds;
         Vector3 lastStop;
+        readonly Dictionary<string,Vector3> stops = new();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -93,6 +94,7 @@ namespace AfterHours
                 if (Physics.CheckCapsule(feet + Vector3.up*.3f,feet + Vector3.up*1.43f,.25f,mask)) continue;
                 clear++;
                 var path = new List<Vector3>();
+                if (text == "拿起手电" && !routes.Find(feet,new Vector3(-5,.055f,12),path,game.CanCrossKeyDoors)) continue;
                 if (!routes.Find(lastStop,feet,path,game.CanCrossKeyDoors)) continue;
                 routed++;
                 game.Player.ResetPosition(feet,0);
@@ -102,6 +104,7 @@ namespace AfterHours
                 if (game.Focus != t) { other = game.Focus?.Label ?? "none"; continue; }
                 var from = lastStop;
                 foreach (Vector3 waypoint in path) { walkingMetres += Vector3.Distance(from,waypoint); from=waypoint; }
+                stops[text] = feet;
                 lastStop = feet;
                 game.Atlas.Track(game.State,feet);
                 return t;
@@ -112,8 +115,8 @@ namespace AfterHours
         IEnumerator Verify()
         {
             game.NewNight();
-            lastStop = new Vector3(-5,0,12);
-            game.State.torch = true;
+            lastStop = NightState.NewSpawn;
+            Visit("拿起手电").Use();
             game.State.charge = 300;
             game.Player.SetTorch(true);
             var radio = Visit("接听夜班调度");
@@ -133,7 +136,7 @@ namespace AfterHours
             game.SetScreen(NightScreen.Map);
             var root = Field<VisualElement>(ui,"root");
             Submit(root.Q<Button>("switch-orders"));
-            Check(root.Query<Button>(className:"order-entry").ToList().Count == 4, "Missing order sheets");
+            Check(root.Query<Button>(className:"order-entry").ToList().Count == 5, "Missing order sheets");
             if (preview != null)
             {
                 yield return new WaitForSecondsRealtime(.45f);
@@ -239,7 +242,7 @@ namespace AfterHours
                 Field<Label>(ui,"location").text==NightReturnLines.Zones[0], "Completed order didn't advance to drain");
             Check(!game.State.RescueAccess && !normal.Available(),"Flooded road permits escape");
             game.State.pump = true;
-            Check(game.State.RescueAccess,"Original pump route no longer drains the road");
+            Check(game.State.Drained && !game.State.RescueAccess,"Pump route should drain but still require river survey");
             game.State.pump = false;
             for (int line=0;line<3;line++)
             {
@@ -249,7 +252,7 @@ namespace AfterHours
                 Check(next.sealedLines==before,"Wrong valve credited");
                 Visit(NightReturnLines.Label(tap)).Use();
             }
-            Check(game.State.Drained && !game.State.pump && game.State.RescueAccess && NightSave.Read().dispatch.sealedLines==7,"Acoustic drain incomplete");
+            Check(game.State.Drained && !game.State.pump && !game.State.RescueAccess && NightSave.Read().dispatch.sealedLines==7,"Acoustic drain incomplete");
             Visit("取发电机启动件").Use();
             Visit("安装启动件").Use();
             Visit("对准飞轮刻线").Use();
@@ -266,13 +269,206 @@ namespace AfterHours
             Check(game.Reception>=.95f,"Cannot acquire carrier");
             for(int n=0;n<185;n++) if(game.Tuning)game.Tune(0,Dt);
             Check(game.State.contacted && !game.Tuning,"Cannot confirm directional radio");
+            Check(!normal.Available(),"Phone alone bypasses survey");
+            Visit("领测绘相机").Use();
+            if (preview != null)
+            {
+                game.Player.ResetPosition(new Vector3(190,.07f,-4),0);
+                ShowEstablishedView();
+                game.Player.Eyes.rotation=Quaternion.LookRotation(new Vector3(200,2.7f,15)-game.Player.Eyes.position);
+                game.Atlas.Track(game.State,game.Player.Feet); Invoke(game,"FocusTarget",0f); ui.Tick();
+                var building=CaptureInstrument(SiblingPreview("station"));
+                while(building.MoveNext()) yield return building.Current;
+            }
+            Visit("接管测深艇").Use();
+            game.SteerLaunch(0,false,true,Dt);
+            Check(game.State.survey.soundings==0 && !game.State.RescueAccess,"Sounded from the jetty");
+            float helmSeconds=0;
+            for(int frame=0;frame<24000 && game.Piloting;frame++)
+            {
+                var film=game.State.survey;
+                int leg=film.soundings;
+                float m=film.boatMetres, aim=SoundingReach.Centre(m+1,leg);
+                for(int k=0;k<3;k++)
+                {
+                    var bar=SoundingReach.Shoal(k,leg);
+                    if(m>=bar.y-9 && m<bar.y+4) aim=SoundingReach.Centre(m+1,leg)-Mathf.Sign(bar.x-SoundingReach.Centre(bar.y,leg))*3.4f;
+                }
+                if(m>SoundingReach.Length-10) aim=SoundingReach.Buoy(leg);
+                game.SteerLaunch(Mathf.Clamp((aim-film.boatOffset)*.95f,-1,1),true,true,Dt);
+                helmSeconds+=Dt;
+                if (leg==0 && film.soundings==1)
+                {
+                    game.CloseDispatch(); game.ContinueNight();
+                    Check(game.State.survey.soundings==1,"Lost measured reach at checkpoint");
+                    Visit("接管测深艇").Use();
+                }
+                if(preview!=null && frame==1400)
+                {
+                    ShowEstablishedView(); ui.Tick();
+                    var radar=CaptureInstrument(SiblingPreview("launch"));
+                    while(radar.MoveNext()) yield return radar.Current;
+                }
+            }
+            Check(!game.Piloting && game.State.survey.soundings==3 && !game.State.RescueAccess,$"Launch stopped on reach {game.State.survey.soundings} at {game.State.survey.boatMetres:F1} m, across {game.State.survey.boatOffset:F1}");
+            Debug.Log($"SOUNDING PASS three reaches under helm in {helmSeconds:F1} s.");
+            for (int i = 0; i < 3; i++)
+            {
+                Photograph(i);
+                if (i==1 && preview!=null)
+                {
+                    ShowEstablishedView();
+                    game.Player.Eyes.rotation=Quaternion.LookRotation(RiverSurvey.Plates[i].Center-game.Player.Eyes.position);
+                    Invoke(game,"ToggleFinder"); game.AimSurvey();
+                    game.Atlas.Track(game.State,game.Player.Feet); ui.Tick();
+                    yield return new WaitForSecondsRealtime(.20f); ui.Tick();
+                    var finder=CaptureInstrument(SiblingPreview("finder"));
+                    while(finder.MoveNext()) yield return finder.Current;
+                    Invoke(game,"ToggleFinder");
+                }
+            }
+            Check(game.State.survey.CanPrint && !normal.Available(),"Unprocessed film accepted");
+            Visit("冲洗水尺底片").Use();
+            game.Develop(1,true);
+            Check(game.State.survey.sheets == 0,"Blank sheet fixed");
+            game.Develop(5.5f,true);
+            game.CloseDispatch();
+            game.ContinueNight();
+            Check(game.State.survey.sheets==1 && game.State.survey.prints[0].Length>512,"Lost sheet or real picture after loading");
+            Visit("冲洗水尺底片").Use();
+            game.Develop(4.8f,true);
+            game.Develop(4.4f,true);
+            Check(game.State.survey.printed && normal.Available(), "No usable field report");
+            Visit("查看水尺照片").Use(); ui.Tick();
+            Check(game.AlbumOpen,"Contact sheet missing");
+            game.CloseDispatch();
+
+            float requiredMetres = walkingMetres;
+            for(int i=3;i<6;i++) Photograph(i);
+            Visit("拼接旧底片").Use();
+            game.AlignStrips(-1,0,true);
+            Check(game.Splicing && !game.State.survey.spliced,"Misaligned strips accepted");
+            while(game.State.survey.leftStrip!=0) game.AlignStrips(-1,-Math.Sign(game.State.survey.leftStrip),false);
+            while(game.State.survey.rightStrip!=0) game.AlignStrips(1,-Math.Sign(game.State.survey.rightStrip),false);
+            game.AlignStrips(1,0,true);
+            Check(!game.Splicing && game.State.survey.spliced,"Cannot align prints");
+            Visit("印出夜班合影").Use(); ShowEstablishedView(); ui.Tick();
+            Check(game.AlbumIsArchive && game.State.survey.archive,"Could not restore archive");
+            if(preview != null)
+            {
+                yield return new WaitForSecondsRealtime(.35f); ui.Tick();
+                var archive = CaptureInstrument(SiblingPreview("archive"));
+                while(archive.MoveNext()) yield return archive.Current;
+            }
+            game.CloseDispatch();
+            Visit("接管分洪闸台").Use();
+            for (int i=0;i<3;i++)
+            {
+                if ((game.State.survey.head & (1<<i))!=0) game.OperateWeirs(0,true,Dt);
+                game.OperateWeirs(1,false,Dt);
+            }
+            game.OperateWeirs(0,false,4f);
+            Check(game.State.survey.balanced && !game.Sluicing, "Pressure system couldn't be balanced");
+            Visit("试鸣堤外警铃").Use();
+            Check(!Target("试鸣堤外警铃").Available() && NightSave.Read().survey.bellReadyAt > game.State.dispatch.playSeconds,"No persistent horn cooldown");
+            Debug.Log($"SURVEY PASS required test itinerary {requiredMetres:F0} m; archive and weirs added {walkingMetres-requiredMetres:F0} m.");
             Check(NightFieldOrders.Current(game.State).action=="翻起接应板", "No actionable rescue lead");
             game.State.night=4;
             Check(normal.Available() && backupBeacon.Available(),"Beacon not reachable on either route");
+            game.State.dispatch.playSeconds=1000;
+            backupBeacon.Use();
+            Check(Mathf.Approximately(game.State.rescueTime,200), "Early bypass via backup beacon");
+            game.State.beacon=false; game.State.rescueTime=-1;
             Visit("翻起反光接应板").Use();
-            Invoke(game,"TickWorld",28f);
+            var bus=Target("登上救援车");
+            Check(!bus.Available() && Mathf.Approximately(game.State.rescueTime,200), "Early bypass via main sign");
+            game.State.dispatch.playSeconds=1199;
+            Invoke(game,"TickWorld",199f);
+            Check(!bus.Available(),"Boarded before 20:00");
+            game.State.dispatch.playSeconds=1200;
+            Invoke(game,"TickWorld",1f);
+            Check(bus.Available(),"Couldn't board at first timetable");
             Visit("登上救援车").Use();
+            MeasureItineraries();
             Check(game.State.escaped && game.ScreenState==NightScreen.Escaped,"Could not board");
+        }
+
+        // Routes use the exact clear F/photography positions collected in this run. Count game distance,
+        // never the teleports, deliberate mistakes or reloads used by the regression test itself.
+        void MeasureItineraries()
+        {
+            string generator(int i) => "校准机组 · " + NightDispatch.Stations[i].Name;
+            string tap(int i) => NightReturnLines.Label(i*2+((game.State.dispatch.leakPattern>>i)&1));
+            string[] start = { "拿起手电","接听夜班调度" };
+            string[] motor = { "取发电机启动件","安装启动件","对准飞轮刻线","点动发电机","给前台和弱电间送电" };
+            string[] end = { "翻起反光接应板","登上救援车" };
+            var direct=new List<string>(start);
+            direct.AddRange(motor);
+            direct.AddRange(new[]{tap(0),tap(1),tap(2),"隔离受潮线路",generator(0),generator(1),
+                "背起绞盘配重","挂上配重","握住绞盘曲柄",generator(3),generator(2),"转动维修站定向天线",
+                "领测绘相机","接管测深艇","photo1","photo2","photo0","冲洗水尺底片"});
+            direct.AddRange(end);
+            var discovery=new List<string>(start);
+            discovery.AddRange(new[]{generator(0),generator(1),generator(3),generator(2),"领测绘相机","接管测深艇","photo1",
+                "photo0","photo3","photo2","冲洗水尺底片","photo4","photo5","拼接旧底片","印出夜班合影",
+                "接管分洪闸台","试鸣堤外警铃",tap(0),tap(1),tap(2),"背起绞盘配重","挂上配重","握住绞盘曲柄"});
+            discovery.AddRange(motor);
+            discovery.AddRange(new[]{"隔离受潮线路","转动维修站定向天线"});
+            discovery.AddRange(end);
+            Walk("grouped",direct);
+            Walk("work-order + archive + weirs",discovery);
+
+            void Walk(string label, List<string> itinerary)
+            {
+                var last=NightState.NewSpawn;
+                var path=new List<Vector3>();
+                float metres=0, carried=0, holds=0;
+                bool loaded=false;
+                foreach (var name in itinerary)
+                {
+                    var to=stops[name];
+                    Check(routes.Find(last,to,path,game.CanCrossKeyDoors),"Pace route broken at "+name);
+                    foreach (var node in path)
+                    {
+                        float step=Vector3.Distance(last,node);
+                        metres+=step;
+                        if (loaded) carried+=step;
+                        last=node;
+                    }
+                    last=to;
+                    holds+=Target(name)?.Hold ?? 0;
+                    if (name=="背起绞盘配重") loaded=true;
+                    if (name=="挂上配重") loaded=false;
+                }
+                Debug.Log($"ITINERARY {label}: {metres:F0} m, carried {carried:F0} m, measured F holds {holds:F0} s.");
+            }
+        }
+
+        void Photograph(int i)
+        {
+            var center=RiverSurvey.Plates[i].Center;
+            var spot=new Vector3(center.x,.07f,center.z-6f);
+            var path=new List<Vector3>();
+            Check(routes.Find(lastStop,spot,path,game.CanCrossKeyDoors),"No route to camera position "+i);
+            var last=lastStop;
+            foreach(var node in path) { walkingMetres+=Vector3.Distance(last,node);last=node; }
+            stops["photo"+i] = spot;
+            lastStop=spot;
+            game.Player.ResetPosition(spot,180);
+            if (!game.Framing) Invoke(game,"ToggleFinder");
+            game.Player.Eyes.rotation=Quaternion.LookRotation(Vector3.back);
+            game.ExposeSurvey();
+            Check(!RiverSurvey.Recorded(game.State,i),"Shot through back of finder");
+            game.Player.Eyes.rotation=Quaternion.LookRotation(center-game.Player.Eyes.position);
+            game.Player.SetTorch(true);
+            game.Player.SetTorchVisible(true);
+            game.Player.AdvanceTorch(game,.3f);
+            Physics.SyncTransforms();
+            game.AimSurvey();
+            Check(game.Subject==i && game.Aligned,"Cannot frame both pins at "+i+" from "+spot+" detected "+game.Subject+" pin "+game.Pins[0]);
+            game.ExposeSurvey();
+            Check(RiverSurvey.Recorded(game.State,i), "Missing exposure "+i);
+            Invoke(game,"ToggleFinder");
         }
 
         void ShowEstablishedView()
@@ -281,6 +477,8 @@ namespace AfterHours
             game.Player.SetTorchVisible(true);
             game.Player.AdvanceTorch(game,.3f);
             typeof(NightInterface).GetField("arrival",Private).SetValue(ui,Time.unscaledTime-20f);
+            typeof(NightInterface).GetField("pickupUntil",Private).SetValue(ui,-1f);
+            typeof(NightGame).GetField("messageTime",Private).SetValue(game,0f);
             game.Player.SettleView(.1f);
         }
 

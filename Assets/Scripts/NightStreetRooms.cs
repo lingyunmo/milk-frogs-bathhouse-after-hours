@@ -15,7 +15,9 @@ namespace AfterHours
         {
             ("cell-street-laundry", new(34.6f, .90f, 38.66f), "后巷洗衣店"),
             ("cell-street-pump", new(53.52f, .91f, 15.98f), "停车棚泵房"),
-            ("cell-street-workshop", new(160, .91f, 9.86f), "街尾维修站")
+            ("cell-street-workshop", new(160, .91f, 9.86f), "街尾维修站"),
+            ("cell-river-hall", new(196.84f, .91f, 19.74f), "水文站值班厅"),
+            ("cell-river-bunk", new(295.14f, .91f, -5.53f), "守闸宿舍")
         };
 
         void DressStreetRooms()
@@ -106,7 +108,7 @@ namespace AfterHours
         }
 
         Transform StreetRoomShell((string Name, Rect Bounds) area, float frontDoor, float backDoor, bool eastExit,
-            Material walls, Material floor)
+            Material walls, Material floor, float? streetWindow = null)
         {
             const float height = 3.16f;
             const float doorHeight = 2.36f;
@@ -152,7 +154,23 @@ namespace AfterHours
                 Segment(left, right, fixedAxis, alongX, doorHeight, height);
             }
 
-            Side(bounds.xMin, bounds.xMax, bounds.yMin, true, frontDoor);
+            if (streetWindow is float centre)
+            {
+                const float half = 1.4f, sill = .98f, lintel = 2.42f;
+                float a=centre-half, b=centre+half, z=bounds.yMin;
+                Side(bounds.xMin,a,z,true,frontDoor<a ? frontDoor : (float?)null);
+                Side(b,bounds.xMax,z,true,frontDoor>b ? frontDoor : (float?)null);
+                Segment(a,b,z,true,0,sill);
+                Segment(a,b,z,true,lintel,height);
+                var pane=Box("钢窗旧玻璃",new(centre,(sill+lintel)*.5f,z),new(half*2,lintel-sill,.065f),AnnexGlazing(),building);
+                pane.layer=1;
+                pane.GetComponent<Renderer>().shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+                var metal=Trim(pane.transform.position,paintedIron);
+                foreach(float x in new[]{a,centre,b}) metal.Box(new(x,1.7f,z-.05f),new(.052f,1.46f,.14f));
+                foreach(float y in new[]{sill,2.12f,lintel}) metal.Box(new(centre,y,z-.05f),new(2.86f,.065f,.15f));
+                StreetRoomSurface(building,"滴水窗台",new(centre,sill-.06f,z-.07f),new(3.05f,.12f,.43f),plaster,.9f);
+            }
+            else Side(bounds.xMin, bounds.xMax, bounds.yMin, true, frontDoor);
             Side(bounds.xMin, bounds.xMax, bounds.yMax, true, eastExit ? null : backDoor);
             Side(bounds.yMin, bounds.yMax, bounds.xMin, false);
             Side(bounds.yMin, bounds.yMax, bounds.xMax, false, eastExit ? backDoor : null);

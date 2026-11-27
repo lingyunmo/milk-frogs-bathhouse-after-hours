@@ -30,7 +30,7 @@ namespace AfterHours
             for (int level = -1; level <= 2; level++)
             {
                 int minX = level == 0 ? -31 : level < 0 ? -23 : -19;
-                int maxX = level == 0 ? 171 : level > 0 ? Mathf.CeilToInt(NightAnnexLayout.Ramp.xMax) - 1 : 15;
+                int maxX = level == 0 ? Mathf.FloorToInt(NightWorld.EastEdge)-1 : level > 0 ? Mathf.CeilToInt(NightAnnexLayout.Ramp.xMax) - 1 : 15;
                 int minZ = level == 0 ? -35 : Mathf.CeilToInt(NightMainRing.Front), maxZ = level == 0 ? 43 : 23;
                 for (int x = minX; x <= maxX; x++)
                 for (int z = minZ; z <= maxZ; z++)
@@ -53,6 +53,7 @@ namespace AfterHours
             for (int level = -1; level < 2; level++)
             foreach (var stairwell in Stairwells)
                 AddStairs(stairwell.X, stairwell.Mouth, stairwell.Direction, level);
+            LinkHallThresholds();
             AddAnnexRamp();
 
             previous = new int[points.Count];
@@ -180,6 +181,32 @@ namespace AfterHours
 
         internal static bool IsOnStair(Vector3 feet) =>
             Mathf.Abs(feet.y - Mathf.Round(feet.y / FloorHeight) * FloorHeight) > .16f && InStairwell(feet);
+
+        // Original bathhouse doorways include half-metre centres. A clear 1.4 m opening can
+        // fall between two blocked grid samples. Sample only the thresholds of the two halls.
+        void LinkHallThresholds()
+        {
+            for (int level = -1; level <= 2; level++)
+            foreach (int z in new[] { 10, 14 })
+            for (int x = -19; x < 16; x++)
+            {
+                if (cells.ContainsKey((x,z,level)) || cells.ContainsKey((x+1,z,level))) continue;
+                if (!Ground(new Vector3(x+.5f,LevelHeight(level),z),.56f,out var sill) || !BodyFits(sill)) continue;
+                int a=Approach(-1), b=Approach(1);
+                if (a < 0 || b < 0) continue;
+                int threshold=Add(sill);
+                Link(a,threshold);
+                Link(threshold,b);
+
+                int Approach(int side)
+                {
+                    for(int offset=0;offset<=1;offset++)
+                        if(cells.TryGetValue((x+offset,z+side,level),out int node) &&
+                            CanMove(points[node],sill) && CanMove(sill,points[node])) return node;
+                    return -1;
+                }
+            }
+        }
 
         void AddAnnexRamp()
         {
