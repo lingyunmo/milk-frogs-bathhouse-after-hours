@@ -1,20 +1,17 @@
 Shader "Hidden/AfterHours/LightShaft"
 {
-    // A faint additive cone under practical lamps. It reads as light catching steam and dust,
-    // fades where it meets geometry and as the camera walks through it.
     Properties
     {
-        _Color ("Light (rgb, premultiplied)", Color) = (1, 1, 1, 1)
-        _Density ("Density", Float) = .05
+        _Color ("Light radiance", Color) = (1,1,1,1)
+        _Density ("Scattering density", Float) = .01
+        _ShadowTile ("Occlusion atlas rectangle", Vector) = (0,0,1,1)
     }
-
     SubShader
     {
         Tags { "Queue"="Transparent+5" "RenderType"="Transparent" "IgnoreProjector"="True" }
+        // Draw the exit face; the opaque camera depth can lie inside the volume.
         Blend One One
-        ZWrite Off
-        Cull Off
-
+        Cull Front ZWrite Off ZTest Always
         Pass
         {
             CGPROGRAM
@@ -22,65 +19,47 @@ Shader "Hidden/AfterHours/LightShaft"
             #pragma fragment Frag
             #pragma target 3.0
             #include "UnityCG.cginc"
-
             UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
-            float4 _Color;
-            float _Density;
-
-            struct Attributes
+            sampler2D _BathLightDepth;
+            half4 _Color;
+            float4 _ShadowTile;
+            half _Density;
+            struct Varyings { float4 position : SV_POSITION; float3 world : TEXCOORD0; float4 screen : TEXCOORD1; };
+            Varyings Vert(float4 vertex : POSITION)
             {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct Varyings
-            {
-                float4 position : SV_POSITION;
-                float3 world : TEXCOORD0;
-                float3 normal : TEXCOORD1;
-                float4 screen : TEXCOORD2;
-                float along : TEXCOORD3;
-            };
-
-            Varyings Vert(Attributes input)
-            {
-                Varyings output;
-                output.position = UnityObjectToClipPos(input.vertex);
-                output.world = mul(unity_ObjectToWorld, input.vertex).xyz;
-                output.normal = UnityObjectToWorldNormal(input.normal);
-                output.screen = ComputeScreenPos(output.position);
-                output.screen.z = -UnityObjectToViewPos(input.vertex).z;
-                output.along = input.uv.y;
-                return output;
+                Varyings o;
+                o.position = UnityObjectToClipPos(vertex);
+                o.world = mul(unity_ObjectToWorld, vertex).xyz;
+                o.screen = ComputeScreenPos(o.position);
+                return o;
             }
-
-            float Noise(float3 p)
+            half4 Frag(Varyings i) : SV_Target
             {
-                float3 i = floor(p), f = frac(p);
-                f = f * f * (3 - 2 * f);
-                float n = dot(i, float3(1, 57, 113));
-                float4 a = frac(sin(n + float4(0, 1, 57, 58)) * 43758.5453);
-                float4 b = frac(sin(n + 113 + float4(0, 1, 57, 58)) * 43758.5453);
-                float4 m = lerp(a, b, f.z);
-                float2 r = lerp(m.xz, m.yw, f.x);
-                return lerp(r.x, r.y, f.y);
-            }
-
-            float4 Frag(Varyings input) : SV_Target
-            {
-                float3 view = normalize(_WorldSpaceCameraPos - input.world);
-                float facing = abs(dot(normalize(input.normal), view));
-                float body = pow(facing, 2.6) * smoothstep(.05, .45, facing);
-                float along = input.along;
-                float reach = (1 - along) * (1 - along) * smoothstep(0, .12, along);
-                float scene = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(input.screen)));
-                float soft = saturate((scene - input.screen.z) / .45);
-                float near = saturate((input.screen.z - .35) / 1.4);
-                float drift = Noise(input.world * 1.7 + float3(0, -_Time.y * .18, _Time.y * .05));
-                float motes = lerp(.62, 1.18, drift);
-                float amount = body * reach * soft * near * motes * _Density;
-                return float4(_Color.rgb * amount, 1);
+                float3 delta = i.world - _WorldSpaceCameraPos;
+                float exitDistance = length(delta);
+                float3 viewRay = delta / max(exitDistance,.0001);
+                float eyeDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.screen)));
+                float end = min(exitDistance, eyeDepth * exitDistance / max(i.screen.w,.001));
+                float3 eye = mul(unity_WorldToObject,float4(_WorldSpaceCameraPos,1)).xyz;
+                float3 ray = mul((float3x3)unity_WorldToObject,viewRay);
+                float3 inv = 1 / (sign(ray + 1e-9) * max(abs(ray),.000001));
+                float3 nearSide = min((float3(-1,-1,0)-eye)*inv,(float3(1,1,1)-eye)*inv);
+                float start = max(0,max(nearSide.x,max(nearSide.y,nearSide.z)));
+                if (end <= start) discard;
+                const int steps = 8;
+                float stride = (end-start)/steps;
+                half scatter = 0;
+                [unroll] for (int s=0;s<steps;s++)
+                {
+                    float3 p = eye + ray * (start + (s+.5)*stride);
+                    float2 projected = p.xy/max(p.z,.001);
+                    float2 uv = saturate(projected*.5+.5)*_ShadowTile.zw + _ShadowTile.xy;
+                    half blocker = tex2Dlod(_BathLightDepth,float4(uv,0,0)).r;
+                    half visibility = smoothstep(-.035,.015,blocker-p.z);
+                    half edge = saturate(1-dot(projected,projected));
+                    scatter += visibility * edge * edge * saturate(p.z*9) * pow(saturate(1-p.z),1.7);
+                }
+                return half4(_Color.rgb * (_Density * scatter * stride),0);
             }
             ENDCG
         }

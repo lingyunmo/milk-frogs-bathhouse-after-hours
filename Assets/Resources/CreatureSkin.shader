@@ -17,7 +17,8 @@ Shader "AfterHours/CreatureSkin"
         Tags { "RenderType"="Opaque" "Queue"="Geometry" }
         CGPROGRAM
         #pragma surface Surf Standard fullforwardshadows addshadow
-        #pragma target 3.0
+        #pragma target 4.0
+        #include "NightIndirect.cginc"
         #include "UnityStandardUtils.cginc"
 
         sampler2D _MainTex, _Pores;
@@ -26,6 +27,7 @@ Shader "AfterHours/CreatureSkin"
 
         struct Input
         {
+            float3 worldPos;
             float2 uv_MainTex;
         };
 
@@ -37,6 +39,7 @@ Shader "AfterHours/CreatureSkin"
             o.Albedo = albedo.rgb;
             o.Metallic = 0;
             o.Smoothness = saturate(_Glossiness + crease * .18);
+            o.Emission = o.Albedo * NightBounce(IN.worldPos);
             o.Alpha = 1;
         }
         ENDCG
