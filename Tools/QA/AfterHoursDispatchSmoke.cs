@@ -77,12 +77,13 @@ namespace AfterHours
         NightTarget Target(string text) => targets.Find(t=>t.Label==text);
         NightTarget Visit(string text)
         {
-            var t = Target(text);
-            Check(t != null && (t.Available?.Invoke() ?? true),"Unavailable: " + text);
+            var candidates=targets.FindAll(t=>t.Label==text);
+            Check(candidates.Count>0,"Missing interaction: "+text);
             int floors=0, clear=0, routed=0;
             string other="";
             const int mask = ~(1 << NightPlayer.PlayerLayer);
-            for (int ring=0; ring<3; ring++)
+            foreach (var t in candidates)
+            for (int ring=0; ring<4; ring++)
             for (int i=0; i<16; i++)
             {
                 float angle = i * Mathf.PI / 8f;
@@ -109,7 +110,7 @@ namespace AfterHours
                 game.Atlas.Track(game.State,feet);
                 return t;
             }
-            throw new Exception("No reachable, unobstructed F prompt at " + text + " " + t.Position + $" from {lastStop}, floor {floors}, clear {clear}, route {routed}, prompt {other}");
+            throw new Exception("No reachable, unobstructed F prompt at " + text + " " + candidates[0].Position + $" from {lastStop}, floor {floors}, clear {clear}, route {routed}, prompt {other}");
         }
 
         IEnumerator Verify()
@@ -119,45 +120,55 @@ namespace AfterHours
             Visit("拿起手电").Use();
             game.State.charge = 300;
             game.Player.SetTorch(true);
-            var radio = Visit("接听夜班调度");
-            Check(radio.Hold >= 1,"Radio must be held");
-            ui.Tick();
-            Check(Field<Label>(ui,"task").text == "接听夜班电台", "No actionable radio lead");
-            radio.Use();
-            Invoke(game,"FocusTarget",0f);
-            ShowEstablishedView();
-            ui.Tick();
-            Check(Field<Label>(ui,"objectiveTag").text.Contains("已接单"), "No radio receipt");
-            if (preview != null)
-            {
-                var shot = CaptureInstrument(SiblingPreview("radio"));
-                while (shot.MoveNext()) yield return shot.Current;
-            }
+            string Offer(FieldOrder o) => "接取"+NightFieldOrders.Name(o);
+            foreach(var station in NightShiftTrail.Stations) Check(!Target(Offer(station.Order)).Available(),"Opening offer: "+station.Order);
+            Visit("拿起毛巾库钥匙").Use();
+            Check(!Target(Offer(FieldOrder.Drain)).Available(),"Unopened door offers job");
+            Visit("用毛巾库钥匙开门").Use();
+            Visit(Offer(FieldOrder.Drain)).Use();
             game.SetScreen(NightScreen.Map);
-            var root = Field<VisualElement>(ui,"root");
+            var root=Field<VisualElement>(ui,"root");
             Submit(root.Q<Button>("switch-orders"));
-            Check(root.Query<Button>(className:"order-entry").ToList().Count == 5, "Missing order sheets");
-            if (preview != null)
-            {
-                yield return new WaitForSecondsRealtime(.45f);
-                var shot = CaptureInstrument(SiblingPreview("orders"));
-                while (shot.MoveNext()) yield return shot.Current;
-            }
-            Submit(root.Q<Button>("order-Barrier"));
-            Check(NightSave.Read().dispatch.tracked == FieldOrder.Barrier, "Tracking selection not saved");
+            Check(root.Query<Button>(className:"order-entry").ToList().Count==1,"Undiscovered jobs in docket");
             game.ContinueNight();
-            ui.Tick();
-            Check(Field<Label>(ui,"task").text.Contains("取配重") &&
-                !Field<Label>(ui,"objectiveTag").text.Contains("已接单"), "Continue lost tracked lead or replayed receipt");
-            var job = game.State.dispatch;
-            var normal = Target("翻起反光接应板");
-            var backupBeacon = Target("扳开备用接应灯");
-            game.State.night = 4;
-            game.State.contacted = true;
-            Check(!normal.Available() && !backupBeacon.Available(),"Rescue bypass");
-            game.State.contacted = false;
-            game.State.night = 1;
-
+            Check(game.WorkingOn(FieldOrder.Drain),"Lost job on continue");
+            var job=game.State.dispatch;
+            var normal=Target("翻起反光接应板");
+            var backupBeacon=Target("扳开备用接应灯");
+            // Exercise the original powered-pump solution from the same legitimate checkpoint.
+            var beforeDrain=NightSave.Read();
+            Visit("取回水接头密封圈").Use();
+            Visit("取发电机启动件").Use();
+            Visit("安装启动件").Use();
+            Visit("对准飞轮刻线").Use();
+            foreach(int answer in new[]{1,0,2}) { game.RepairView.selected=answer; Invoke(game,"ConfirmRepair"); }
+            Visit("点动发电机").Use();
+            Visit("给前台和弱电间送电").Use();
+            Visit("关掉水槽进水阀").Use();
+            Visit("换密封圈，拧紧回水接头").Use();
+            Visit("排空后场积水").Use();
+            Check(game.State.Drained && !job.orderHeld && Target(Offer(FieldOrder.Barrier)).Available(),"Pump route deadlock");
+            // Old sessions can have both later keys already. Do not lose physical work or a player's torch.
+            var legacy=NightSave.Read();
+            legacy.shiftEdition=0; legacy.story=new ShiftEvidence();
+            legacy.collected.Add("key-staff"); legacy.collected.Add("key-staff-used");
+            NightSave.Write(legacy); game.ContinueNight();
+            Check(game.State.pump && game.State.torch && !game.State.collected.Contains("key-staff"),"Legacy rekey lost progress");
+            NightSave.Write(beforeDrain); game.ContinueNight();
+            job=game.State.dispatch;
+            lastStop=game.Player.Feet;
+            for(int line=0;line<3;line++)
+            {
+                int tap=line*2+((job.leakPattern>>line)&1),before=job.sealedLines;
+                Visit(NightReturnLines.Label(tap^1)).Use();
+                Check(job.sealedLines==before,"Wrong valve credited");
+                Visit(NightReturnLines.Label(tap)).Use();
+            }
+            Check(!job.orderHeld && !Target("插回毛巾库钥匙").Available(),"Exchange unlocked after one job");
+            Visit(Offer(FieldOrder.Lights)).Use();
+            Target(Offer(FieldOrder.Barrier)).Use();
+            Check(game.WorkingOn(FieldOrder.Lights),"Direct offer replaced a held order");
+            Check(!Target(Offer(FieldOrder.Barrier)).Available() && targets.Exists(t=>t.Label=="当前不可接取" && t.Position==NightShiftTrail.Stations[2].At && t.Available()),"No busy prompt");
             for (int k=0; k<4; k++)
             {
                 int i = new[]{0,1,3,2}[k];
@@ -200,7 +211,27 @@ namespace AfterHours
                 ui.Tick();
             }
             Check(job.AllRunning && !job.RoadReady,"Winch bypass");
-            Check(NightFieldOrders.Tracking(game.State)==FieldOrder.Barrier, "Generator completion replaced player's tracking choice");
+            Check(!job.orderHeld && Target("插回毛巾库钥匙").Available(),"Missing exchange");
+            var exchange=Visit("插回毛巾库钥匙");
+            if(preview!=null)
+            {
+                ShowEstablishedView(); ui.Tick();
+                var shot=CaptureInstrument(SiblingPreview("exchange"));
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            exchange.Use();
+            Visit("拿起值班室钥匙").Use();
+            Visit("用值班室钥匙开门").Use();
+            Visit(Offer(FieldOrder.Ledger)).Use();
+            Check(!Target("核对交班簿").Available(),"Receipt not needed");
+            Visit("翻阅收洗联 · 七月十七").Use();
+            Visit("核对交班簿").Use();
+            game.RepairView.selected=0; Invoke(game,"ConfirmRepair");
+            Check(!game.State.story.ledger,"Wrong wash count accepted");
+            game.RepairView.selected=1; Invoke(game,"ConfirmRepair");
+            Visit("拿起弱电间钥匙").Use();
+            Visit("用弱电间钥匙开门").Use();
+            Visit(Offer(FieldOrder.Barrier)).Use();
             Visit("背起绞盘配重").Use();
             Check(game.Player.CarryingLoad,"Carrying speed modifier missing");
             game.Player.Move(Vector2.up,true,.02f);
@@ -238,21 +269,8 @@ namespace AfterHours
             }
             Check(next.RoadReady && !game.Winding,"Could not raise barrier");
             ui.Tick();
-            Check(NightFieldOrders.Tracking(game.State)==FieldOrder.Drain &&
-                Field<Label>(ui,"location").text==NightReturnLines.Zones[0], "Completed order didn't advance to drain");
-            Check(!game.State.RescueAccess && !normal.Available(),"Flooded road permits escape");
-            game.State.pump = true;
-            Check(game.State.Drained && !game.State.RescueAccess,"Pump route should drain but still require river survey");
-            game.State.pump = false;
-            for (int line=0;line<3;line++)
-            {
-                int tap=line*2+((next.leakPattern>>line)&1);
-                int before=next.sealedLines;
-                Visit(NightReturnLines.Label(tap^1)).Use();
-                Check(next.sealedLines==before,"Wrong valve credited");
-                Visit(NightReturnLines.Label(tap)).Use();
-            }
-            Check(game.State.Drained && !game.State.pump && !game.State.RescueAccess && NightSave.Read().dispatch.sealedLines==7,"Acoustic drain incomplete");
+            Check(!normal.Available(),"Rescue without archive");
+            Visit(Offer(FieldOrder.Radio)).Use();
             Visit("取发电机启动件").Use();
             Visit("安装启动件").Use();
             Visit("对准飞轮刻线").Use();
@@ -270,6 +288,7 @@ namespace AfterHours
             for(int n=0;n<185;n++) if(game.Tuning)game.Tune(0,Dt);
             Check(game.State.contacted && !game.Tuning,"Cannot confirm directional radio");
             Check(!normal.Available(),"Phone alone bypasses survey");
+            Visit(Offer(FieldOrder.Survey)).Use();
             Visit("领测绘相机").Use();
             if (preview != null)
             {
@@ -338,12 +357,13 @@ namespace AfterHours
             Visit("冲洗水尺底片").Use();
             game.Develop(4.8f,true);
             game.Develop(4.4f,true);
-            Check(game.State.survey.printed && normal.Available(), "No usable field report");
+            Check(game.State.survey.printed && !normal.Available(), "No usable field report");
             Visit("查看水尺照片").Use(); ui.Tick();
             Check(game.AlbumOpen,"Contact sheet missing");
             game.CloseDispatch();
 
-            float requiredMetres = walkingMetres;
+            Visit(Offer(FieldOrder.Archive)).Use();
+            float beforeArchiveMetres = walkingMetres;
             for(int i=3;i<6;i++) Photograph(i);
             Visit("拼接旧底片").Use();
             game.AlignStrips(-1,0,true);
@@ -371,77 +391,41 @@ namespace AfterHours
             Check(game.State.survey.balanced && !game.Sluicing, "Pressure system couldn't be balanced");
             Visit("试鸣堤外警铃").Use();
             Check(!Target("试鸣堤外警铃").Available() && NightSave.Read().survey.bellReadyAt > game.State.dispatch.playSeconds,"No persistent horn cooldown");
-            Debug.Log($"SURVEY PASS required test itinerary {requiredMetres:F0} m; archive and weirs added {walkingMetres-requiredMetres:F0} m.");
+            Debug.Log($"SURVEY PASS test travel incl. pump branch and reloads {beforeArchiveMetres:F0} m; archive and weirs added {walkingMetres-beforeArchiveMetres:F0} m.");
+            Check(!normal.Available() && game.State.RoadSurveyComplete,"Departed without identifying the stop");
+            Visit("校正接应板朝向").Use();
+            game.RepairView.selected=1; Invoke(game,"ConfirmRepair");
+            Check(!normal.Available(),"Wrong station accepted");
+            game.RepairView.selected=0; Invoke(game,"ConfirmRepair");
             Check(NightFieldOrders.Current(game.State).action=="翻起接应板", "No actionable rescue lead");
             game.State.night=4;
             Check(normal.Available() && backupBeacon.Available(),"Beacon not reachable on either route");
-            game.State.dispatch.playSeconds=1000;
+            Check(NightShiftTrail.Ending(game.State).title=="末班乘客","Missing baseline ending");
+            Visit("翻阅浴票第一号").Use();
+            Visit("翻阅关门试音记录").Use();
+            Visit("翻阅借衣簿 · 末页").Use();
+            Check(NightShiftTrail.Ending(game.State).title=="未寄出的名字","Missing name");
+            var undecided=NightSave.Read();
+            Visit("封存原片 · 交给早班").Use();
+            Check(NightSave.Read().story.choice==WitnessChoice.Seal && !Target("播出原名 · 袁素琴").Available(),"Disposition lost");
+            NightSave.Write(undecided); game.ContinueNight(); lastStop=game.Player.Feet;
+            Visit("播出原名 · 袁素琴").Use();
+            Check(NightShiftTrail.Ending(game.State).title=="有人应名" && !Target("封存原片 · 交给早班").Available(),"Missing broadcast ending");
+            game.State.dispatch.playSeconds=900;
             backupBeacon.Use();
-            Check(Mathf.Approximately(game.State.rescueTime,200), "Early bypass via backup beacon");
+            Check(game.State.rescueTime==NightEvents.BackupArrivalTime,"Backup beacon clock gate");
             game.State.beacon=false; game.State.rescueTime=-1;
             Visit("翻起反光接应板").Use();
-            var bus=Target("登上救援车");
-            Check(!bus.Available() && Mathf.Approximately(game.State.rescueTime,200), "Early bypass via main sign");
-            game.State.dispatch.playSeconds=1199;
-            Invoke(game,"TickWorld",199f);
-            Check(!bus.Available(),"Boarded before 20:00");
-            game.State.dispatch.playSeconds=1200;
-            Invoke(game,"TickWorld",1f);
-            Check(bus.Available(),"Couldn't board at first timetable");
+            Check(!Target("登上救援车").Available() && game.State.rescueTime==27,"Main sign clock gate");
+            Invoke(game,"TickWorld",28f);
             Visit("登上救援车").Use();
-            MeasureItineraries();
-            Check(game.State.escaped && game.ScreenState==NightScreen.Escaped,"Could not board");
-        }
-
-        // Routes use the exact clear F/photography positions collected in this run. Count game distance,
-        // never the teleports, deliberate mistakes or reloads used by the regression test itself.
-        void MeasureItineraries()
-        {
-            string generator(int i) => "校准机组 · " + NightDispatch.Stations[i].Name;
-            string tap(int i) => NightReturnLines.Label(i*2+((game.State.dispatch.leakPattern>>i)&1));
-            string[] start = { "拿起手电","接听夜班调度" };
-            string[] motor = { "取发电机启动件","安装启动件","对准飞轮刻线","点动发电机","给前台和弱电间送电" };
-            string[] end = { "翻起反光接应板","登上救援车" };
-            var direct=new List<string>(start);
-            direct.AddRange(motor);
-            direct.AddRange(new[]{tap(0),tap(1),tap(2),"隔离受潮线路",generator(0),generator(1),
-                "背起绞盘配重","挂上配重","握住绞盘曲柄",generator(3),generator(2),"转动维修站定向天线",
-                "领测绘相机","接管测深艇","photo1","photo2","photo0","冲洗水尺底片"});
-            direct.AddRange(end);
-            var discovery=new List<string>(start);
-            discovery.AddRange(new[]{generator(0),generator(1),generator(3),generator(2),"领测绘相机","接管测深艇","photo1",
-                "photo0","photo3","photo2","冲洗水尺底片","photo4","photo5","拼接旧底片","印出夜班合影",
-                "接管分洪闸台","试鸣堤外警铃",tap(0),tap(1),tap(2),"背起绞盘配重","挂上配重","握住绞盘曲柄"});
-            discovery.AddRange(motor);
-            discovery.AddRange(new[]{"隔离受潮线路","转动维修站定向天线"});
-            discovery.AddRange(end);
-            Walk("grouped",direct);
-            Walk("work-order + archive + weirs",discovery);
-
-            void Walk(string label, List<string> itinerary)
+            if(preview!=null)
             {
-                var last=NightState.NewSpawn;
-                var path=new List<Vector3>();
-                float metres=0, carried=0, holds=0;
-                bool loaded=false;
-                foreach (var name in itinerary)
-                {
-                    var to=stops[name];
-                    Check(routes.Find(last,to,path,game.CanCrossKeyDoors),"Pace route broken at "+name);
-                    foreach (var node in path)
-                    {
-                        float step=Vector3.Distance(last,node);
-                        metres+=step;
-                        if (loaded) carried+=step;
-                        last=node;
-                    }
-                    last=to;
-                    holds+=Target(name)?.Hold ?? 0;
-                    if (name=="背起绞盘配重") loaded=true;
-                    if (name=="挂上配重") loaded=false;
-                }
-                Debug.Log($"ITINERARY {label}: {metres:F0} m, carried {carried:F0} m, measured F holds {holds:F0} s.");
+                yield return new WaitForSecondsRealtime(.65f);
+                var shot=CaptureInstrument(SiblingPreview("ending"));
+                while(shot.MoveNext()) yield return shot.Current;
             }
+            Check(game.State.escaped && game.ScreenState==NightScreen.Escaped,"Could not board");
         }
 
         void Photograph(int i)

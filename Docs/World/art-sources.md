@@ -170,3 +170,7 @@ An authentic 1980s small-town Chinese hydrology station group photograph during 
 Game prop texture photographed straight-on: the entire faceplate of a battered late-1980s Chinese municipal hydrographic remote sounding launch controller. Wide landscape 3:2. A large blank unlit rectangular green-black CRT window with slightly rounded corners sits exactly centrally, spanning 80% of the image width and 72% of its height. The playable radar raster will be drawn in software over that area, leave it completely empty, no reflections, text, waves, figures or maps. Thin rubbed black rubber CRT bezel, military green powder-coated cast metal body with recessed rivets, two small amber and green jewels and a knurled thumb knob in the lower metal margin only. Macro detail of fine patina, salt deposits, scars and stamped calibration markings. Flat front elevation no perspective, no hands or surrounding tabletop. The entire image is filled edge-to-edge by the instrument, corners only very slightly rounded. Neutral side lighting, realistic found industrial electrical equipment, legible midtones.
 
 </details>
+
+## 末班车
+
+车厢结局底图为本项目生成的原创场景图。运行时从 Interface/LastBus 读取；结局文字与声音根据本局调查和证物处置分别呈现。

@@ -131,7 +131,7 @@ namespace AfterHours
                 float density = game.Density;
                 contactImage.style.opacity = game.Processing ? Mathf.SmoothStep(.025f,1,density/.67f)
                     * (1 - Mathf.InverseLerp(.90f,1f,density)*.85f) : 1;
-                Copy(plateCaption,archive ? "一九八七年　·　东堤值守合影" : RiverSurvey.Plates[sheet].Name + "　　" + (sheet+1) + " / 3");
+                Copy(plateCaption,archive ? "八七年七月　·　背面写着：接应板面向水塔。她套上黄布头，笑三声，岸上的孩子就往那边游。" : RiverSurvey.Plates[sheet].Name + "　　" + (sheet+1) + " / 3");
                 Copy(plateAction,game.Processing ? density < .64f ? "等白标显清　·　Esc 松手" :
                     density <= .90f ? "空格　移入定影盘" : "相纸发黑了" :
                     archive ? "Esc　收起" : "A / D　翻看　　Esc　收起");

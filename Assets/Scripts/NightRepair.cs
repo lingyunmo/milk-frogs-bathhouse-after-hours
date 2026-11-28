@@ -35,7 +35,12 @@ namespace AfterHours
             if(panel.selected!=panel.answer[panel.row])
             {
                 Emit(panel.source,.58f,"tool");
-                Notify("接触不良，检查机壳上的标记。");
+                Notify(panel.title switch
+                {
+                    "收洗数 · 七月十七" => "收洗联的章和这个数对不上。",
+                    "旧站牌 · 接应方向" => "司机：这边看不见。相片背面写着朝哪儿。",
+                    _ => "接触不良，检查机壳上的标记。"
+                });
                 return;
             }
             if(++panel.row<panel.answer.Length)

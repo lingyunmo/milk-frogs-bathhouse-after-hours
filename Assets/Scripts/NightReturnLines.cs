@@ -28,7 +28,7 @@ namespace AfterHours
                 int tap=i;
                 Target(NightReturnLines.Taps[i] + NightReturnLines.Face(i)*.17f,
                     NightReturnLines.Label(i),1.4f,()=>CloseReturnTap(tap),
-                    ()=>CanWork && !State.pump && (State.dispatch.sealedLines & (1 << (tap/2))) == 0);
+                    ()=>WorkingOn(FieldOrder.Drain) && !State.pump && (State.dispatch.sealedLines & (1 << (tap/2))) == 0);
             }
         }
 
@@ -50,7 +50,7 @@ namespace AfterHours
 
         void SoundReturnLines(float dt)
         {
-            if (!CanWork || State.Drained || (dripIn-=dt)>0) return;
+            if (!WorkingOn(FieldOrder.Drain) || State.Drained || (dripIn-=dt)>0) return;
             float nearest=15f;
             int tap=-1;
             for (int i=0;i<NightReturnLines.Taps.Length;i++)
@@ -102,7 +102,7 @@ namespace AfterHours
         internal void RefreshReturnLines()
         {
             for (int i=0;i<leakPlumes.Length;i++)
-                if(leakPlumes[i]) leakPlumes[i].SetActive(game.State.dispatch.accepted && !game.State.pump &&
+                if(leakPlumes[i]) leakPlumes[i].SetActive(game.WorkingOn(FieldOrder.Drain) && !game.State.pump &&
                     NightReturnLines.Leaks(game.State.dispatch,i));
         }
     }

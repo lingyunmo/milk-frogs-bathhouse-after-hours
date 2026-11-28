@@ -5,7 +5,6 @@ namespace AfterHours
 {
     internal static class RiverSurvey
     {
-        internal const float FirstBus = 20 * 60;
         internal static readonly Vector3 CameraDesk = new(196, .98f, 19.8f);
         internal static readonly Vector3 Trays = new(249, .98f, 13.2f);
         internal static readonly Vector3 ContactPrinter = new(254, 1.02f, 18.8f);
@@ -19,7 +18,6 @@ namespace AfterHours
         internal static string Subject(int i) => i < 3 ? "洪痕" : "旧址";
         internal static bool Recorded(NightState s, int i) => (s.survey.negatives & (1 << i)) != 0;
         internal static Vector3 Pin(int i, int side) => Plates[i].Center + new Vector3(side * .86f, side * .22f, -.05f);
-        internal static float ArrivalDelay(NightState s, float approach) => Mathf.Max(approach, FirstBus - s.dispatch.playSeconds);
 
         internal static (string action, string place) Lead(NightState s)
         {
@@ -88,27 +86,26 @@ namespace AfterHours
             Target(RiverSurvey.CameraDesk, "领测绘相机", .65f, () =>
             {
                 State.survey.camera = true;
-                State.dispatch.tracked = FieldOrder.Survey;
                 Emit(RiverSurvey.CameraDesk, .22f, "tool");
                 Notify("V 举起相机。退几步，让一对标钉都进框，再按 F。", 5);
                 SaveProgress();
-            }, () => CanWork && !State.survey.camera);
+            }, () => WorkingOn(FieldOrder.Survey) && !State.survey.camera);
             Target(RiverSurvey.Trays, "冲洗水尺底片", .45f, () =>
             {
                 CloseDispatch();
                 Processing = true;
-            }, () => CanWork && State.survey.CanPrint);
+            }, () => WorkingOn(FieldOrder.Survey) && State.survey.CanPrint);
             Target(RiverSurvey.Trays, "查看水尺照片", 0, () => OpenSurveyAlbum(false),
                 () => State.survey.printed && !State.detained);
             Target(RiverSurvey.ContactPrinter, "查看翻拍委托", 0, () =>
                 Notify("「谁还记得八七年的水？后巷洗衣店、照相馆、守闸宿舍各留了两颗钉。照原位各拍一张，我替你把合影印出来。」", 8),
-                () => State.survey.camera && !State.survey.CanRestore && !State.survey.archive);
+                () => WorkingOn(FieldOrder.Archive) && State.survey.camera && !State.survey.CanRestore && !State.survey.archive);
             Target(new Vector3(295,1.0f,-4.83f),"拼接旧底片",.45f,() =>
             {
                 CloseDispatch();
                 RightStrip=false;
                 Splicing=true;
-            },()=>State.survey.HasSites && !State.survey.spliced && !State.detained);
+            },()=>WorkingOn(FieldOrder.Archive) && State.survey.HasSites && !State.survey.spliced && !State.detained);
             Target(RiverSurvey.ContactPrinter, "印出夜班合影", 1.1f, () =>
             {
                 State.survey.archive = true;
@@ -116,16 +113,16 @@ namespace AfterHours
                 SaveProgress();
                 Notify("夜班合影已归档　·　领取备用电池 × 2");
                 OpenSurveyAlbum(true);
-            }, () => State.survey.CanRestore && !State.detained);
+            }, () => WorkingOn(FieldOrder.Archive) && State.survey.CanRestore && !State.detained);
             Target(RiverSurvey.ContactPrinter, "重看夜班合影", 0, () => OpenSurveyAlbum(true),
-                () => State.survey.archive && !State.detained);
+                () => NightShiftTrail.CanReadArchive(State) && !State.detained);
             Target(new Vector3(316, 1f, 24.5f), "接管分洪闸台", .6f, () =>
             {
                 CloseDispatch();
                 if (State.survey.head == 0) State.survey.head = UnityEngine.Random.Range(3,7);
                 Sluicing = true;
                 SaveProgress();
-            }, () => State.dispatch.accepted && !State.detained && !State.survey.balanced);
+            }, () => State.survey.ReportReady && !State.dispatch.orderHeld && !State.detained && !State.survey.balanced);
             Target(new Vector3(316, 1f, 24.5f), "试鸣堤外警铃", .55f, () =>
             {
                 var bell = new Vector3(274, 1.5f, -5);
@@ -226,6 +223,7 @@ namespace AfterHours
             float nearest = 18f;
             for (int i = 0; i < RiverSurvey.Plates.Length; i++)
             {
+                if (!WorkingOn(i < 3 ? FieldOrder.Survey : FieldOrder.Archive)) continue;
                 Vector3 delta = RiverSurvey.Plates[i].Center - eye.position;
                 float distance = delta.magnitude;
                 if (distance > nearest || delta.z < .5f || Vector3.Dot(delta.normalized, eye.forward) < .72f) continue;

@@ -125,7 +125,7 @@ namespace AfterHours
 
         void Begin(NightState save)
         {
-            State = save ?? new NightState();
+            State = save ?? new NightState { shiftEdition = 1 };
             CloseDispatch();
             radioCallIn = 0;
             foreach (var stone in stones) Destroy(stone.Object);
@@ -292,6 +292,14 @@ namespace AfterHours
             focus = held = null;
             holdTime = 0;
             hud.Show(screen);
+            if (screen == NightScreen.Escaped)
+            {
+                string cue = State.story.choice switch
+                {
+                    WitnessChoice.Broadcast => "signal", WitnessChoice.Seal => "paper", _ => "switch"
+                };
+                soundscape.Play(Player.Eyes.position, cue, .64f, duringPause:true);
+            }
         }
 
         void OnApplicationFocus(bool focused)
@@ -372,7 +380,7 @@ namespace AfterHours
 
         void TickWorld(float dt)
         {
-            if (!State.dispatch.accepted && !State.beacon && Vector3.SqrMagnitude(Player.Feet - NightDispatch.Receiver) < 110f && (radioCallIn -= dt) <= 0)
+            if (!State.dispatch.orderHeld && State.Drained && !State.dispatch.AllRunning && !State.beacon && Vector3.SqrMagnitude(Player.Feet - NightDispatch.Receiver) < 110f && (radioCallIn -= dt) <= 0)
             {
                 soundscape.Play(NightDispatch.Receiver, "signal", .29f);
                 radioCallIn = 6.4f;
@@ -517,6 +525,7 @@ namespace AfterHours
 
         bool SaveProgress()
         {
+            FinishShiftOrder();
             if (Capturing) return true;
             try{ NightSave.Write(State); return true; }
             catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
