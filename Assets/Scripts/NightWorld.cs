@@ -107,6 +107,7 @@ namespace AfterHours
             Box("露台右护栏",new Vector3(12.75f,4.02f,26.25f),new Vector3(.12f,.8f,4.4f),wood);
             Crate=Box("支援补给箱",Vector3.zero,new Vector3(.92f,.54f,.64f),olive);
             Crate.SetActive(false);
+            PlaceDeskPhotograph();
             Pickup("receipt",new Vector3(9,.947f,3.74f),new Vector3(.26f,.014f,.22f),brass);
             Pickup("motor",new Vector3(-14,-2.325f,4.46f),new Vector3(.19f,.13f,.18f),brass);
             Pickup("seal",new Vector3(8,4.682f,4.18f),new Vector3(.13f,.10f,.12f),brass);
@@ -228,6 +229,35 @@ namespace AfterHours
             DressRoomKey(spec);
             if (spec.SideDoor is { } sideDoor)
                 AddDoor(name + "侧门", sideDoor, sideInward: Vector3.right, key: spec);
+        }
+
+        void PlaceDeskPhotograph()
+        {
+            FlatPrint("值班台绿胶板", new(9, .944f, 3.5f), new(2.35f, .75f), 0, "NightDesk", .28f);
+            var position = NightGame.LostPhotoPosition;
+            var backing = Box("前台招领照", position, new(.32f, .006f, .23f), Material(new Color(.82f, .77f, .62f)));
+            backing.GetComponent<Collider>().enabled = false;
+            backing.transform.rotation = Quaternion.Euler(0, -12, 0);
+            var photo = FlatPrint("小布鞋相纸", position + Vector3.up * .004f, new(.294f, .196f), -12, "Items/LostPair", .37f);
+            photo.SetParent(backing.transform, true);
+            pickups.Add((NightGame.LostPhotoId, backing));
+        }
+
+        Transform FlatPrint(string label, Vector3 at, Vector2 size, float yaw, string texture, float gloss)
+        {
+            var print = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            print.name = label;
+            print.GetComponent<Collider>().enabled = false;
+            print.transform.SetParent(root, false);
+            print.transform.SetPositionAndRotation(at, Quaternion.Euler(90, yaw, 0));
+            print.transform.localScale = new(size.x, size.y, 1);
+            var finish = Material(Color.white);
+            finish.mainTexture = Resources.Load<Texture2D>("Interface/" + texture);
+            finish.SetFloat("_Glossiness", gloss);
+            var face = print.GetComponent<Renderer>();
+            face.sharedMaterial = finish;
+            face.shadowCastingMode = ShadowCastingMode.Off;
+            return print.transform;
         }
 
         void Pickup(string id,Vector3 point,Vector3 scale, Material mat)

@@ -177,8 +177,8 @@ namespace AfterHours
                 else if (ScreenState is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory)
                     SetScreen(NightScreen.Play);
             }
-            else if ((ScreenState == NightScreen.Map && Input.GetKeyDown(KeyCode.M)) ||
-                (ScreenState == NightScreen.Inventory && Input.GetKeyDown(KeyCode.B)))
+            else if (ScreenState == NightScreen.Inventory && Input.GetKeyDown(KeyCode.B)) hud.CloseInventory();
+            else if (ScreenState == NightScreen.Map && Input.GetKeyDown(KeyCode.M))
                 SetScreen(NightScreen.Play);
             if (grade && ScreenState is NightScreen.Play or NightScreen.Capture)
                 grade.SetFear(ScreenState == NightScreen.Capture || InPursuit ? 1 : 0);

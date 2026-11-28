@@ -144,6 +144,7 @@ namespace AfterHours
         int sheet = -1, pointer = -1;
         float scale, zoom = 1;
         Vector2 origin, pan;
+        bool centeredOnPlayer;
         internal float ZoomLevel => zoom;
 
         internal NightMapView(NightGame game, bool small)
@@ -155,6 +156,9 @@ namespace AfterHours
             generateVisualContent += Draw;
             if (small) return;
 
+            var north = new Label("↑ N") { pickingMode = PickingMode.Ignore };
+            north.AddToClassList("plan-north");
+            Add(north);
             ruler = new Label { pickingMode = PickingMode.Ignore };
             ruler.AddToClassList("map-ruler");
             Add(ruler);
@@ -175,6 +179,7 @@ namespace AfterHours
             RegisterCallback<PointerMoveEvent>(evt =>
             {
                 if (evt.pointerId != pointer || !this.HasPointerCapture(pointer)) return;
+                centeredOnPlayer = false;
                 pan += (Vector2)evt.deltaPosition;
                 KeepMapInView();
                 Redraw();
@@ -215,8 +220,9 @@ namespace AfterHours
         void Zoom(float ratio, Vector2 anchor)
         {
             float next = Mathf.Clamp(zoom * ratio, 1, 2.65f);
-            if (Mathf.Approximately(next, zoom)) return;
+            if (Mathf.Approximately(next, zoom) || !(contentRect.width > 1 && contentRect.height > 1)) return;
             Fit();
+            centeredOnPlayer = false;
             Vector2 coordinate = (anchor - origin) / scale;
             zoom = next;
             Fit();
@@ -225,8 +231,17 @@ namespace AfterHours
             Redraw();
         }
 
+        internal void LocatePlayer()
+        {
+            if (small || sheet != game.Atlas.Floor) return;
+            zoom = sheet == NightAtlas.Street ? 2.65f : 1.65f;
+            centeredOnPlayer = true;
+            Redraw();
+        }
+
         internal void ResetView()
         {
+            centeredOnPlayer = false;
             zoom = 1;
             pan = Vector2.zero;
             Redraw();
@@ -260,7 +275,13 @@ namespace AfterHours
                 Rect.MinMaxRect(-25, NightMainRing.Front - 1f, sheet is 2 or 3 ? NightAnnexLayout.Ramp.xMax + 1 : 18, 31);
             float fitScale = Mathf.Max(.01f, Mathf.Min((width - 96) / plan.width, (height - 58) / plan.height));
             scale = fitScale * zoom;
-            origin = new Vector2((width - plan.width * scale) / 2, (height - plan.height * scale) / 2) + pan;
+            origin = new Vector2((width - plan.width * scale) / 2, (height - plan.height * scale) / 2);
+            if (centeredOnPlayer)
+            {
+                var feet = game.Player.Feet;
+                pan = new Vector2(width, height) * .5f - Point(feet.x, feet.z);
+            }
+            origin += pan;
         }
 
         Vector2 Point(float x, float z) => origin + new Vector2((x - plan.xMin) * scale, (plan.yMax - z) * scale);
@@ -434,6 +455,7 @@ namespace AfterHours
 
         void Redraw()
         {
+            if (!(contentRect.width > 1 && contentRect.height > 1)) return;
             Fit();
             Vector3 boots = game.Player.Feet;
             foreach (var entry in captions)

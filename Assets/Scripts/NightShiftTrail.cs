@@ -34,13 +34,13 @@ namespace AfterHours
         internal static readonly NightInventoryItem[] Papers =
         {
             new(NightItemId.WashSlip, "收洗联 · 七月十七", "证物",
-                "安置点送来的十二条全是大号。末行另挤了一条小的，右角打着结。过秤十三条。经手人只按了个湿手印。", status:"后巷洗衣店"),
+                "安置点送洗　大浴巾十二条。\n另收小巾一条，右角有结。别拆，人家凭这个来认。\n\n复秤十三条。经手人一栏，只剩半枚湿指印。", status:"后巷洗衣店"),
             new(NightItemId.Founding, "浴票第一号", "记录",
-                "一九八九年。堤上十二家凑钱，把避水时借住的洗衣棚改作公共浴场。开张那天没剪彩，先空放了一池热水。", status:"街边洗衣店"),
+                "一九八九年，开张头一天。\n十二家凑的钱，只够把避水的旧洗衣棚翻一遍。\n\n头池热水别卖票。谁当年在棚里捱过一宿，今天都回来洗。", status:"街边洗衣店"),
             new(NightItemId.Names, "借衣簿 · 末页", "证物",
-                "袁素琴，临时洗衣工。借走庙会的黄布头套一只、黑手套一双，用来逗上岸的孩子。末班点名时，临工不占床号。归还一栏空着。扉页写着：有姓名报弱电间；有底片，封好交日班。", status:"守闸宿舍"),
+                "借出　庙会黄布头一只，黑手套一双。哄刚上岸的孩子用。\n领用人　袁素琴（临工）　归还　＿＿\n\n别拿床位簿找她，临工不占床。问名字去弱电间。底片请封好，留给日班。", status:"守闸宿舍"),
             new(NightItemId.Tape, "关门试音记录", "证物",
-                "白班放水，喇叭无声。拉下闭店闸，回水管一震，废广播竟响了三声。老许剪断了线。隔晚，门外的孩子说他也听到了。",status:"东堤闸井房")
+                "白班试水，喇叭没响。闭店拉闸，管子震了一下，喇叭笑了三声。线我亲手剪了。　许\n\n隔晚补记：门外那小孩问我，昨天是谁在里面逗他。",status:"东堤闸井房")
         };
 
         internal static bool DoorUsed(NightState s, string key) =>
@@ -149,7 +149,7 @@ namespace AfterHours
                     State.collected.Add(paper.Id.ToString());
                     if(index==0) State.story.receipt=true;
                     soundscape.Play(PaperPosition(index),"paper",.45f);
-                    Notify(paper.Description,10);
+                    Notify(paper.Name + "　·　B 翻阅", 2.5f);
                     world.Refresh();
                     SaveProgress();
                 },()=>!State.detained && !NightShiftTrail.Has(State,paper.Id) && (index switch
@@ -191,7 +191,7 @@ namespace AfterHours
                 FieldOrder.Ledger => "纸页滑开，一把缠胶布的钥匙掉在桌上。",
                 FieldOrder.Radio => "司机问：水退到哪一级了？我只认东堤站送来的水尺。",
                 FieldOrder.Survey => "司机：堤上两块都是老站牌。暗房有旧址合影，帮我认认当年的接应板。",
-                FieldOrder.Archive => "合影里那块站牌朝着水塔。照片背面还有几行小字。",
+                FieldOrder.Archive => "相片别急着收。印相师傅习惯把方向记在背面。",
                 _ => NightShiftTrail.Next(s).action
             };
             Notify("办结"+NightFieldOrders.Name(job.tracked)+"　"+next,7);

@@ -176,3 +176,15 @@ Game prop texture photographed straight-on: the entire faceplate of a battered l
 车厢结局底图为本项目生成的原创场景图。运行时从 Interface/LastBus 读取；结局文字与声音根据本局调查和证物处置分别呈现。
 
 票夹使用本项目生成的无字油布装订纸叶。全部章印、正文和签收信息由游戏排印。旧票务所的桌、架、座椅、无线电与壁灯沿用清单中的已有模型。
+
+## 夜班工作台与招领照
+
+工作台油毡和前台的招领照均以内置 ImageGen 为本作生成。油毡用于前台桌面、背包、地图和设置。照片以原始宽高比保存在 `Assets/Resources/Interface/Items/LostPair.jpg`，场内相纸、拾取提示和背包正面共用同一份原画。背面文字由 Unity 排印。石桥旧站合影沿用暗房已有的 `FloodWatch.jpg`。
+
+<details><summary>两张原画的生成提示词</summary>
+
+Use case: photorealistic-natural. Create a landscape 16:9 full-bleed material photograph of the TOP surface of a real 1980s Chinese municipal night duty desk in an abandoned public bathhouse, shot straight down in close, with no perspective vanishing point. Old dark petroleum green linoleum bonded to wood, subtle fine pebbled grain, shallow scalpel scores, a ghostly ring from an enamel tea mug near the far upper right, edge-wear related to elbows near the lower edge. A narrow worn walnut lip and one small tarnished brass corner fastener right at the extreme lower border, not a frame around the image. Shallow rake of warm tungsten light from the right gives worn streaks a soft sheen, middle and left are broad unoccupied low-contrast, deep muted petrol green, visible midtones, hand polished patina. Feels like a photograph of one humble well-used object with decades of night shifts in it. Clean legibility for later live UI. No objects on top, no letters, no text, no papers, no line grids, no printed graphics, no HUD, no stylization, no vignette or hard spotlight. Highest fine material fidelity.
+
+Use case: historical-scene. Landscape 3:2 single analog vernacular photograph, photographic image only, no margins or lettering. Taken by an ordinary night-shift attendant in a small Chinese municipal public bathhouse at dawn in the early 1990s. In the near foreground on a low old glazed tile bathhouse counter sits a single pair of very small worn canvas shoes, wet laces loosely tucked in: one shoe right-side up, the other upside down over an inverted plain white enamel teacup with a chipped blue rim to dry. Clearly recognizable shapes, honest prosaic objects and a faint damp footprint on the tile. A row of empty wooden hooks and a barred frosted window out of focus behind, glancing morning light draws a bright line across one toe. Natural midtones and visibly aged muted hand-printed color film, petrol green and warm yellow, faded blacks, gentle grain and emulsion wear. Tight, quiet but slightly unsettling composition of a real lost-property object with a story, not a horror poster. No people, no creatures, no gore, no visible lettering or dates, no illustration, no overlay, no photo border or table surrounding the photograph.
+
+</details>
