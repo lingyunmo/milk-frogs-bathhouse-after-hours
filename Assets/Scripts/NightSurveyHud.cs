@@ -108,9 +108,10 @@ namespace AfterHours
             if (looking)
             {
                 int i = game.Subject;
-                bool already = i >= 0 && RiverSurvey.Recorded(state,i);
+                int mark=i-RiverSurvey.Plates.Length;
+                bool already = mark>=0 ? !string.IsNullOrEmpty(state.brine.exposures[mark]) : i>=0 && RiverSurvey.Recorded(state,i);
                 frameMarks.EnableInClassList("finder-ready",game.Aligned);
-                Copy(frameSubject,i < 0 ? "测绘相机" : RiverSurvey.Subject(i) + "　/　" + RiverSurvey.Plates[i].Name);
+                Copy(frameSubject,mark>=0 ? "旧线　/　"+BrineRoute.Marks[mark].Place : i < 0 ? "测绘相机" : RiverSurvey.Subject(i) + "　/　" + RiverSurvey.Plates[i].Name);
                 Copy(frameHint,already ? "已拍摄　·　V 收起" : game.Aligned ? "F　按下快门" :
                     i < 0 ? "寻找成对的标钉　·　V 收起" : "调整距离，让两枚标钉进入框内");
                 for (int k=0;k<spot.Length;k++)

@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print, Stub, Cylinder, LostPair }
+    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print, Stub, Cylinder, LostPair, BrineBook, BrineSample }
 
     internal readonly struct NightInventoryItem
     {
@@ -60,6 +60,10 @@ namespace AfterHours
                 if (State.stones > 0)
                     yield return new NightInventoryItem(NightItemId.Stone, "石子", "物资",
                         "丢到远处弄出声响，可以把奶娃引开。", count: State.stones, status: "G 投掷");
+                if (State.brine.rubbings!=0)
+                    yield return new NightInventoryItem(NightItemId.BrineBook,"堤墙摹本","证物",BrineRoute.Notebook(State.brine),status:"东堤防汛旧线");
+                if (State.brine.stage==BrineStage.Carrying)
+                    yield return new NightInventoryItem(NightItemId.BrineSample,"试验核聚变样芯","物资","封条下的铁皮一直是温的。交运联盖着末班车的章。另一联写着：南堤隔离闸。启用后，封路。");
                 if (State.motorPart)
                     yield return new NightInventoryItem(NightItemId.Starter, "发电机启动件", "维修",
                         "装在地下发电机的飞轮旁。齿口上还带着黑油。");

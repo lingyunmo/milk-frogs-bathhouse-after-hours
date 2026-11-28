@@ -22,7 +22,7 @@ namespace AfterHours
         internal NightTarget Focus => panel == null && !WorkingDispatch ? focus : null;
         internal RepairPanel RepairView => panel;
         internal float Hold => held != null && held.Hold > 0 ? Mathf.Clamp01(holdTime / held.Hold) : 0;
-        internal bool InPursuit => hunter.Pursuing;
+        internal bool InPursuit => !State.brine.Committed && hunter.Pursuing;
         internal bool IsInsideBuilding(Vector3 feet) => world.IsInsideBuilding(feet);
 
         internal Vector3? OutdoorPatrolCenter()
@@ -91,6 +91,7 @@ namespace AfterHours
             SyncCursor(false);
             Watch?.Close();
             hud?.Dispose();
+            ReleaseBrineMaterials();
             world?.Dispose();
         }
 
@@ -139,7 +140,7 @@ namespace AfterHours
         {
             circuitAnnouncedUntil=-1;
             StopPipePlayback();
-            State = save ?? new NightState { shiftEdition = 1 };
+            State = save ?? new NightState { shiftEdition = 1, brine = new BrineRun { wheel = UnityEngine.Random.Range(0,4) } };
             CloseDispatch();
             radioCallIn = 0;
             foreach (var stone in stones) Destroy(stone.Object);
@@ -147,6 +148,7 @@ namespace AfterHours
             world.Refresh();
             RefreshLoad();
             hunter.Reset();
+            RestoreBrineScene();
             Physics.SyncTransforms();
             if (State.detained) SetDetentionCheckpoint();
             State.spawn = WalkableSavePosition(State.spawn);
@@ -271,11 +273,18 @@ namespace AfterHours
             if (!State.detained)
             {
                 releaseGrace = Mathf.Max(0, releaseGrace - dt);
-                if (!State.circuit.Solved) hunter.Tick(dt);
+                if (State.brine.Live) TickBrine(dt);
+                else if (!State.circuit.Solved) hunter.Tick(dt);
                 if (ScreenState != NightScreen.Play) return;
                 TickWorld(dt);
             }
             if (panel != null || WorkingDispatch) return;
+            if (State.brine.Live)
+            {
+                if (Input.GetKeyDown(KeyCode.F5)) SaveHere();
+                FocusTarget(dt);
+                return;
+            }
             if (Player.InHideSpot)
             {
                 if (Input.GetKeyDown(KeyCode.F5)) SaveHere();
@@ -314,7 +323,7 @@ namespace AfterHours
             Player.Eyes.GetComponent<Camera>().enabled = screen is not (NightScreen.Title or NightScreen.Observer);
             if (grade) grade.SetMenu(screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
                 or NightScreen.Detention or NightScreen.Caught or NightScreen.Escaped);
-            Player.SetTorchVisible(screen == NightScreen.Play && State.torch);
+            Player.SetTorchVisible(screen == NightScreen.Play && (State.torch || State.brine.Live));
             soundscape.SetScreen(screen);
             if (screen != NightScreen.Capture) soundscape.StopCaptureLaugh();
             if (screen == NightScreen.Play) pauseTime = .12f;
@@ -363,7 +372,7 @@ namespace AfterHours
 
         internal void Captured()
         {
-            if ((ScreenState != NightScreen.Play && !(ScreenState == NightScreen.Observer && !EmptyObservation)) || Player.Concealed || State.detained || State.circuit.Solved || releaseGrace > 0) return;
+            if ((ScreenState != NightScreen.Play && !(ScreenState == NightScreen.Observer && !EmptyObservation)) || Player.Concealed || State.brine.Committed || State.detained || State.circuit.Solved || releaseGrace > 0) return;
             Player.InterruptHiding();
             panel = null;
             if (State.dispatch.carrying) ReturnLoadOnCapture();
@@ -494,6 +503,7 @@ namespace AfterHours
             else if(!Player.Vaulting)
             foreach(var target in targets)
             {
+                if(State.brine.Live && target != brineExit && target != brineWheels[0] && target != brineWheels[1]) continue;
                 if(target.Available!=null&&!target.Available())continue;
                 Vector3 offset=target.Position-eyes.position;
                 float length=offset.magnitude;
@@ -576,8 +586,11 @@ namespace AfterHours
         bool SaveProgress()
         {
             if (EmptyObservation) return false;
-            FinishShiftOrder();
-            CheckReturnCircuit();
+            if (!State.brine.Committed)
+            {
+                FinishShiftOrder();
+                CheckReturnCircuit();
+            }
             if (Capturing) return true;
             try{ NightSave.Write(State); return true; }
             catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)

@@ -9,7 +9,7 @@ namespace AfterHours
         internal NightWatch Watch { get; private set; }
         internal bool EmptyObservation => Watch != null && Watch.Rehearsal;
         internal bool CanObserveLive => ScreenState is (NightScreen.Play or NightScreen.Pause) &&
-            !State.detained && !State.circuit.Solved && !WorkingDispatch && !Framing && panel == null && !Capturing;
+            !State.detained && !State.brine.Committed && !State.circuit.Solved && !WorkingDispatch && !Framing && panel == null && !Capturing;
 
         internal void EnterObserver()
         {

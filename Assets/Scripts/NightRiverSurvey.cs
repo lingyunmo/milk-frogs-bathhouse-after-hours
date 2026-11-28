@@ -232,11 +232,20 @@ namespace AfterHours
                 Subject = i;
                 nearest = distance;
             }
+            for (int m=0;m<BrineRoute.Marks.Length && State.brine.stage==BrineStage.Quiet;m++)
+            {
+                var point=BrineRoute.Marks[m].Point;
+                var delta=point-eye.position;
+                if (delta.magnitude>=nearest || delta.z<.5f || Vector3.Dot(delta.normalized,eye.forward)<.90f || !ClearView(point)) continue;
+                nearest=delta.magnitude;
+                Subject=RiverSurvey.Plates.Length+m;
+            }
             if (Subject < 0) return;
             Aligned = true;
             for (int k = 0; k < 2; k++)
             {
-                var pin = RiverSurvey.Pin(Subject, k == 0 ? -1 : 1);
+                var pin = Subject<RiverSurvey.Plates.Length ? RiverSurvey.Pin(Subject,k==0?-1:1) :
+                    BrineRoute.Marks[Subject-RiverSurvey.Plates.Length].Point+new Vector3(k==0?-.69f:.69f,0,-.06f);
                 var p = cam.WorldToViewportPoint(pin);
                 Pins[k] = new Vector2(p.x, 1 - p.y);
                 Aligned &= p.z > 0 && p.x > .25f && p.x < .75f && p.y > .24f && p.y < .76f && ClearView(pin);
@@ -255,7 +264,18 @@ namespace AfterHours
         internal void ExposeSurvey()
         {
             AimSurvey();
-            if (!Framing || Subject < 0 || !Aligned || RiverSurvey.Recorded(State, Subject)) return;
+            if (!Framing || Subject < 0 || !Aligned) return;
+            if (Subject>=RiverSurvey.Plates.Length)
+            {
+                int m=Subject-RiverSurvey.Plates.Length;
+                if(!string.IsNullOrEmpty(State.brine.exposures[m])) return;
+                string print=grade.SurveyExposure();
+                if(string.IsNullOrEmpty(print)) { Notify("快门卡住了。再拍一次。"); return; }
+                State.brine.exposures[m]=print;
+                FlashUntil=Time.unscaledTime+.17f;
+                RecordMark(m); return;
+            }
+            if (RiverSurvey.Recorded(State, Subject)) return;
             if (Subject < 3)
             {
                 string print = grade.SurveyExposure();

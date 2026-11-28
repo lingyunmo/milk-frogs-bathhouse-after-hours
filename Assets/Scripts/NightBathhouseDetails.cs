@@ -73,7 +73,7 @@ namespace AfterHours
             face.GetComponent<Renderer>().sharedMaterial = enamel;
         }
 
-        void WallSign(string words,Vector3 center,float yaw, Vector2 size,float letters)
+        TextMesh WallSign(string words,Vector3 center,float yaw, Vector2 size,float letters)
         {
             var baseplate=Box("搪瓷牌",center,new Vector3(size.x,size.y,.067f),steel);
             baseplate.GetComponent<Collider>().enabled=false;
@@ -96,6 +96,7 @@ namespace AfterHours
             renderer.receiveShadows=false;
             caption.text=words;
             FitLetters(caption,size.x*.88f,size.y*.68f);
+            return caption;
         }
 
         static void FitLetters(TextMesh caption,float width,float height)

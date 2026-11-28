@@ -283,6 +283,7 @@ namespace AfterHours
             float weight = Mathf.Clamp01(speed / WalkSpeed) * motion;
             Vector3 bob = new(Mathf.Cos(bobPhase) * .013f * weight, Mathf.Sin(bobPhase * 2) * .019f * weight, 0);
             Eyes.localPosition = Vector3.up * eyeHeight + bob;
+            PoseGun(Mathf.Sin(bobPhase)*weight);
             if (heldTorch)
             {
                 heldTorch.localPosition = new Vector3(.23f, -.305f, .625f) - bob * .45f;
@@ -292,7 +293,7 @@ namespace AfterHours
 
         void TickTorch(NightGame game, float dt)
         {
-            SetTorchVisible(game.State.torch);
+            SetTorchVisible(game.State.torch || game.State.brine.Live);
             if (Input.GetKeyDown(NightGame.TorchKey)) game.ToggleTorch();
             if (Input.GetKeyDown(KeyCode.R)) game.ReplaceCell();
             AdvanceTorch(game, dt);
@@ -422,6 +423,7 @@ namespace AfterHours
         void OnDestroy()
         {
             if (torch && torch.cookie) Destroy(torch.cookie);
+            if (projectorFinishes!=null) foreach(var finish in projectorFinishes) Destroy(finish);
         }
     }
 }

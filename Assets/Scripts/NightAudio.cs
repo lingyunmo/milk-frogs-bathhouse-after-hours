@@ -24,6 +24,8 @@ namespace AfterHours
             clips["step"]=Clip("step",.19f,60,.50f,13);
             clips["hunter"]=Clip("hunter",.32f,39,.33f,38);
             clips["land"]=Clip("land",.28f,76,.55f,63);
+            clips["brine-shot"]=Clip("brine-shot",.22f,106,.64f,947);
+            clips["brine-hit"]=Clip("brine-hit",.38f,51,.81f,887);
             clips["tool"]=Clip("tool",.36f,314,.53f,52);
             clips["switch"]=Clip("switch",.44f,118,.62f,12);
             clips["torch-click"]=Clip("torch-click",.093f,310,.61f,102);
