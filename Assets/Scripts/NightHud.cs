@@ -25,7 +25,8 @@ namespace AfterHours
         VisualElement mapHousing, equipmentHousing;
         NightReticle reticle;
         NightDetentionLock detentionLock;
-        Meter stamina, torch, gateMeter, survivorMeter;
+        Meter stamina, torch, gateMeter, survivorMeter, projectorHeat;
+        Label brineCharge, gateCaption;
         VisualElement brineVitals, brineSlot, stoneSlot, carrySlot;
         Label streetBearing;
         NightMapView minimap;
@@ -626,7 +627,7 @@ namespace AfterHours
             task = Type(objectiveBlock, shownObjective, "objective-text serif");
             location = Type(objectiveBlock, "", "objective-place");
             brineVitals=Area(objectiveBlock,"brine-vitals");
-            Type(brineVitals,"闸门","brine-meter-name");
+            gateCaption=Type(brineVitals,"闸门","brine-meter-name");
             gateMeter=new Meter(brineVitals,"brine-track","brine-gate");
             Type(brineVitals,"生命","brine-meter-name");
             survivorMeter=new Meter(brineVitals,"brine-track","brine-life");
@@ -695,8 +696,8 @@ namespace AfterHours
             torch = new Meter(torchSlot.Q(className: "slot-body"), "torch-track", "torch-fill", 5);
             Slot(equipment, "R", "电池", "cell", out cellCount);
             stoneSlot=Slot(equipment, "G", "石子", "stone", out stoneCount);
-            brineSlot=Slot(equipment,"左键","回流炮","BrineCase",out var rounds);
-            Copy(rounds,"∞");
+            brineSlot=Slot(equipment,"左键","回流炮","BrineCase",out brineCharge);
+            projectorHeat=new Meter(brineSlot.Q(className:"slot-body"),"torch-track","brine-heat",4);
             carrySlot=Slot(equipment,"Q","放下配重","counterweight",out var carrying);
             Copy(carrying,"负重"); carrySlot.name="carry-slot";
 
@@ -847,11 +848,15 @@ namespace AfterHours
             Visible(equipmentHousing, !reading);
             bool received = now < dispatchHeardUntil;
             Visible(objectiveBlock, !busy);
-            Visible(brineVitals,state.brine.Fighting);
+            Visible(brineVitals,state.brine.Live);
             Visible(brineSlot,state.brine.Live); Visible(stoneSlot,!state.brine.Live && !state.dispatch.carrying);
             Visible(carrySlot,state.dispatch.carrying);
-            if(state.brine.Fighting)
+            if(state.brine.Live)
             {
+                Visible(gateCaption,state.brine.Fighting);
+                Visible(gateMeter.Track,state.brine.Fighting);
+                projectorHeat.Set(state.brine.heat,state.brine.overheated);
+                Copy(brineCharge,state.brine.overheated ? "过热" : "∞");
                 gateMeter.Set(state.brine.shutter*.01f,state.brine.shutter<=40);
                 survivorMeter.Set(state.brine.breath*.01f,state.brine.breath<=25);
             }

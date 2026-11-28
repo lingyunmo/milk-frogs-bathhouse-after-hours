@@ -119,8 +119,35 @@ namespace AfterHours
             throw new Exception("No reachable, unobstructed F prompt at " + text + " " + candidates[0].Position + $" from {lastStop}, floor {floors}, clear {clear}, route {routed}, prompt {other}");
         }
 
+        static void VerifyGeneratorTiming(int fps)
+        {
+            float dt = 1f / fps;
+            float previous = float.PositiveInfinity;
+            for (int contact = 0; contact < NightDispatch.Contacts; contact++)
+            {
+                var dial = new NightDetentionLock(2, null, null, null, station: 0, seated: contact);
+                dial.Tick(dt);
+                float seconds = dt / dial.NeedlePosition;
+                Check(seconds < previous, $"Generator did not speed up at contact {contact + 1}");
+                if (contact == 0) Check(Mathf.Abs(seconds - 1.9f) < .01f, "Generator opening speed");
+                if (contact == 9) Check(Mathf.Abs(seconds - .8f) < .01f, "Generator final speed");
+                previous = seconds;
+
+                int litFrames = 0;
+                for (int frame = 1; frame <= fps * 2; frame++)
+                {
+                    float distance = dial.NeedlePosition - dial.TargetCenter;
+                    if (distance > dial.TargetRadius) break;
+                    if (distance >= -dial.TargetRadius) litFrames++;
+                    dial.Tick(dt);
+                }
+                Check(litFrames >= fps * .13f, $"Short generator window at {fps} FPS, contact {contact + 1}: {litFrames} frames");
+            }
+        }
+
         IEnumerator Verify()
         {
+            foreach (int fps in new[] { 30, 60, 144 }) VerifyGeneratorTiming(fps);
             game.NewNight();
             lastStop = NightState.NewSpawn;
             for(int n=0;n<440;n++) Invoke(game.Player,"UpdateStamina",true,true,.1f);

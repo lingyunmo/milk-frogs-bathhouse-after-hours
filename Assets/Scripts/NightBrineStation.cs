@@ -6,7 +6,16 @@ namespace AfterHours
     {
         GameObject sampleBox, coldDoor, floodGate;
         readonly TextMesh[] brineMarks=new TextMesh[4];
-        int etchedWheel=-1;
+        readonly GameObject[] wheelAlarms = new GameObject[2];
+        int litWheel=-1, etchedWheel=-1;
+
+        internal void BriefBrineWheels(int lane)
+        {
+            if(litWheel==lane) return;
+            litWheel=lane;
+            for(int i=0;i<wheelAlarms.Length;i++)
+                if(wheelAlarms[i]) wheelAlarms[i].SetActive(lane==i*2);
+        }
 
         void DressBrineStation()
         {
@@ -62,9 +71,25 @@ namespace AfterHours
             WallSign("北回水",new(268.4f,1.54f,-27.04f),0,new(.76f,.22f),.11f);
             Fixture(new(274.5f,3.4f,-34),new(-1,-.27f,.2f),new(.60f,.85f,.81f),2.2f,22,74,.00010f);
             Fixture(new(248.7f,3.8f,-34.3f),new(1,-.24f,.26f),new(.92f,.51f,.32f),2.1f,18,68,.00012f);
+            var amber=Material(new Color(.90f,.38f,.07f));
+            amber.EnableKeyword("_EMISSION"); amber.SetColor("_EmissionColor",new Color(1.9f,.62f,.09f));
             for(int side=0;side<2;side++)
             {
                 var at=BrineRoute.Handwheel(side);
+                var lampAt=at+new Vector3(0,.82f,side==0?-.32f:.32f);
+                var cast=Trim(lampAt,paintedIron);
+                cast.Box(lampAt-Vector3.up*.10f,new(.20f,.055f,.19f));
+                cast.Box(lampAt+Vector3.up*.10f,new(.16f,.025f,.15f));
+                for(int rib=0;rib<4;rib++)
+                {
+                    var corner=Quaternion.Euler(0,45f+90f*rib,0)*Vector3.right*.088f;
+                    cast.Pipe(lampAt+corner-Vector3.up*.092f,lampAt+corner+Vector3.up*.096f,.009f);
+                }
+                var alarm=Shape("回水闸警灯",PrimitiveType.Sphere,lampAt,new(.14f,.17f,.14f),amber,Vector3.zero);
+                alarm.GetComponent<Collider>().enabled=false;
+                var halo=alarm.AddComponent<Light>(); halo.type=LightType.Point;
+                halo.color=new Color(1,.48f,.10f); halo.range=4.4f; halo.intensity=2.4f;
+                wheelAlarms[side]=alarm; alarm.SetActive(false);
                 var metal=Trim(at,paintedIron);
                 metal.Pipe(at-Vector3.up*1.04f,at,.095f);
                 // Horizontal red handwheel above the riser, visible against the pale kerb.
