@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey }
+    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print }
 
     internal readonly struct NightInventoryItem
     {
@@ -70,7 +70,7 @@ namespace AfterHours
                         "街口转接机的备用保险管。纸套上盖着值守点的蓝章。");
                 foreach (var key in NightKeyDoors.Locks)
                 {
-                    if (!State.collected.Contains(key.KeyId)) continue;
+                    if (!State.collected.Contains(key.KeyId) || (key.Slot == NightKeyDoors.KeySlot.Linen && State.story.exchanged)) continue;
                     var itemId = key.Slot switch
                     {
                         NightKeyDoors.KeySlot.Linen => NightItemId.LinenKey,
@@ -86,6 +86,11 @@ namespace AfterHours
                         },
                         status: NightKeyDoors.IsUnlocked(key, State) ? "已开锁" : "");
                 }
+                if (NightShiftTrail.CanReadArchive(State))
+                    yield return new NightInventoryItem(NightItemId.Print, "石桥旧站合影", "证物",
+                        "站牌的反光板正对水塔。照片背面写着：她套上黄布头，笑三声，岸上的孩子就往那边游。", status:"旧照相馆");
+                foreach (var entry in NightShiftTrail.Papers)
+                    if (State.collected.Contains(entry.Id.ToString())) yield return entry;
                 if (State.collected.Contains(FaultNoteId))
                     yield return new NightInventoryItem(NightItemId.Receipt, "夜班故障单", "记录",
                         "「地下发电机又停了，前台电话没电。副楼二层还在进水，合闸前记得先断开那一路。接线图放回留档室。——老许」",

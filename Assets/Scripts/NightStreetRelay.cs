@@ -24,10 +24,10 @@ namespace AfterHours
                 () => !State.power && !State.contacted);
             Target(radio, "检查保险座", 0,
                 () => Notify("瓷座空了一截。盒盖内贴着旧领料章：「后场检修」。", 5),
-                () => State.power && !State.contacted && !State.collected.Contains(NightStreetRelay.FuseId));
+                () => WorkingOn(FieldOrder.Radio) && State.power && !State.contacted && !State.collected.Contains(NightStreetRelay.FuseId));
             Target(radio, "装上备用保险管", 2.45f,
                 () => Repair(radio, .86f, () => State.collected.Add(NightStreetRelay.SeatedId), "tool"),
-                () => State.power && !State.contacted && State.collected.Contains(NightStreetRelay.FuseId)
+                () => WorkingOn(FieldOrder.Radio) && State.power && !State.contacted && State.collected.Contains(NightStreetRelay.FuseId)
                     && !State.collected.Contains(NightStreetRelay.SeatedId));
             Target(radio, "调节转接机", 0, () => OpenRepair("街外应急转接", radio,
                 new[] { "Ⅰ", "Ⅱ", "Ⅲ" },
@@ -37,10 +37,10 @@ namespace AfterHours
                     State.contacted = true;
                     Notify("「看见街尾的牌子，我就靠边。」对面松开了话筒。", 7);
                 }, "signal")),
-                () => State.power && State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
+                () => WorkingOn(FieldOrder.Radio) && State.power && State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
             Target(radio, "检查应急线路", 0,
                 () => Notify("机身热了，耳机里全是沙声。回路线挂着「副楼中继」的签。", 6),
-                () => State.power && !State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
+                () => WorkingOn(FieldOrder.Radio) && State.power && !State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
         }
     }
 

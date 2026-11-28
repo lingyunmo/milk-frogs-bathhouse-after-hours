@@ -37,9 +37,8 @@ namespace AfterHours
             {
                 CloseDispatch();
                 Piloting=true;
-                State.dispatch.tracked=FieldOrder.Survey;
                 soundscape.Play(SoundingReach.Console,"switch",.44f);
-            },()=>CanWork && State.survey.camera && State.survey.soundings<3);
+            },()=>WorkingOn(FieldOrder.Survey) && State.survey.camera && State.survey.soundings<3);
         }
 
         internal void SteerLaunch(float rudder, bool throttle, bool lowerLead, float dt)

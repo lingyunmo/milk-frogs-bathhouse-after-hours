@@ -1,24 +1,26 @@
 namespace AfterHours
 {
-    internal enum FieldOrder { Lights, Drain, Barrier, Radio, Survey, Archive }
+    internal enum FieldOrder { Lights, Drain, Barrier, Radio, Survey, Archive, Ledger }
 
     // One source of directions for the field HUD, map docket and pause screen.
     internal static class NightFieldOrders
     {
-        internal static readonly FieldOrder[] List = { FieldOrder.Lights, FieldOrder.Drain, FieldOrder.Barrier, FieldOrder.Radio, FieldOrder.Survey, FieldOrder.Archive };
+        internal static readonly FieldOrder[] List = { FieldOrder.Lights, FieldOrder.Drain, FieldOrder.Barrier, FieldOrder.Radio, FieldOrder.Survey, FieldOrder.Archive, FieldOrder.Ledger };
 
         internal static string Name(FieldOrder order) => order switch
         {
-            FieldOrder.Survey => "东堤水尺",
-            FieldOrder.Archive => "八七年旧照",
-            FieldOrder.Lights => "引路灯",
-            FieldOrder.Drain => "街沟排水",
-            FieldOrder.Barrier => "街尾路障",
-            _ => "联络司机"
+            FieldOrder.Ledger => "「第十三条毛巾」",
+            FieldOrder.Survey => "「水线为证」",
+            FieldOrder.Archive => "「底片上的人」",
+            FieldOrder.Lights => "「街灯次第亮」",
+            FieldOrder.Drain => "「积水退去」",
+            FieldOrder.Barrier => "「放车过桥」",
+            _ => "「听见回话」"
         };
 
         internal static bool Done(FieldOrder order, NightState state) => order switch
         {
+            FieldOrder.Ledger => state.story.ledger,
             FieldOrder.Survey => state.survey.ReportReady,
             FieldOrder.Archive => state.survey.archive,
             FieldOrder.Lights => state.dispatch.AllRunning,
@@ -27,19 +29,16 @@ namespace AfterHours
             _ => state.contacted
         };
 
-        internal static FieldOrder Tracking(NightState state)
-        {
-            var selected = state.dispatch.tracked;
-            if (!Done(selected, state)) return selected;
-            foreach (var order in List) if (order != FieldOrder.Archive && !Done(order, state)) return order;
-            return FieldOrder.Radio;
-        }
+        internal static FieldOrder Tracking(NightState state) => state.dispatch.tracked;
 
         internal static (string action, string place) Direction(FieldOrder order, NightState state)
         {
             var job = state.dispatch;
             switch (order)
             {
+                case FieldOrder.Ledger: return state.story.receipt
+                    ? ("把收洗数填回缺页", "主楼三层 · 值班室")
+                    : ("找盖过章的那一联", "后巷洗衣店 · 收付台");
                 case FieldOrder.Survey: return RiverSurvey.Lead(state);
                 case FieldOrder.Archive:
                     if (!state.survey.camera) return RiverSurvey.Lead(state);
@@ -76,14 +75,10 @@ namespace AfterHours
         {
             if (state.detained) return ("拨开门上的卡簧锁", "地下室 · 门边的橙灯");
             if (state.CanBoard) return ("上救援车", "街尾 · 站牌");
-            if (state.beacon && state.dispatch.tracked == FieldOrder.Archive && !state.survey.archive)
-                return Direction(FieldOrder.Archive,state);
-            if (state.beacon) return ("等司机过桥", state.rescueTime > 60 && !state.survey.archive
-                ? "可在 M 工单跟踪八七年旧照" : "街尾 · 站牌");
-            if (!state.dispatch.accepted)
-                return !state.torch ? ("拿起长凳上的手电", "二楼 · 更衣室") : ("接听夜班电台", "一楼 · 前台");
+            if (state.beacon) return ("听街口的车喇叭", "街尾 · 站牌");
+            if (state.dispatch.orderHeld) return Direction(Tracking(state), state);
             if (state.RescueAccess && state.contacted) return ("翻起接应板", "街尾 · 站牌");
-            return Direction(Tracking(state), state);
+            return NightShiftTrail.Next(state);
         }
     }
 }

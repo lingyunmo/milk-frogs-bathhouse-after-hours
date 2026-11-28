@@ -341,18 +341,19 @@ namespace AfterHours
                 AreaBox(paint, NightAtlas.Building, buildingFill, Wall);
                 AreaBox(paint, NightMainRing.Footprint, buildingFill, Wall);
             }
-            if (game.State.dispatch.accepted)
+            if (game.State.dispatch.orderHeld)
             {
                 var job = game.State.dispatch;
-                for (int i = 0; i < NightDispatch.Stations.Length; i++)
-                    if (street && job.steps[i] < NightDispatch.Contacts) MarkJob(NightDispatch.Stations[i].Feet, FieldOrder.Lights);
-                if (street && !game.State.survey.ReportReady)
+                if (street && job.tracked == FieldOrder.Lights)
+                    for (int i = 0; i < NightDispatch.Stations.Length; i++)
+                        if (job.steps[i] < NightDispatch.Contacts) MarkJob(NightDispatch.Stations[i].Feet);
+                if (street && job.tracked == FieldOrder.Survey && !game.State.survey.ReportReady)
                 {
-                    if (!game.State.survey.camera) MarkJob(RiverSurvey.CameraDesk, FieldOrder.Survey);
-                    else if (game.State.survey.soundings < 3) MarkJob(SoundingReach.Console, FieldOrder.Survey);
-                    else if (game.State.survey.CanPrint) MarkJob(RiverSurvey.Trays, FieldOrder.Survey);
+                    if (!game.State.survey.camera) MarkJob(RiverSurvey.CameraDesk);
+                    else if (game.State.survey.soundings < 3) MarkJob(SoundingReach.Console);
+                    else if (game.State.survey.CanPrint) MarkJob(RiverSurvey.Trays);
                     else for (int i=0;i<3;i++)
-                        if (!RiverSurvey.Recorded(game.State,i)) MarkJob(RiverSurvey.Plates[i].Center, FieldOrder.Survey);
+                        if (!RiverSurvey.Recorded(game.State,i)) MarkJob(RiverSurvey.Plates[i].Center);
                 }
                 if(street && job.tracked==FieldOrder.Archive && !game.State.survey.archive)
                 {
@@ -360,16 +361,16 @@ namespace AfterHours
                     if(!s.survey.HasSites)
                     {
                         for (int i=3;i<6;i++) if(!RiverSurvey.Recorded(s,i))
-                            MarkJob(RiverSurvey.Plates[i].Center,FieldOrder.Archive);
+                            MarkJob(RiverSurvey.Plates[i].Center);
                     }
-                    else MarkJob(s.survey.spliced ? RiverSurvey.ContactPrinter : new Vector3(295,1,-4.83f),FieldOrder.Archive);
+                    else MarkJob(s.survey.spliced ? RiverSurvey.ContactPrinter : new Vector3(295,1,-4.83f));
                 }
-                if (job.teeth < NightDispatch.Teeth)
+                if (job.tracked == FieldOrder.Barrier && job.teeth < NightDispatch.Teeth)
                 {
                     Vector3 point = !job.delivered && !job.carrying ? job.loadFeet : NightDispatch.Barrier;
-                    if (game.Atlas.FloorAt(point) == floor) MarkJob(point, FieldOrder.Barrier);
+                    if (game.Atlas.FloorAt(point) == floor) MarkJob(point);
                 }
-                void MarkJob(Vector3 at, FieldOrder order)
+                void MarkJob(Vector3 at)
                 {
                     Vector2 c = Point(at.x, at.z);
                     float r = small ? 4 : 6;
@@ -379,18 +380,8 @@ namespace AfterHours
                     paint.LineTo(c - Vector2.up * r);
                     paint.LineTo(c - Vector2.right * r);
                     paint.ClosePath();
-                    bool tracked = NightFieldOrders.Tracking(game.State) == order;
-                    if (tracked)
-                    {
-                        paint.fillColor = Amber;
-                        paint.Fill();
-                    }
-                    else
-                    {
-                        paint.strokeColor = Wall;
-                        paint.lineWidth = 1.6f;
-                        paint.Stroke();
-                    }
+                    paint.fillColor = Amber;
+                    paint.Fill();
                 }
             }
             if (!small) DrawScale(paint, street);

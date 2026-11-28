@@ -37,15 +37,7 @@ namespace AfterHours
 
         internal void ReceiveDispatch() => dispatchHeardUntil = Time.unscaledTime + 4f;
 
-        static string OrderName(FieldOrder order) => order switch
-        {
-            FieldOrder.Survey => "东堤水尺",
-            FieldOrder.Archive => "八七年旧照",
-            FieldOrder.Lights => "街区引路灯",
-            FieldOrder.Drain => "街沟排水",
-            FieldOrder.Barrier => "街尾路障",
-            _ => "联络司机"
-        };
+        static string OrderName(FieldOrder order) => NightFieldOrders.Name(order);
 
         static readonly float[] CallSignHeights = { 4, 10, 17, 8, 4 };
 
@@ -76,11 +68,10 @@ namespace AfterHours
             Button first = null;
             foreach (FieldOrder order in NightFieldOrders.List)
             {
-                if (order == FieldOrder.Archive && !state.survey.camera) continue;
+                if ((state.dispatch.docket & (1 << (int)order)) == 0) continue;
                 bool done = NightFieldOrders.Done(order, state);
                 var row = Act(scroll.contentContainer, "", () =>
                 {
-                    game.TrackOrder(order);
                     Open("");
                     if (order is FieldOrder.Lights or FieldOrder.Survey or FieldOrder.Archive) OpenFloor(NightAtlas.Street);
                     if (order == FieldOrder.Barrier)
@@ -90,7 +81,7 @@ namespace AfterHours
                     }
                 }, "order-entry", "order-" + order);
                 var copy = Area(row, "order-copy");
-                Type(copy, order == FieldOrder.Archive ? "八七年旧照　·　选做" : OrderName(order), "order-name serif");
+                Type(copy, OrderName(order), "order-name serif");
                 if (!done)
                 {
                     var lead = NightFieldOrders.Direction(order, state);
@@ -101,7 +92,7 @@ namespace AfterHours
                             : order == FieldOrder.Lights ? "机位已标在街区地图上" : lead.place;
                     Type(copy, lead.action + "　·　" + note, "order-note");
                 }
-                Type(row, done ? "完工" : selected == order ? "跟踪中" : "跟踪", "order-stamp");
+                Type(row, done ? "完工" : "手头工单", "order-stamp");
                 row.EnableInClassList("order-entry--tracked", !done && selected == order);
                 row.SetEnabled(!done);
                 if (selected == order && !done) first = row;
@@ -114,7 +105,7 @@ namespace AfterHours
             var state = game.State;
             TickSurveyHud();
             var job = state.dispatch;
-            bool show = job.accepted && !state.detained && !state.beacon;
+            bool show = job.orderHeld && job.tracked == FieldOrder.Lights && !state.detained && !state.beacon;
             Visible(dispatchStrip, show && !job.AllRunning);
             if (show)
             {

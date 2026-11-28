@@ -35,10 +35,10 @@ namespace AfterHours
         {
             new(KeySlot.Linen, "毛巾库", "key-linen", "毛巾库钥匙", "门缝夹着一角布条：「洗净的送更衣室。钥匙随布。」",
                 3.6f, new Vector3(-3.22f, 4.085f, 21.10f), -18, new Vector3(5, 3.6f, 5)),
-            new(KeySlot.Staff, "值班室", "key-staff", "值班室钥匙", "值班牌翻到了背面。粉笔字还在：「交班到前台签领。」",
-                7.2f, new Vector3(8.62f, .944f, 3.765f), 18),
-            new(KeySlot.Uplink, "弱电间", "key-uplink", "弱电间钥匙", "门上别着检修员的便条：「二楼放映，片子老是断。」",
-                7.2f, new Vector3(-6.75f, 4.344f, 2.13f), 32, new Vector3(4, 7.2f, 19))
+            new(KeySlot.Staff, "值班室", "key-staff", "值班室钥匙", "值班牌翻到了背面。粉笔字还在：「旧匙还东堤，新匙开早班。」",
+                7.2f, NightShiftTrail.StaffKey, 18),
+            new(KeySlot.Uplink, "弱电间", "key-uplink", "弱电间钥匙", "门上别着检修员的便条：「钥匙压在交班簿底下。」",
+                7.2f, NightShiftTrail.UplinkKey, 32, new Vector3(4, 7.2f, 19))
         };
 
         internal static LockSpec? Find(string room, float floor)
@@ -52,14 +52,7 @@ namespace AfterHours
         internal static bool IsUnlocked(LockSpec spec, NightState state)
         {
             if (state.collected.Contains(spec.UnlockId) || state.openDoors.Contains(spec.Room)) return true;
-            // Existing saves can retain access to rooms whose resources or work they already reached.
-            return spec.Slot switch
-            {
-                KeySlot.Linen => state.seal || state.sinkStage >= 2 || state.collected.Contains("seal"),
-                KeySlot.Staff => state.collected.Contains("cell-staff") || state.collected.Contains(NightEvents.DutyCaseKey),
-                KeySlot.Uplink => state.networkStage > 0 || state.uplink,
-                _ => false
-            };
+            return false;
         }
     }
 
@@ -94,7 +87,7 @@ namespace AfterHours
 
         internal void TakeDoorKey(NightKeyDoors.LockSpec spec)
         {
-            if (State.collected.Contains(spec.KeyId)) return;
+            if (!NightShiftTrail.KeyAvailable(State, spec.KeyId) || State.collected.Contains(spec.KeyId)) return;
             State.collected.Add(spec.KeyId);
             world.Refresh();
             PickupFeedback(spec.Position, "拾到" + spec.KeyName, "pickup");
@@ -163,9 +156,15 @@ namespace AfterHours
         void DressRoomKey(NightKeyDoors.LockSpec spec)
         {
             game.Target(spec.Position + Vector3.up * .045f, "拿起" + spec.KeyName, 0, () => game.TakeDoorKey(spec),
-                () => !game.State.collected.Contains(spec.KeyId), 1.85f);
+                () => NightShiftTrail.KeyAvailable(game.State, spec.KeyId) && !game.State.collected.Contains(spec.KeyId), 1.85f);
 
-            var key = new GameObject(spec.KeyName);
+            var key = MakeRoomKey(spec.KeyName,spec.Position,Quaternion.Euler(0,spec.Yaw,0));
+            pickups.Add((spec.KeyId,key));
+        }
+
+        GameObject MakeRoomKey(string name, Vector3 at, Quaternion rotation)
+        {
+            var key = new GameObject(name);
             key.transform.SetParent(root, false);
             var mesh = new DetailMesh(.22f);
             Vector3 Ring(float angle) => new(Mathf.Cos(angle) * .027f, .009f, Mathf.Sin(angle) * .027f);
@@ -179,8 +178,8 @@ namespace AfterHours
             metal.SetFloat("_Metallic", .63f);
             metal.SetFloat("_Glossiness", .62f);
             mesh.Place(key.transform, "钥匙", metal);
-            key.transform.SetPositionAndRotation(spec.Position, Quaternion.Euler(0, spec.Yaw, 0));
-            pickups.Add((spec.KeyId, key));
+            key.transform.SetPositionAndRotation(at, rotation);
+            return key;
         }
     }
 }

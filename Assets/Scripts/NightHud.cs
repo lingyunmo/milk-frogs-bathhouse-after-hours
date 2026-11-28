@@ -451,11 +451,23 @@ namespace AfterHours
         {
             Classes(veil, safe ? "ending-veil ending--dawn" : "ending-veil ending--caught");
             Area(veil, "screen ending-vignette").style.backgroundImage = new StyleBackground(NightInterfaceArt.Vignette);
+            if (safe)
+            {
+                var scene = Area(veil,"screen");
+                scene.style.backgroundImage = new StyleBackground(Resources.Load<Texture2D>("Interface/LastBus"));
+                scene.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+                scene.SendToBack();
+            }
+            var ending = NightShiftTrail.Ending(game.State);
             var column = Area(veil, "ending");
             Type(column, safe ? game.State.NightLabel + "　·　完" : game.State.NightLabel, "ending-overline");
-            Type(column, safe ? "天亮以前" : "最后一夜", "ending-title serif");
+            Type(column, safe ? ending.title : "最后一夜", "ending-title serif");
             Area(column, "ending-rule");
-            Type(column, safe ? "车门关上了。浴场的灯从后窗消失。" : "铁门合上了。走廊里只剩它的笑声。", "ending-caption serif");
+            Type(column, safe ? ending.caption : "铁门合上了。走廊里只剩它的笑声。", "ending-caption serif");
+            if (safe && NightShiftTrail.Has(game.State,NightItemId.Tape))
+                Type(column, "司机拔掉广播的插头。车厢的暖气管里，轻轻笑了三声。","ending-caption serif");
+            else if (safe && NightShiftTrail.Has(game.State,NightItemId.Founding))
+                Type(column, "天亮了。窗外有人排队买早场浴票。你摸到口袋里的第一号，还是湿的。","ending-caption serif");
             int seconds = Mathf.FloorToInt(game.State.dispatch.playSeconds);
             Type(column, $"在场时间　{seconds / 60:D2}′ {seconds % 60:D2}″", "ending-overline");
             var actions = Area(column, "ending-actions");
@@ -505,7 +517,7 @@ namespace AfterHours
             Legend(legend, "legend-swatch--here", "当前位置");
             Legend(legend, "legend-swatch--seen", "已走过");
             Legend(legend, "legend-swatch--unknown", "未探索");
-            if (game.State.dispatch.accepted && (!game.State.RescueAccess || !game.State.survey.archive))
+            if (game.State.dispatch.orderHeld)
                 Legend(legend, "legend-swatch--here", "调度点");
             var tools = Area(footer, "atlas-tools");
             Type(tools, "滚轮缩放　·　按住拖动", "muted");
@@ -762,7 +774,7 @@ namespace AfterHours
             Visible(objectiveBlock, !busy);
             objectiveBlock.EnableInClassList("objective--updated", received || now - objectiveSince < 3.2f);
             Copy(objectiveTag, received ? "已接单　/　夜班调度" :
-                state.dispatch.accepted && !state.detained && !state.beacon && !(state.contacted && state.RescueAccess)
+                state.dispatch.orderHeld && !state.detained && !state.beacon && !(state.contacted && state.RescueAccess)
                     ? OrderName(NightFieldOrders.Tracking(state)) : state.NightLabel);
             Visible(equipmentHints, !busy && !game.InPursuit && now - arrival < 13);
             Copy(mapFloor, NightAtlas.FloorNames[game.Atlas.Floor]);

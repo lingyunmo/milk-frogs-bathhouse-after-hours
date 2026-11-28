@@ -24,7 +24,8 @@ namespace AfterHours
     [Serializable]
     internal sealed class DispatchState
     {
-        public bool accepted, carrying, delivered;
+        public bool accepted, carrying, delivered, orderHeld;
+        public int docket;
         public FieldOrder tracked;
         public int[] steps = new int[4];
         public int teeth, leakPattern, sealedLines;
@@ -74,42 +75,24 @@ namespace AfterHours
         {
             BuildReturnTargets();
             BuildSurveyTargets();
-            Target(NightDispatch.Receiver, "接听夜班调度", 1.5f, AcceptDispatch,
-                () => !State.detained && !State.dispatch.accepted && !State.beacon);
+            BuildShiftTrail();
             for (int slot = 0; slot < NightDispatch.Stations.Length; slot++)
             {
                 int i = slot;
                 Target(NightDispatch.Panel(i), "校准机组 · " + NightDispatch.Stations[i].Name, .5f, () => StartGenerator(i),
-                    () => CanWork && State.dispatch.steps[i] < NightDispatch.Contacts);
+                    () => WorkingOn(FieldOrder.Lights) && State.dispatch.steps[i] < NightDispatch.Contacts);
             }
             loadTarget = Target(NightDispatch.LoadDepot + Vector3.up * .34f, "背起绞盘配重", .85f, PickUpLoad,
-                () => CanWork && !State.dispatch.delivered && !State.dispatch.carrying);
-            Target(NightDispatch.Winch, "挂上配重", 1.15f, DeliverLoad, () => CanWork && State.dispatch.carrying);
+                () => WorkingOn(FieldOrder.Barrier) && !State.dispatch.delivered && !State.dispatch.carrying);
+            Target(NightDispatch.Winch, "挂上配重", 1.15f, DeliverLoad, () => WorkingOn(FieldOrder.Barrier) && State.dispatch.carrying);
             Target(NightDispatch.Winch, "握住绞盘曲柄", .5f, StartWinch,
-                () => CanWork && State.dispatch.delivered && State.dispatch.teeth < NightDispatch.Teeth);
+                () => WorkingOn(FieldOrder.Barrier) && State.dispatch.delivered && State.dispatch.teeth < NightDispatch.Teeth);
             Target(NightDispatch.ReceiverDish, "转动维修站定向天线", .6f, StartTuning,
-                () => CanWork && State.power && State.annexIsolated && !State.contacted);
+                () => WorkingOn(FieldOrder.Radio) && State.power && State.annexIsolated && !State.contacted);
         }
 
-        bool CanWork => State.dispatch.accepted && !State.detained && !State.beacon;
-        void AcceptDispatch()
-        {
-            State.dispatch.accepted = true;
-            State.dispatch.leakPattern = UnityEngine.Random.Range(0,8);
-            world.RefreshDispatch();
-            world.RefreshReturnLines();
-            Emit(NightDispatch.Receiver, .42f, "signal");
-            hud.ReceiveDispatch();
-            Notify("「喂？我是末班车司机。路上没灯，我看不见。先帮我把灯打开。」", 5);
-            SaveProgress();
-        }
-
-        internal void TrackOrder(FieldOrder order)
-        {
-            if (!State.dispatch.accepted || NightFieldOrders.Done(order, State)) return;
-            State.dispatch.tracked = order;
-            SaveProgress();
-        }
+        internal bool WorkingOn(FieldOrder order) =>
+            !State.detained && !State.beacon && State.dispatch.orderHeld && State.dispatch.tracked == order;
 
         void StartGenerator(int index)
         {
@@ -130,7 +113,7 @@ namespace AfterHours
         internal void GeneratorStroke(bool hit)
         {
             int i = ActiveGenerator;
-            if (i < 0 || !CanWork) return;
+            if (i < 0 || !WorkingOn(FieldOrder.Lights)) return;
             var job = State.dispatch;
             job.steps[i] = Mathf.Clamp(job.steps[i] + (hit ? 1 : -1), 0, NightDispatch.Contacts);
             var site = NightDispatch.Approach(i);
@@ -219,7 +202,7 @@ namespace AfterHours
         internal void Wind(bool pulling, float dt)
         {
             var job = State.dispatch;
-            if (!Winding || !CanWork) return;
+            if (!Winding || !WorkingOn(FieldOrder.Barrier)) return;
             if (!pulling || Player.Exhausted)
             {
                 if (!pulling) Player.RestAtWinch(dt);

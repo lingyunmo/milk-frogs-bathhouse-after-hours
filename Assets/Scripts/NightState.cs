@@ -12,6 +12,7 @@ namespace AfterHours
         static readonly string[] NightLabels = { "第一夜", "第二夜", "第三夜", "第四夜", "第五夜" };
 
         public int schema=1;
+        public int shiftEdition;
         public int night = 1;
         public bool detained, ended;
         internal string NightLabel => NightLabels[Mathf.Clamp(night, 1, MaxNights) - 1];
@@ -23,8 +24,10 @@ namespace AfterHours
         internal const float FullTorchCharge = 360;
         public bool torch, motorPart, seal, firstFireDoor, power, pump, uplink, contacted, beacon, escaped;
         internal bool Drained => pump || dispatch.sealedLines == 7;
-        internal bool RescueAccess => dispatch.RoadReady && Drained && survey.ReportReady;
-        internal bool CanBoard => beacon && rescueTime == 0 && dispatch.playSeconds >= RiverSurvey.FirstBus && RescueAccess;
+        internal bool RescueAccess => RoadSurveyComplete && story.boardAligned;
+        internal bool RoadSurveyComplete => dispatch.RoadReady && Drained && survey.ReportReady && survey.archive && story.ledger && story.exchanged && NightShiftTrail.DoorUsed(this, "key-uplink");
+        internal bool CanBoard => beacon && rescueTime == 0 && RescueAccess;
+        public ShiftEvidence story = new();
         public SurveyFilm survey = new();
         public DispatchState dispatch = new();
         public bool annexIsolated, annexRelay;
@@ -63,8 +66,26 @@ namespace AfterHours
                     save.dispatch.Normalize();
                     save.survey ??= new SurveyFilm();
                     save.survey.Normalize();
+                    save.story ??= new ShiftEvidence();
+                    // Old desks gave out the later keys before any investigation. Re-seat only
+                    // those locks in an unfinished legacy run; preserve repairs, photos and supplies.
+                    if (save.shiftEdition == 0 && !save.escaped && !save.ended)
+                    {
+                        foreach (var spec in NightKeyDoors.Locks)
+                        {
+                            if (spec.Slot == NightKeyDoors.KeySlot.Linen) continue;
+                            save.collected.Remove(spec.KeyId);
+                            save.collected.Remove(spec.UnlockId);
+                            save.openDoors.Remove(spec.Room);
+                            save.openDoors.Remove(spec.Room + "侧门");
+                        }
+                        save.shiftEdition = 1;
+                    }
+                    if (save.dispatch.orderHeld && NightFieldOrders.Done(save.dispatch.tracked, save))
+                        save.dispatch.orderHeld = false;
+                    if (!save.escaped && save.rescueTime > 27) save.rescueTime = 27;
                     // A pre-survey save may have signalled the bus already. Keep its road and radio work.
-                    if (save.beacon && !save.escaped && !save.survey.ReportReady)
+                    if (save.beacon && !save.escaped && !save.RescueAccess)
                     {
                         save.beacon = false;
                         save.rescueTime = -1;

@@ -59,7 +59,7 @@ namespace AfterHours
             inventoryGrid.Clear();
             itemInspection.Clear();
 
-            var items = game.InventoryItems.Where(item => (item.Id is NightItemId.Receipt or NightItemId.AnnexDiagram) == showNotes).ToList();
+            var items = game.InventoryItems.Where(item => (item.Kind is "记录" or "证物") == showNotes).ToList();
             if (items.Count == 0)
             {
                 selectedItem = null;
