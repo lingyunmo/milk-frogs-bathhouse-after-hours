@@ -49,9 +49,9 @@ namespace AfterHours
         readonly Dictionary<int,float> visits=new();
         readonly Dictionary<int,float> patrolRetryUntil=new();
         readonly List<int> patrolNodes = new();
-        (Vector3 Center, bool Inside)? patrolArea;
+        Vector3? outdoorPatrolCenter;
         int firstPatrolPost = -1, secondPatrolPost = -1;
-        float patrolRemaining, approachDeadline, patrolSpeed, nextFootstepClue;
+        float patrolRemaining, nextPatrolCheck, patrolSpeed, nextFootstepClue;
         bool patrolStarted, circuitLeg;
         static readonly Vector3[] NightSpawns =
         {
@@ -311,10 +311,10 @@ namespace AfterHours
             ResetProgress();
             visits.Clear();
             patrolRetryUntil.Clear();
-            patrolArea = null;
+            outdoorPatrolCenter = null;
             firstPatrolPost = secondPatrolPost = -1;
             patrolStarted = circuitLeg = false;
-            patrolRemaining = approachDeadline = 0;
+            patrolRemaining = nextPatrolCheck = 0;
             nextFootstepClue = 0;
             cycle = 0;
             path.Clear();
@@ -485,29 +485,27 @@ namespace AfterHours
             return (center, FloorRoutes.IsInsideBathhouse(feet));
         }
 
-        void SamplePatrolArea()
+        void RefreshOutdoorPatrol()
         {
-            // This quiet-period snapshot is used only to choose patrol posts. It never becomes
-            // a visual memory, a sound, a chase target, or a direction to face.
-            Vector3 feet = game.Player.Concealed ? Position : game.Player.Feet;
-            var center = new Vector3(feet.x, FloorRoutes.LevelHeight(FloorRoutes.LevelAt(feet.y)), feet.z);
-            patrolArea = (center, FloorRoutes.IsInsideBathhouse(feet));
+            outdoorPatrolCenter = game.OutdoorPatrolCenter();
             firstPatrolPost = secondPatrolPost = -1;
-            patrolStarted = false;
+            patrolStarted = circuitLeg = false;
             patrolRemaining = UnityEngine.Random.Range(30f, 60f);
-            // An inaccessible snapshot must eventually expire. A cross-town walk needs more time.
-            approachDeadline = elapsed + Mathf.Clamp(45f + Vector3.Distance(Position, center) / 1.46f, 45f, 180f);
+            // Indoors we keep patrolling locally until the next quiet check. Crossing a
+            // doorway does not start a new check or reset the current patrol leg.
+            nextPatrolCheck = elapsed + (outdoorPatrolCenter.HasValue
+                ? Mathf.Clamp(45f + Vector3.Distance(Position, outdoorPatrolCenter.Value) / 1.46f, 45f, 180f)
+                : patrolRemaining);
         }
 
         bool IsPatrolPost(Vector3 point)
         {
-            if (!patrolArea.HasValue) return false;
-            var area = patrolArea.Value;
-            float x = point.x - area.Center.x, z = point.z - area.Center.z;
+            if (!outdoorPatrolCenter.HasValue) return false;
+            Vector3 center = outdoorPatrolCenter.Value;
+            float x = point.x - center.x, z = point.z - center.z;
             float distanceSquared = x*x + z*z;
             return distanceSquared >= PatrolInnerRadius*PatrolInnerRadius && distanceSquared <= PatrolRadius*PatrolRadius &&
-                FloorRoutes.LevelAt(point.y) == FloorRoutes.LevelAt(area.Center.y) &&
-                FloorRoutes.IsInsideBathhouse(point) == area.Inside;
+                FloorRoutes.LevelAt(point.y) == 0 && !game.IsInsideBuilding(point);
         }
 
         internal void Tick(float dt)
@@ -734,17 +732,21 @@ namespace AfterHours
             if (faultSite.HasValue && (elapsed > faultUntil || sees || (Position - faultSite.Value).sqrMagnitude < 2.25f))
                 faultSite = null;
             bool quiet = !faultSite.HasValue && notice <= 0 && !hasTrail && noises.Count == 0 && !keepInvestigation;
-            bool sampleDue = !patrolArea.HasValue || patrolRemaining <= 0 || !patrolStarted && elapsed >= approachDeadline;
+            bool sampleDue = patrolStarted ? patrolRemaining <= 0 : elapsed >= nextPatrolCheck;
             if (quiet && sampleDue)
             {
-                SamplePatrolArea();
-                path.Clear();
-                waypoint = 0;
-                underway = keepPatrol = false;
+                bool hadOutdoorPatrol = outdoorPatrolCenter.HasValue;
+                RefreshOutdoorPatrol();
+                if (hadOutdoorPatrol || outdoorPatrolCenter.HasValue)
+                {
+                    path.Clear();
+                    waypoint = 0;
+                    underway = keepPatrol = false;
+                }
             }
             if (quiet && keepPatrol) return;
             var localArea = AreaOf(Position);
-            var area = patrolArea ?? localArea;
+            var area = outdoorPatrolCenter.HasValue ? (outdoorPatrolCenter.Value, false) : localArea;
 
             goals.Clear();
             void Consider(Intent kind, Vector3 point, float age, float strength, int slot = -1,
@@ -792,13 +794,13 @@ namespace AfterHours
                     Consider(Intent.Patrol, routing.PointAt(nextPost), 5, .2f, nextPost);
                 else
                 {
-                    AddPatrolGoals(area, 2, patrolArea.HasValue);
-                    if (goals.Count == sensoryGoals) AddPatrolGoals(area, 1, patrolArea.HasValue);
+                    AddPatrolGoals(area, 2, outdoorPatrolCenter.HasValue);
+                    if (goals.Count == sensoryGoals) AddPatrolGoals(area, 1, outdoorPatrolCenter.HasValue);
                 }
             }
 
-            if (TryRoute(keepPatrol ? circuitLeg : patrolArea.HasValue)) return;
-            if (patrolArea.HasValue)
+            if (TryRoute(keepPatrol ? circuitLeg : outdoorPatrolCenter.HasValue)) return;
+            if (outdoorPatrolCenter.HasValue)
             {
                 // A locked wing or one-way door may cut off the sampled patrol. Walk locally
                 // and try another accessible post, without sampling the player again.
@@ -904,7 +906,7 @@ namespace AfterHours
             if (!CanTraverse(from, to)) return false;
             // The director supplies a district, not a waypoint. Keep the quiet approach and
             // return leg from cutting straight through the sampled hiding spot.
-            Vector3 center = patrolArea.Value.Center;
+            Vector3 center = outdoorPatrolCenter.Value;
             Vector2 offset = new(from.x - center.x, from.z - center.z);
             Vector2 move = new(to.x - from.x, to.z - from.z);
             float progress = Vector2.Dot(offset, move);

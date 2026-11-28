@@ -19,6 +19,7 @@ namespace AfterHours
         internal readonly List<Door> Doors=new();
         internal GameObject Crate, Rescue;
         readonly List<(string id,GameObject model)> pickups=new();
+        readonly List<Bounds> buildingInteriors = new();
         readonly NightGame game;
         readonly Material brass, olive;
         Material wood, red;
@@ -51,8 +52,32 @@ namespace AfterHours
             return go;
         }
 
+        void RegisterInterior(Rect plan, float floor, float ceilingY)
+        {
+            // A controller at rest can sit just below the authored floor.
+            float bottom = floor - .12f;
+            buildingInteriors.Add(new Bounds(new(plan.center.x,(bottom+ceilingY)*.5f,plan.center.y),
+                new(plan.width,ceilingY-bottom,plan.height)));
+        }
+
+        internal bool IsInsideBuilding(Vector3 feet)
+        {
+            foreach (var bounds in buildingInteriors)
+                if (bounds.Contains(feet)) return true;
+            if (!NightAnnexLayout.Ramp.Contains(new Vector2(feet.x,feet.z))) return false;
+            float ramp = NightAnnexLayout.RampHeight(feet.z);
+            return feet.y >= ramp-.12f && feet.y <= ramp+AnnexCeiling;
+        }
+
         internal void Build()
         {
+            float basement = FloorRoutes.LevelHeight(-1);
+            float top = NightAnnexLayout.Upper + RingWallHeight;
+            RegisterInterior(NightAtlas.Building, basement, top);
+            RegisterInterior(NightMainRing.Footprint, basement, top);
+            RegisterInterior(NightMainRing.BasementConnector, basement, basement+RingWallHeight);
+            RegisterInterior(NightAnnexLayout.Footprint, NightAnnexLayout.Lower, NightAnnexLayout.Upper+AnnexCeiling);
+            RegisterInterior(NightAnnexLayout.Bridge, NightAnnexLayout.Lower, NightAnnexLayout.Upper+AnnexCeiling);
             atmosphere = NightAtmosphere.Create(root);
             Lighting();
             CreateSurfaces();

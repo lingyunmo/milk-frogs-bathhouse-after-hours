@@ -46,7 +46,8 @@ namespace AfterHours
             wing.SetParent(root,false);
             const float h=3.22f;
             const float west=ReturnWing.West, south=ReturnWing.South, north=ReturnWing.North;
-            float east=west+5*ReturnWing.Width;
+            float east=west+ReturnWing.Rooms.Length*ReturnWing.Width;
+            RegisterInterior(Rect.MinMaxRect(west,south,east,north),0,h);
             void Wall(Vector3 at,Vector3 size,Material finish) => StreetRoomSurface(wing,"承重墙",at,size,finish,1.8f);
             Wall(new((west+east)/2,h/2,south),new(east-west,h,.22f),brick);
             Wall(new((west+east)/2,h/2,north),new(east-west,h,.24f),plaster);
