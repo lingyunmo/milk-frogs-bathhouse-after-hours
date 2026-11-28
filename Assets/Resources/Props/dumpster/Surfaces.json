@@ -1,0 +1,18 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "dumpster_color",
+      "normal": "dumpster_normal",
+      "arm": "dumpster_orm_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 1,
+      "rough": 1
+    }
+  ]
+}

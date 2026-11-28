@@ -1,0 +1,18 @@
+{
+  "surfaces": [
+    {
+      "name": "Surface_0",
+      "color": "body_color",
+      "normal": "nrm0",
+      "arm": "rough0_Unity",
+      "tint": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "metal": 0,
+      "rough": 1
+    }
+  ]
+}

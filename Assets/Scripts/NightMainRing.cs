@@ -41,7 +41,9 @@ namespace AfterHours
         internal static readonly (string Id, Vector3 Target, string Place)[] Batteries =
         {
             ("cell-ring-lobby", new(-5.7f, .90f, -6.55f), "迎宾中庭"),
-            ("cell-ring-therapy", new(5.7f, 4.50f, -6.82f), "理疗室")
+            ("cell-ring-therapy", new(5.7f, 4.50f, -6.82f), "理疗室"),
+            ("cell-consumables-counter", new(2.60f, -2.64f, -5.80f), "耗材间"),
+            ("cell-archive-counter", new(-5.82f, 8.15f, 4.99f), "档案室")
         };
 
         // Old rooms serve as separate entrances to the new south wing. The east bridges stay on the old hall.
