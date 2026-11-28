@@ -25,7 +25,8 @@ namespace AfterHours
         VisualElement mapHousing, equipmentHousing;
         NightReticle reticle;
         NightDetentionLock detentionLock;
-        Meter stamina, torch;
+        Meter stamina, torch, gateMeter, survivorMeter;
+        VisualElement brineVitals, brineSlot, stoneSlot;
         NightMapView minimap;
         NightPursuitVignette pursuitVignette;
         Button[] mapTabs;
@@ -496,21 +497,30 @@ namespace AfterHours
             Classes(veil, safe ? "ending-veil ending--dawn" : "ending-veil ending--caught");
             Area(veil, "screen ending-vignette").style.backgroundImage = new StyleBackground(NightInterfaceArt.Vignette);
             var scene = Area(veil, "screen");
-            scene.style.backgroundImage = new StyleBackground(safe ? Resources.Load<Texture2D>("Interface/LastBus") : titleImage);
+            var ticket = NightTickets.Result(game.State);
+            bool brineEnding = ticket is Ticket.CoreCargo or Ticket.Overrun or Ticket.NuclearEscape;
+            scene.style.backgroundImage = new StyleBackground(ticket is Ticket.Overrun or Ticket.NuclearEscape
+                ? Resources.Load<Texture2D>("Interface/BrineAfterglow") : safe ? Resources.Load<Texture2D>("Interface/LastBus") : titleImage);
             scene.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
             scene.SendToBack();
-            var ending = NightShiftTrail.Ending(game.State);
+            var ending = brineEnding ? BrineRoute.Epilogue(ticket,game.State.brine.missedExit) : NightShiftTrail.Ending(game.State);
             Area(veil, "screen ending-scrim").style.backgroundImage = new StyleBackground(NightInterfaceArt.LeftScrim);
+            if(ticket is Ticket.NuclearEscape or Ticket.Overrun)
+            {
+                var bloom=Area(veil,"screen brine-whiteout");
+                bloom.schedule.Execute(()=>bloom.AddToClassList("brine-whiteout--spent")).StartingIn(80);
+                bloom.schedule.Execute(()=>bloom.RemoveFromHierarchy()).StartingIn(2100);
+            }
             var column = Area(veil, "ending");
             Type(column, safe ? game.State.NightLabel + "　·　完" : game.State.NightLabel, "ending-overline");
-            Type(column, safe ? ending.title : "最后一夜", "ending-title serif");
+            Type(column, safe || brineEnding ? ending.title : "最后一夜", "ending-title serif");
             Area(column, "ending-rule");
-            Type(column, safe ? ending.caption : "铁门合上了。走廊里只剩它的笑声。", "ending-caption serif");
-            if (safe && !game.State.circuit.Solved && NightShiftTrail.Has(game.State,NightItemId.Tape))
+            Type(column, safe || brineEnding ? ending.caption : "铁门合上了。走廊里只剩它的笑声。", "ending-caption serif");
+            if (!brineEnding && safe && !game.State.circuit.Solved && NightShiftTrail.Has(game.State,NightItemId.Tape))
                 Type(column, "司机拔掉广播的插头。车厢的暖气管里，轻轻笑了三声。","ending-caption serif");
-            else if (safe && !game.State.circuit.Solved && NightShiftTrail.Has(game.State,NightItemId.Founding))
+            else if (!brineEnding && safe && !game.State.circuit.Solved && NightShiftTrail.Has(game.State,NightItemId.Founding))
                 Type(column, "天亮了。窗外有人排队买早场浴票。你摸到口袋里的第一号，还是湿的。","ending-caption serif");
-            if (safe && game.State.circuit.Solved)
+            if (!brineEnding && safe && game.State.circuit.Solved)
             {
                 var stub=Area(column,"return-proof");
                 Type(stub,game.State.circuit.Receipt,"proof-mark serif");
@@ -613,6 +623,11 @@ namespace AfterHours
             objectiveTag = Type(tagline, "", "objective-tag");
             task = Type(objectiveBlock, shownObjective, "objective-text serif");
             location = Type(objectiveBlock, "", "objective-place");
+            brineVitals=Area(objectiveBlock,"brine-vitals");
+            Type(brineVitals,"闸门","brine-meter-name");
+            gateMeter=new Meter(brineVitals,"brine-track","brine-gate");
+            Type(brineVitals,"生命","brine-meter-name");
+            survivorMeter=new Meter(brineVitals,"brine-track","brine-life");
             status = Area(layer, "danger field-danger");
             Area(status, "danger-dot");
             Type(status, "脚步逼近", "danger-text");
@@ -676,7 +691,9 @@ namespace AfterHours
             charge.name = "torch-charge";
             torch = new Meter(torchSlot.Q(className: "slot-body"), "torch-track", "torch-fill", 5);
             Slot(equipment, "R", "电池", "cell", out cellCount);
-            Slot(equipment, "G", "石子", "stone", out stoneCount);
+            stoneSlot=Slot(equipment, "G", "石子", "stone", out stoneCount);
+            brineSlot=Slot(equipment,"左键","回流炮","BrineCase",out var rounds);
+            Copy(rounds,"∞");
 
             equipmentHints = Area(layer, "hint-row");
             var hints = equipmentHints;
@@ -763,7 +780,7 @@ namespace AfterHours
             repairOption = current.selected;
             repairSlot.Clear();
             var heading = Area(repairSlot, "repair-heading");
-            Type(heading, "检修", "repair-overline");
+            Type(heading, current.wholeCode!=null ? "封门字轮" : current.title=="堤岸隔离闸" ? "紧急隔离" : "检修", "repair-overline");
             Type(heading, $"第 {current.row + 1} 步 / 共 {current.answer.Length} 步", "repair-step");
             Type(repairSlot, current.title, "repair-title serif");
             Type(repairSlot, current.prompts[current.row], "repair-detail");
@@ -825,6 +842,13 @@ namespace AfterHours
             Visible(equipmentHousing, !reading);
             bool received = now < dispatchHeardUntil;
             Visible(objectiveBlock, !busy);
+            Visible(brineVitals,state.brine.Fighting);
+            Visible(brineSlot,state.brine.Live); Visible(stoneSlot,!state.brine.Live);
+            if(state.brine.Fighting)
+            {
+                gateMeter.Set(state.brine.shutter*.01f,state.brine.shutter<=40);
+                survivorMeter.Set(state.brine.breath*.01f,state.brine.breath<=25);
+            }
             objectiveBlock.EnableInClassList("objective--updated", received || now - objectiveSince < 3.2f);
             Copy(objectiveTag, received ? "已接单　/　夜班调度" :
                 state.dispatch.orderHeld && !state.detained && !state.beacon && !(state.contacted && state.RescueAccess)

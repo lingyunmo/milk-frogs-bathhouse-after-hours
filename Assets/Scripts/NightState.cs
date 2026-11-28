@@ -24,9 +24,10 @@ namespace AfterHours
         internal const float FullTorchCharge = 360;
         public bool torch, motorPart, seal, firstFireDoor, power, pump, uplink, contacted, beacon, escaped;
         internal bool Drained => pump || dispatch.sealedLines == 7;
-        internal bool RescueAccess => RoadSurveyComplete && story.boardAligned;
+        internal bool RescueAccess => !brine.Committed && RoadSurveyComplete && story.boardAligned;
         internal bool RoadSurveyComplete => dispatch.RoadReady && Drained && survey.ReportReady && survey.archive && story.ledger && story.exchanged && NightShiftTrail.DoorUsed(this, "key-uplink");
         internal bool CanBoard => beacon && rescueTime == 0 && RescueAccess;
+        public BrineRun brine = new();
         public ShiftEvidence story = new();
         public ReturnCircuit circuit = new();
         public SurveyFilm survey = new();
@@ -63,6 +64,8 @@ namespace AfterHours
                     var save=JsonUtility.FromJson<NightState>(File.ReadAllText(path));
                     if (save == null || save.schema != 1 || save.collected == null || save.openDoors == null)
                         continue;
+                    save.brine ??= new BrineRun();
+                    save.brine.Normalize();
                     save.dispatch ??= new DispatchState();
                     save.dispatch.Normalize();
                     save.survey ??= new SurveyFilm();

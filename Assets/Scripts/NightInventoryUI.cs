@@ -182,6 +182,20 @@ namespace AfterHours
                 if (!photograph) Type(leaf, item.Name, "paper-title serif");
                 Area(leaf, "paper-rule");
                 Type(leaf, item.Description, "paper-writing serif").name = "evidence-transcript";
+                if(item.Id == NightItemId.BrineBook)
+                {
+                    foreach(string film in game.State.brine.exposures)
+                    {
+                        if(string.IsNullOrEmpty(film)) continue;
+                        var image=new Image {scaleMode=ScaleMode.ScaleToFit};
+                        var print=new Texture2D(2,2);
+                        if(!print.LoadImage(System.Convert.FromBase64String(film))) { UnityEngine.Object.Destroy(print); continue; }
+                        image.image=print;
+                        image.style.height=160;
+                        image.RegisterCallback<DetachFromPanelEvent>(_=>UnityEngine.Object.Destroy(print));
+                        leaf.Add(image);
+                    }
+                }
             }
             var partner = item.Id switch
             {
@@ -251,6 +265,7 @@ namespace AfterHours
             NightItemId.LostPair => "LostPair",
             NightItemId.Torch => "torch",
             NightItemId.Battery => "cell",
+            NightItemId.BrineSample => "BrineCase",
             NightItemId.Stone => "stone",
             NightItemId.Starter or NightItemId.RelayFuse => "starter",
             NightItemId.Seal => "seal",

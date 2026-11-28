@@ -9,7 +9,7 @@ namespace AfterHours
         {
             internal string title;
             internal string[] options, prompts;
-            internal int[] answer;
+            internal int[] answer, wholeCode;
             internal int row, selected;
             internal Vector3 source;
             internal Action Complete;
@@ -32,7 +32,16 @@ namespace AfterHours
 
         void ConfirmRepair()
         {
-            if(panel.selected!=panel.answer[panel.row])
+            if(panel.title=="堤岸隔离闸" && panel.selected==0) { panel=null; Notify("封条还在。你把匣盖合上了。"); return; }
+            if (panel.wholeCode != null)
+            {
+                panel.wholeCode[panel.row]=panel.selected;
+                if (panel.row+1 == panel.answer.Length && !System.Linq.Enumerable.SequenceEqual(panel.wholeCode,panel.answer))
+                {
+                    panel.row=panel.selected=0; Emit(panel.source,.8f,"signal"); Notify("锁舌弹回。四只字轮一起归零。"); return;
+                }
+            }
+            else if(panel.selected!=panel.answer[panel.row])
             {
                 Emit(panel.source,.58f,"tool");
                 Notify(panel.title switch

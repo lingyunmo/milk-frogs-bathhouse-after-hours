@@ -7,6 +7,7 @@ namespace AfterHours
     {
         void BuildObjectives()
         {
+            BuildBrineTargets();
             Vector3 torchBench = new(-2,4.12f,21);
             Target(torchBench,"拿起手电",0,()=>
             {

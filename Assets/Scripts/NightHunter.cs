@@ -312,6 +312,29 @@ namespace AfterHours
             SetExpression(0);
         }
 
+        internal void JoinGuard(Vector3 position)
+        {
+            actor.gameObject.SetActive(true); Pursuing=false; listenTime=0; listenRipple.Stop();
+            Pose(position,270); SetStride(0); visual.localScale=fullScale; visual.localPosition=fullOffset;
+        }
+
+        float guardSwing;
+        internal void GuardStep(Vector3 post,Vector3 threat,float dt,bool strike)
+        {
+            var before=Position;
+            actor.position=Vector3.MoveTowards(before,post,dt*3.1f);
+            var facing=(post-before).sqrMagnitude>.1f ? post-before : threat-Position;
+            facing.y=0;
+            if(facing.sqrMagnitude>.01f)
+                actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(facing),dt*265);
+            bool walking=(before-Position).sqrMagnitude>.000001f;
+            stride+=dt*7;
+            SetStride(walking ? Mathf.Sin(stride) : 0);
+            guardSwing=strike ? 1 : Mathf.MoveTowards(guardSwing,0,dt*2.8f);
+            SetExpression(guardSwing);
+            visual.localRotation=Quaternion.Euler(14*guardSwing,0,-8*guardSwing)*modelFacing;
+        }
+
         internal void ReleaseReturnLine()
         {
             Pursuing=false;

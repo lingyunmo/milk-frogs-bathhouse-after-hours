@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 namespace AfterHours
 {
     // Stable bit positions in the local profile. A new night replaces the run file only.
-    internal enum Ticket { Passenger, Name, Broadcast, Deposit, LastNight, Return }
+    internal enum Ticket { Passenger, Name, Broadcast, Deposit, LastNight, Return, CoreCargo, Overrun, NuclearEscape }
     internal static class NightTickets
     {
         internal const string ProfileKey="AfterHours.TicketStubs.v1";
@@ -15,12 +15,18 @@ namespace AfterHours
             (Ticket.Name,"未寄出的名字","守闸人的枕头下压着半页纸。","一个人的名字，跟着车票进了你的口袋。"),
             (Ticket.Broadcast,"有人应名","弱电间的话筒还挂在原处。","你报出了那个名字，最后一排有人答到。"),
             (Ticket.Deposit,"请日班亲启","交班桌上有一块还软的封蜡。","司机签收了那封交给早班的底片。"),
+            (Ticket.CoreCargo,BrineRoute.CarryTitle,"？？？","司机没问你，为什么一路抱着那只暖匣。"),
+            (Ticket.Overrun,BrineRoute.LostTitle,"？？？","核警报响过，隔离闸内再无回音。"),
+            (Ticket.NuclearEscape,BrineRoute.ClearTitle,"？？？","你穿过泄洪廊，在对岸看见浴场开花。"),
             (Ticket.LastNight,"最后一夜","地下室的门闩又落下一格。","第五夜，走廊的灯再也没亮。"),
             (Ticket.Return,TrueTitle,"？？？","最后那通求救电话终于等到了回话。")
         };
         internal static int Mask => PlayerPrefs.GetInt(ProfileKey,0);
         internal static bool Stamped(Ticket ticket) => (Mask & (1<<(int)ticket))!=0;
-        internal static Ticket Result(NightState s) => s.escaped && s.circuit.Solved ? Ticket.Return :
+        internal static Ticket Result(NightState s) => s.brine.stage == BrineStage.Overrun ? Ticket.Overrun :
+            s.escaped && s.brine.stage == BrineStage.Clear ? Ticket.NuclearEscape :
+            s.escaped && s.brine.stage == BrineStage.Carrying ? Ticket.CoreCargo :
+            s.escaped && s.circuit.Solved ? Ticket.Return :
             s.ended && !s.escaped ? Ticket.LastNight : s.story.choice switch
             {
                 WitnessChoice.Broadcast=>Ticket.Broadcast,
@@ -59,7 +65,7 @@ namespace AfterHours
             foreach(var page in NightTickets.Book)
             {
                 bool stamped=NightTickets.Stamped(page.Id);
-                bool sealedTicket=page.Id==Ticket.Return && !stamped;
+                bool sealedTicket=!stamped && page.Id is (Ticket.Return or Ticket.CoreCargo or Ticket.Overrun or Ticket.NuclearEscape);
                 var row=Area(pages.contentContainer,"ticket-stub");
                 row.name="ticket-"+(int)page.Id;
                 var copy=Area(row,"ticket-copy");

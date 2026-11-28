@@ -190,3 +190,7 @@ Use case: photorealistic-natural. Create a landscape 16:9 full-bleed material ph
 Use case: historical-scene. Landscape 3:2 single analog vernacular photograph, photographic image only, no margins or lettering. Taken by an ordinary night-shift attendant in a small Chinese municipal public bathhouse at dawn in the early 1990s. In the near foreground on a low old glazed tile bathhouse counter sits a single pair of very small worn canvas shoes, wet laces loosely tucked in: one shoe right-side up, the other upside down over an inverted plain white enamel teacup with a chipped blue rim to dry. Clearly recognizable shapes, honest prosaic objects and a faint damp footprint on the tile. A row of empty wooden hooks and a barred frosted window out of focus behind, glancing morning light draws a bright line across one toe. Natural midtones and visibly aged muted hand-printed color film, petrol green and warm yellow, faded blacks, gentle grain and emulsion wear. Tight, quiet but slightly unsettling composition of a real lost-property object with a story, not a horror poster. No people, no creatures, no gore, no visible lettering or dates, no illustration, no overlay, no photo border or table surrounding the photograph.
 
 </details>
+
+## 东堤冷样保管间
+
+潮返者剪影、封存匣背包图与隔河核闪结局图均为本项目生成的原创图像。战场预览截自 Windows 试玩版，堤岸设施沿用本项目已有的授权模型与路面材质。
