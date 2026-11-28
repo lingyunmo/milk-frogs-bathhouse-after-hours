@@ -18,7 +18,7 @@ namespace AfterHours
         internal Vector3? CurrentGoal => waypoint < path.Count ? destination : null;
         internal string ObservedIntent => activeIntent switch
         {
-            Intent.Pursue => "目击追逐",
+            Intent.Pursue => recognized ? "目击追逐" : tracking ? "循迹追逐" : "赶往感知位置",
             Intent.Search => "搜索最后目击点",
             Intent.Investigate => investigationSound switch {
                 "step" => "调查脚步声", "land" => "调查落地声", "generator-trip" => "调查跳闸警铃", _ => "调查声响"
@@ -27,7 +27,6 @@ namespace AfterHours
                 RoundStop.MainHall => "回主楼巡查", RoundStop.UpperHall => "上楼巡查",
                 RoundStop.SideHall => "巡查侧廊", RoundStop.Street => "返回街面", _ => "巡逻"
             },
-            _ when circuitLeg => "街面往返巡逻",
             _ => "附近巡逻"
         };
         internal Vector3 LaughSource => Position + actor.forward * .48f + Vector3.up * (Height * .79f);
@@ -51,7 +50,10 @@ namespace AfterHours
         const float WaypointTolerance = .06f;
         const float PatrolAreaSize = 10f;
         const int PatrolRadius = 10;
-        const float PatrolInnerRadius = 5f;
+        const float FixInterval = 3f;
+        const float FixChance = .10f;
+        const float TrackDistance = 28f;
+        const float BreakAwaySeconds = 2.5f;
         const int EnvironmentMask = ~(1 << NightPlayer.PlayerLayer);
         const int ClearanceMask = EnvironmentMask & ~(1 << FloorRoutes.DoorLayer);
         Vector3 recentListenTarget;
@@ -67,14 +69,13 @@ namespace AfterHours
         readonly Dictionary<int,float> visits=new();
         readonly Dictionary<int,float> patrolRetryUntil=new();
         readonly List<int> patrolNodes = new();
-        Vector3? outdoorPatrolCenter;
-        int firstPatrolPost = -1, secondPatrolPost = -1;
-        float patrolRemaining, nextPatrolCheck, patrolSpeed, nextFootstepClue;
-        bool patrolStarted, circuitLeg, roundLeg;
+        Vector3? positionFix;
+        float fixUntil, nextFix, separation, patrolSpeed, nextFootstepClue;
+        bool tracking, roundLeg;
         enum RoundStop { None, MainHall, UpperHall, SideHall, Street }
         RoundStop roundStop;
         int roundVariant, upperFloor, sideRotation, failedRoundStops;
-        float nextRound, retryRoundAt;
+        float retryRoundAt;
         static readonly Vector2[] HallSectors = { new(-11, 12), new(5, 12), new(-5, -11) };
         static readonly Vector2[] StreetSectors = { new(30, -19), new(48, -17), new(-5, 32) };
         static readonly Vector2[] AnnexSectors = { new(28, 12), new(31, 12), new(34, 12) };
@@ -362,13 +363,11 @@ namespace AfterHours
             ResetProgress();
             visits.Clear();
             patrolRetryUntil.Clear();
-            outdoorPatrolCenter = null;
-            firstPatrolPost = secondPatrolPost = -1;
-            patrolStarted = circuitLeg = false;
-            patrolRemaining = nextPatrolCheck = 0;
+            positionFix = null;
+            nextFix = FixInterval;
+            fixUntil = separation = 0;
+            tracking = roundLeg = false;
             roundStop = RoundStop.None;
-            roundLeg = false;
-            nextRound = UnityEngine.Random.Range(30f, 60f);
             upperFloor = UnityEngine.Random.Range(1, 3);
             roundVariant = UnityEngine.Random.Range(0, HallSectors.Length);
             sideRotation = UnityEngine.Random.Range(0, 4);
@@ -411,15 +410,15 @@ namespace AfterHours
             Vector3 listener = Position + Vector3.up * 1.26f;
             Vector3 source = place + Vector3.up * .28f;
             float distance = Vector3.Distance(listener, source);
-            float range = volume * (footstep ? 34 : 58) * Mathf.Lerp(1, 1.12f, NightPressure);
+            float range = volume * (footstep ? 64 : 76) * Mathf.Lerp(1, 1.12f, NightPressure);
             if (distance > range) return;
 
             bool obstructed = Physics.Linecast(listener, source, EnvironmentMask, QueryTriggerInteraction.Ignore);
-            float transmission = obstructed ? (footstep ? .25f : .63f) : 1;
+            float transmission = obstructed ? (footstep ? .59f : .74f) : 1;
             if (Mathf.Abs(place.y - Position.y) > 2.75f && obstructed)
                 transmission *= footstep ? .63f : .78f;
             float strength = Mathf.Clamp01(volume * transmission / (1 + .047f * distance));
-            if (strength < .075f || obstructed && distance > range * .83f) return;
+            if (strength < .058f || obstructed && distance > range * .83f) return;
 
             // A cue on top of a workbench is investigated from the floor beside it.
             bool indoor = sound != "drone" && FloorRoutes.IsInsideBathhouse(place);
@@ -431,7 +430,7 @@ namespace AfterHours
                 place.y = floor.point.y;
             else place.y = level;
             if (!footstep && SoundRecentlyChecked(place, sound)) return;
-            if (footstep) nextFootstepClue = elapsed + (obstructed ? 4f : 2.8f);
+            if (footstep) nextFootstepClue = elapsed + (obstructed ? 1.2f : .85f);
 
             // Repeated impacts and footsteps from one spot update a single clue.
             for (int i = noises.Count - 1; i >= 0; i--)
@@ -447,7 +446,7 @@ namespace AfterHours
             noises.Add(new Cue { Place = place, Loudness = strength, Sound = sound });
             bool sameInvestigation = activeIntent == Intent.Investigate && waypoint < path.Count &&
                 investigationSound == sound && (destination - place).sqrMagnitude <= 3.24f;
-            if (!footstep && !sameInvestigation && strength > .23f) nextDecision = Mathf.Min(nextDecision, .05f);
+            if (!sameInvestigation && strength >= (footstep ? .08f : .14f)) nextDecision = Mathf.Min(nextDecision, .05f);
         }
 
         bool SoundRecentlyChecked(Vector3 place, string sound)
@@ -476,9 +475,11 @@ namespace AfterHours
             Vector3 toward = game.Player.Eyes.position - eye;
             distance = toward.magnitude;
             if (game.Player.Concealed) return false;
-            float reach = game.Player.TorchOn ? 17f : game.Player.Crouched ? 6.5f : 11f;
+            bool lit = game.Player.TorchOn;
+            bool inBeam = lit && Vector3.Dot(game.Player.Eyes.forward, -toward.normalized) >= .90f;
+            float reach = inBeam ? 34f : lit ? 25f : game.Player.Crouched ? 8f : 15f;
             reach *= Mathf.Lerp(1, 1.10f, NightPressure);
-            if (distance > reach || Vector3.Dot(actor.forward, toward.normalized) < .45f) return false;
+            if (distance > reach || (!inBeam && Vector3.Dot(actor.forward, toward.normalized) < .23f)) return false;
             if (game.Player.Crouched && !game.Player.TorchOn && Physics.Raycast(game.Player.Eyes.position, Vector3.up,
                 .63f, ClearanceMask, QueryTriggerInteraction.Ignore))
                 return false;
@@ -489,7 +490,8 @@ namespace AfterHours
         bool ObservePlayer(float dt)
         {
             bool visible = PlayerVisible(out float distance);
-            float focusSeconds = Mathf.Lerp(.38f, 1.18f, Mathf.InverseLerp(1, 16, distance));
+            float focusSeconds = Mathf.Lerp(.25f, .85f, Mathf.InverseLerp(1, 22, distance));
+            if (game.Player.TorchOn) focusSeconds *= .64f;
             if (game.Player.Crouched && !game.Player.TorchOn) focusSeconds += .22f;
             focusSeconds *= Mathf.Lerp(1, .85f, NightPressure);
             notice = Mathf.MoveTowards(notice, visible ? 1 : 0, dt * (visible ? 1f / focusSeconds : 3f));
@@ -503,7 +505,6 @@ namespace AfterHours
                 searched = 0;
             }
             if (sees != recognized) nextDecision = 0;
-            if (!sees) Pursuing = false;
             recognized = sees;
             return sees;
         }
@@ -545,24 +546,65 @@ namespace AfterHours
             return (center, FloorRoutes.IsInsideBathhouse(feet));
         }
 
-        void RefreshOutdoorPatrol()
+        // A remote hit is a snapshot. Until there is close contact or a new roll the destination stays put.
+        void UpdateTracking(bool sees, float dt)
         {
-            outdoorPatrolCenter = game.OutdoorPatrolCenter();
-            firstPatrolPost = secondPatrolPost = -1;
-            patrolStarted = circuitLeg = false;
-            patrolRemaining = UnityEngine.Random.Range(30f, 60f);
-            // Crossing a doorway never starts a new check.
-            nextPatrolCheck = elapsed + (outdoorPatrolCenter.HasValue
-                ? Mathf.Clamp(45f + Vector3.Distance(Position, outdoorPatrolCenter.Value) / 1.46f, 45f, 180f)
-                : patrolRemaining);
-        }
+            bool rollDue = elapsed >= nextFix;
+            if (rollDue) nextFix += FixInterval;
+            if (game.EmptyObservation || game.Player.Concealed)
+            {
+                tracking = Pursuing = false;
+                positionFix = null;
+                return;
+            }
 
-        void BeginBuildingRound()
-        {
-            outdoorPatrolCenter = null;
-            firstPatrolPost = secondPatrolPost = -1;
-            patrolStarted = circuitLeg = false;
-            SetRoundStop(RoundStop.MainHall);
+            bool navigating = !game.Player.Vaulting && !game.Player.InHideSpot;
+            if (sees)
+            {
+                tracking = true;
+                separation = 0;
+                positionFix = null;
+            }
+            if (tracking && !sees)
+            {
+                bool near = (game.Player.Feet - Position).sqrMagnitude <= TrackDistance * TrackDistance;
+                separation = near ? 0 : separation + dt;
+                if (near && navigating)
+                {
+                    lastSeen = game.Player.Feet;
+                    sinceSeen = 0;
+                    searched = 0;
+                }
+                if (separation >= BreakAwaySeconds)
+                {
+                    tracking = Pursuing = false;
+                    nextDecision = 0;
+                }
+            }
+            if (positionFix.HasValue && (elapsed >= fixUntil || (Position - positionFix.Value).sqrMagnitude < 1f))
+            {
+                positionFix = null;
+                nextDecision = 0;
+            }
+            if (!rollDue || tracking || !navigating || UnityEngine.Random.value >= FixChance) return;
+
+            var feet = game.Player.Feet;
+            float gap = Vector3.Distance(Position, feet);
+            if (gap <= TrackDistance)
+            {
+                tracking = true;
+                separation = sinceSeen = 0;
+                searched = 0;
+                lastHeading = actor.forward;
+                lastSeen = feet;
+                positionFix = null;
+            }
+            else
+            {
+                positionFix = feet;
+                fixUntil = elapsed + 10f + gap / 2.4f;
+            }
+            nextDecision = scanTime = 0;
         }
 
         void SetRoundStop(RoundStop stop)
@@ -592,8 +634,6 @@ namespace AfterHours
                 case RoundStop.Street:
                     sideRotation = (sideRotation + 1) % 4;
                     SetRoundStop(RoundStop.None);
-                    nextRound = elapsed + UnityEngine.Random.Range(30f, 60f);
-                    nextPatrolCheck = elapsed;
                     break;
             }
         }
@@ -611,16 +651,6 @@ namespace AfterHours
                 retryRoundAt = elapsed + (failedRoundStops % count == 0 ? 14f : 3f);
         }
 
-        bool IsPatrolPost(Vector3 point)
-        {
-            if (!outdoorPatrolCenter.HasValue) return false;
-            Vector3 center = outdoorPatrolCenter.Value;
-            float x = point.x - center.x, z = point.z - center.z;
-            float distanceSquared = x*x + z*z;
-            return distanceSquared >= PatrolInnerRadius*PatrolInnerRadius && distanceSquared <= PatrolRadius*PatrolRadius &&
-                FloorRoutes.LevelAt(point.y) == 0 && !game.IsInsideBuilding(point);
-        }
-
         internal void Tick(float dt)
         {
             elapsed += dt;
@@ -629,26 +659,27 @@ namespace AfterHours
             for (int i = blockedTraversals.Count - 1; i >= 0; i--)
                 if (blockedTraversals[i].Until <= elapsed) blockedTraversals.RemoveAt(i);
             sinceSeen += dt;
-            if (patrolStarted && activeIntent == Intent.Patrol) patrolRemaining -= dt;
             listenCooldown -= dt;
             listenRipple?.Tick(dt);
             for (int i = noises.Count - 1; i >= 0; i--)
             {
                 var cue = noises[i];
                 cue.Age += dt;
-                if (cue.Age > (cue.Footstep ? 3.8f : 13f)) noises.RemoveAt(i);
+                if (cue.Age > (cue.Footstep ? 6f : 16f)) noises.RemoveAt(i);
                 else noises[i] = cue;
             }
 
             bool sees = ObservePlayer(dt);
+            UpdateTracking(sees, dt);
+            bool following = tracking || positionFix.HasValue;
             bool finishingFlight = FloorRoutes.IsOnStair(Position) && waypoint < path.Count;
-            if ((nextDecision -= dt) <= 0 && !finishingFlight && (scanTime <= 0 || sees))
+            if ((nextDecision -= dt) <= 0 && !finishingFlight && (scanTime <= 0 || following))
             {
-                nextDecision = sees ? .40f : .45f;
+                nextDecision = following ? .35f : .45f;
                 Decide(sees);
             }
 
-            if (sees)
+            if (following)
             {
                 scanTime = 0;
                 if (listenTime > 0)
@@ -698,7 +729,7 @@ namespace AfterHours
                     return;
                 }
             }
-            float speed = Pursuing ? Mathf.Lerp(2.90f, 3.18f, NightPressure) : activeIntent == Intent.Patrol ? patrolSpeed : 1.77f;
+            float speed = Pursuing ? Mathf.Lerp(3.20f, 3.45f, NightPressure) : activeIntent == Intent.Patrol ? patrolSpeed : 1.77f;
             Vector3 next = Vector3.MoveTowards(Position, target, speed * dt);
             bool progressed = (next - progressAnchor).sqrMagnitude >= ProgressRadius * ProgressRadius;
             if (!progressed) timeWithoutProgress += dt;
@@ -798,16 +829,14 @@ namespace AfterHours
                 lastPost = activeSlot;
                 visits[activeSlot] = elapsed;
                 if (roundLeg) FinishRoundStop();
-                if (circuitLeg && IsPatrolPost(routing.PointAt(activeSlot)))
-                {
-                    patrolStarted = true;
-                    if (firstPatrolPost < 0) firstPatrolPost = activeSlot;
-                    else if (activeSlot != firstPatrolPost && secondPatrolPost < 0) secondPatrolPost = activeSlot;
-                }
                 nextDecision = 0;
                 return;
             }
-            if (activeIntent == Intent.Pursue) return;
+            if (activeIntent == Intent.Pursue)
+            {
+                if (positionFix.HasValue && (positionFix.Value - destination).sqrMagnitude < .64f) positionFix = null;
+                return;
+            }
             if (activeIntent == Intent.Search) searched |= 1 << activeSlot;
             else
             {
@@ -846,27 +875,8 @@ namespace AfterHours
             bool hasTrail = sinceSeen < Mathf.Lerp(6f, 10f, NightPressure);
             if (faultSite.HasValue && (elapsed > faultUntil || sees || (Position - faultSite.Value).sqrMagnitude < 2.25f))
                 faultSite = null;
-            bool quiet = !faultSite.HasValue && notice <= 0 && !hasTrail && noises.Count == 0 && !keepInvestigation;
-            bool sampleDue = patrolStarted ? patrolRemaining <= 0 : elapsed >= nextPatrolCheck;
-            if (quiet && roundStop == RoundStop.None && elapsed >= nextRound &&
-                (!outdoorPatrolCenter.HasValue || sampleDue))
-            {
-                BeginBuildingRound();
-                path.Clear();
-                waypoint = 0;
-                underway = keepPatrol = false;
-            }
-            if (quiet && roundStop == RoundStop.None && sampleDue)
-            {
-                bool hadOutdoorPatrol = outdoorPatrolCenter.HasValue;
-                RefreshOutdoorPatrol();
-                if (hadOutdoorPatrol || outdoorPatrolCenter.HasValue)
-                {
-                    path.Clear();
-                    waypoint = 0;
-                    underway = keepPatrol = false;
-                }
-            }
+            bool quiet = !tracking && !positionFix.HasValue && !faultSite.HasValue && notice <= 0 && !hasTrail && noises.Count == 0 && !keepInvestigation;
+            if (quiet && roundStop == RoundStop.None) SetRoundStop(RoundStop.MainHall);
             if (quiet && roundStop != RoundStop.None && elapsed >= retryRoundAt)
             {
                 if (keepPatrol && roundLeg) return;
@@ -888,12 +898,11 @@ namespace AfterHours
                     float recent = visits.TryGetValue(node, out float visit) ? Mathf.Clamp01(1 - (elapsed - visit) / 75f) : 0;
                     Consider(Intent.Patrol, point, 5, .2f, node, recent, bias: UnityEngine.Random.value * .12f);
                 }
-                if (TryRoute(onCircuit: false, onRound: true)) return;
+                if (TryRoute(onRound: true)) return;
                 DeferRoundStop();
             }
             if (quiet && keepPatrol) return;
             var localArea = AreaOf(Position);
-            var area = outdoorPatrolCenter.HasValue ? (outdoorPatrolCenter.Value, false) : localArea;
 
             goals.Clear();
             void Consider(Intent kind, Vector3 point, float age, float strength, int slot = -1,
@@ -905,7 +914,9 @@ namespace AfterHours
                 goals.Add((kind, point, rank, slot, sound));
             }
 
-            if (sees) Consider(Intent.Pursue, lastSeen, 0, 1, bias: .20f);
+            // Once identified, a moving target outranks old distractions. The path still obeys doors and stairs.
+            if (tracking || positionFix.HasValue)
+                Consider(Intent.Pursue, tracking ? lastSeen : positionFix.Value, 0, 1, bias: 12f);
             else if (hasTrail)
             {
                 Vector3 right = Vector3.Cross(Vector3.up, lastHeading);
@@ -923,7 +934,7 @@ namespace AfterHours
                 if (keepInvestigation && cue.Sound == investigationSound &&
                     (cue.Place - destination).sqrMagnitude < 1.44f) continue;
                 Consider(Intent.Investigate, cue.Place, cue.Age, cue.Loudness,
-                    bias: cue.Footstep ? 0 : .14f * cue.Loudness, sound: cue.Sound);
+                    bias: .18f + .30f * cue.Loudness - cue.Age * .035f, sound: cue.Sound);
             }
             if (faultSite.HasValue)
                 Consider(Intent.Investigate, faultSite.Value, 0, 1, bias: 8f, sound: "generator-trip");
@@ -936,37 +947,21 @@ namespace AfterHours
             }
             else
             {
-                int nextPost = lastPost == firstPatrolPost ? secondPatrolPost : firstPatrolPost;
-                if (firstPatrolPost >= 0 && secondPatrolPost >= 0)
-                    Consider(Intent.Patrol, routing.PointAt(nextPost), 5, .2f, nextPost);
-                else
-                {
-                    AddPatrolGoals(area, 2, outdoorPatrolCenter.HasValue);
-                    if (goals.Count == sensoryGoals) AddPatrolGoals(area, 1, outdoorPatrolCenter.HasValue);
-                }
+                AddPatrolGoals(localArea, 2);
+                if (goals.Count == sensoryGoals) AddPatrolGoals(localArea, 1);
             }
 
-            if (TryRoute(keepPatrol ? circuitLeg : outdoorPatrolCenter.HasValue, keepPatrol && roundLeg)) return;
-            if (outdoorPatrolCenter.HasValue)
-            {
-                // A locked wing or one-way door may cut off the sampled patrol. Walk locally
-                // and try another accessible post, without sampling the player again.
-                goals.Clear();
-                AddPatrolGoals(localArea, 1, false);
-                if (TryRoute(false)) return;
-            }
+            if (TryRoute(keepPatrol && roundLeg)) return;
             Pursuing = false;
             if (!underway) path.Clear();
 
-            void AddPatrolGoals((Vector3 Center, bool Inside) region, int spacing, bool inSampledArea)
+            void AddPatrolGoals((Vector3 Center, bool Inside) region, int spacing)
             {
                 routing.CollectPatrolNodes(Position, region.Center, region.Inside, PatrolRadius, spacing, patrolNodes);
                 foreach (int node in patrolNodes)
                 {
                     if (patrolRetryUntil.TryGetValue(node, out float until) && elapsed < until) continue;
                     Vector3 point = routing.PointAt(node);
-                    if (inSampledArea && (!IsPatrolPost(point) || firstPatrolPost >= 0 &&
-                        (point - routing.PointAt(firstPatrolPost)).sqrMagnitude < 16f)) continue;
                     float recent = visits.TryGetValue(node, out float visit) ? Mathf.Clamp01(1 - (elapsed - visit) / 75f) : 0;
                     float repeat = (lastPost >= 0 && (routing.PointAt(lastPost) - point).sqrMagnitude < 16 ? .85f : 0)
                         + .12f * Mathf.PerlinNoise(node * .8f, cycle * .17f);
@@ -974,12 +969,11 @@ namespace AfterHours
                 }
             }
 
-            bool TryRoute(bool onCircuit, bool onRound = false)
+            bool TryRoute(bool onRound)
             {
                 goals.Sort(static (a, b) => b.Rank.CompareTo(a.Rank));
                 Func<Vector3, Vector3, bool> allowed = !game.State.firstFireDoor || blockedTraversals.Count > 0 || game.HasLockedKeyDoors
                     ? CanTraverse : null;
-                Func<Vector3, Vector3, bool> patrolPassage = onCircuit ? CanPatrolThrough : allowed;
                 int attempts = 0;
                 foreach (var goal in goals)
                 {
@@ -987,11 +981,10 @@ namespace AfterHours
                         goal.Sound != "step" && goal.Sound == investigationSound;
                     float drift = goal.Kind == Intent.Pursue ? .68f : sameImpact ? 1.2f : .58f;
                     bool samePatrol = activeIntent == Intent.Patrol && activeSlot == goal.Slot &&
-                        circuitLeg == onCircuit && roundLeg == onRound;
+                        roundLeg == onRound;
                     if (underway && (goal.Place - destination).sqrMagnitude < drift * drift &&
                         (goal.Kind != Intent.Patrol || samePatrol))
                     {
-                        circuitLeg = goal.Kind == Intent.Patrol && onCircuit;
                         roundLeg = goal.Kind == Intent.Patrol && onRound;
                         activeIntent = goal.Kind;
                         activeSlot = goal.Slot;
@@ -1000,8 +993,7 @@ namespace AfterHours
                         return true;
                     }
                     if (++attempts > 3) break;
-                    var passage = goal.Kind == Intent.Patrol ? patrolPassage : allowed;
-                    if (!routing.Find(Position, goal.Place, proposedPath, passage))
+                    if (!routing.Find(Position, goal.Place, proposedPath, allowed))
                     {
                         RememberBlocked(goal.Kind, goal.Place, goal.Slot);
                         if (goal.Kind == Intent.Search) searched |= 1 << goal.Slot;
@@ -1014,8 +1006,19 @@ namespace AfterHours
                     path.AddRange(proposedPath);
                     destination = goal.Place;
                     waypoint = 0;
+                    if (goal.Kind == Intent.Pursue)
+                    {
+                        // Replanning a moving target can snap the first grid point behind the hunter.
+                        // Join the forward leg only if the whole shortcut is walkable on this floor.
+                        for (int i = 1; i < Mathf.Min(5, path.Count); i++)
+                        {
+                            var next = path[i];
+                            if (Mathf.Abs(next.y - Position.y) > .18f || !FloorRoutes.CanMove(Position, next) ||
+                                (allowed != null && !allowed(Position, next))) break;
+                            waypoint = i;
+                        }
+                    }
                     roundLeg = goal.Kind == Intent.Patrol && onRound;
-                    circuitLeg = goal.Kind == Intent.Patrol && onCircuit;
                     activeIntent = goal.Kind;
                     activeSlot = goal.Slot;
                     investigationSound = goal.Sound;
@@ -1037,34 +1040,12 @@ namespace AfterHours
         {
             if (kind == Intent.Patrol)
             {
-                if (slot == firstPatrolPost)
-                {
-                    firstPatrolPost = secondPatrolPost;
-                    secondPatrolPost = -1;
-                }
-                else if (slot == secondPatrolPost) secondPatrolPost = -1;
                 patrolRetryUntil[slot] = elapsed + 6f;
                 return;
             }
 
             unreachable = point;
             retry = Time.time + 2.4f;
-        }
-
-        bool CanPatrolThrough(Vector3 from, Vector3 to)
-        {
-            if (!CanTraverse(from, to)) return false;
-            // The director supplies a district, not a waypoint. Keep the quiet approach and
-            // return leg from cutting straight through the sampled hiding spot.
-            Vector3 center = outdoorPatrolCenter.Value;
-            Vector2 offset = new(from.x - center.x, from.z - center.z);
-            Vector2 move = new(to.x - from.x, to.z - from.z);
-            float progress = Vector2.Dot(offset, move);
-            float along = Mathf.Clamp01(-progress / Mathf.Max(.0001f, move.sqrMagnitude));
-            if (Mathf.Abs(Mathf.Lerp(from.y, to.y, along) - center.y) > 1.3f) return true;
-            const float clearance = 2.5f;
-            if (offset.sqrMagnitude < clearance * clearance) return progress >= 0;
-            return (offset + move * along).sqrMagnitude >= clearance * clearance;
         }
 
         void BeginListening(Vector3 toward)

@@ -123,6 +123,11 @@ namespace AfterHours
         {
             game.NewNight();
             lastStop = NightState.NewSpawn;
+            for(int n=0;n<440;n++) Invoke(game.Player,"UpdateStamina",true,true,.1f);
+            Check(!game.Player.Exhausted && game.Player.Stamina>.03f && game.Player.Stamina<.05f,"Full sprint should last about 46 seconds");
+            for(int n=0;n<20;n++) Invoke(game.Player,"UpdateStamina",true,true,.1f);
+            Check(game.Player.Exhausted,"Sprint no longer exhausts");
+            game.Player.ResetPosition(lastStop,0);
             Visit("拿起手电").Use();
             game.State.charge = 300;
             game.Player.SetTorch(true);
@@ -306,7 +311,24 @@ namespace AfterHours
             game.Player.Move(Vector2.up,true,.02f);
             Check(!game.Player.Sprinting,"Sprinted with a counterweight");
             game.Player.Move(Vector2.zero,false,.05f);
-            Invoke(game,"SetLoadDown");
+            Check(NightFieldOrders.StreetWaypoint(game.State)?.at==NightDispatch.Winch,"Hauling pointed to the wrong street destination");
+            ui.Tick();
+            Check(root.Q("carry-slot").style.display.value==DisplayStyle.Flex,"Missing quick drop hint");
+            game.SetScreen(NightScreen.Map);
+            yield return null;
+            Submit(root.Q<Button>("map-street-tail"));
+            Check(root.Q<Label>("station-label")?.text=="街尾站牌" && root.Q<NightMapView>().ZoomLevel>2,"Street stop unavailable before discovery");
+            game.SetScreen(NightScreen.Play);
+            ui.OpenPack();
+            for(int n=0;n<6;n++) yield return null;
+            var loadAction=root.Q<Button>("inventory-use");
+            Check(loadAction?.text=="放下配重" && root.Q<NightItemPreview>()?.PreviewTexture!=null,"Carried load missing from satchel");
+            Submit(loadAction);
+            Check(game.ScreenState==NightScreen.Play && !NightSave.Read().dispatch.carrying,"Inventory action failed to release and save");
+            game.Player.Move(Vector2.up,true,.02f);
+            Check(game.Player.Sprinting,"Dropping did not restore sprint");
+            Visit("背起绞盘配重").Use();
+            Check(game.SetLoadDown(),"Quick drop failed");
             Check(!job.carrying && !game.Player.CarryingLoad,"Cannot set load down");
             Visit("背起绞盘配重").Use();
             game.Captured();

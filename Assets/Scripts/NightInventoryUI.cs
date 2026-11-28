@@ -45,6 +45,16 @@ namespace AfterHours
             RefreshInventory(true);
         }
 
+        internal void OpenPack()
+        {
+            if (game.State.dispatch.carrying)
+            {
+                showNotes=false;
+                selectedItem=NightItemId.Counterweight;
+            }
+            game.SetScreen(NightScreen.Inventory);
+        }
+
         void OpenEvidence(NightItemId id)
         {
             fromPause = game.ScreenState == NightScreen.Pause;
@@ -153,7 +163,7 @@ namespace AfterHours
 
             var action = Act(details, item.ActionLabel, () =>
             {
-                game.UseInventoryItem(item.Id);
+                if (game.UseInventoryItem(item.Id) && item.Id==NightItemId.Counterweight) { CloseInventory(); return; }
                 RefreshInventory(true);
             }, "sheet-action sheet-action--primary serif inventory-use", "inventory-use");
             action.SetEnabled(item.CanUse);
@@ -266,6 +276,7 @@ namespace AfterHours
             NightItemId.Torch => "torch",
             NightItemId.Battery => "cell",
             NightItemId.BrineSample => "BrineCase",
+            NightItemId.Counterweight => "counterweight",
             NightItemId.Stone => "stone",
             NightItemId.Starter or NightItemId.RelayFuse => "starter",
             NightItemId.Seal => "seal",

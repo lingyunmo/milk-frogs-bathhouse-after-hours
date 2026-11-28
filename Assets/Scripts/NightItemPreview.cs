@@ -10,6 +10,7 @@ namespace AfterHours
     {
         const string Models = "Interface/PreviewMeshes/";
         const string Torch = "Props/small_plastic_torch/";
+        const string WeightBox = "Props/metal_toolbox/";
         const int PreviewLayer = 10;
         const float DragScale = .42f;
         static readonly Vector3 StagePosition = new(2048, 256, 2048);
@@ -37,6 +38,7 @@ namespace AfterHours
             string path = item switch
             {
                 NightItemId.Torch => Torch + "Model",
+                NightItemId.Counterweight => WeightBox + "Model",
                 NightItemId.Battery => Models + "Cell",
                 NightItemId.Stone => Models + "Stone",
                 NightItemId.Starter or NightItemId.RelayFuse => Models + "Starter",
@@ -264,6 +266,15 @@ namespace AfterHours
                 material.SetFloat("_Roughness", roughness);
                 material.SetFloat("_Variation", variation);
                 if (map != null) material.mainTexture = Resources.Load<Texture2D>(map);
+            }
+
+            if (item==NightItemId.Counterweight)
+            {
+                Set(Color.white,.74f,.51f,0,WeightBox+"metal_toolbox_diff_2k");
+                material.SetTexture("_PackedMap",Resources.Load<Texture2D>(WeightBox+"metal_toolbox_arm_2k_Unity"));
+                material.SetTexture("_BumpMap",Resources.Load<Texture2D>(WeightBox+"metal_toolbox_nor_gl_2k"));
+                material.SetFloat("_UsesPacked",1); material.SetFloat("_UsesNormal",1);
+                return material;
             }
 
             switch (key)

@@ -95,7 +95,7 @@ namespace AfterHours
                 },()=>State.dropTime==0&&!State.dropTaken&&State.rearDrop==rear);
             }
 
-            Vector3 pole=new(160,1.20f,-14.76f);
+            Vector3 pole=NightDispatch.StopSign;
             Target(pole,"阅读站牌背面的应急说明",0,()=>Notify("站牌背面的小字：「夜班车凭反光接应板停车。未收到值守回话，请勿翻板。」",7),()=>!State.contacted,2.3f);
             Target(pole,"校正接应板朝向",0,()=>OpenRepair("旧站牌 · 接应方向",pole,
                 new[]{"面向水塔","面向浴场","面向下游"},new[]{"底座松了。八七年合影里，反光板正对什么？"},
@@ -110,7 +110,7 @@ namespace AfterHours
                 State.rescueTime=27;
                 Notify("街的另一头，有人回了两下远光。",6);
             },"tool"),()=>!State.detained&&State.contacted&&State.RescueAccess&&!State.circuit.mainSignal,2.3f);
-            Target(new Vector3(159.2f,1.10f,-18.76f),"登上救援车",1.15f,()=>
+            Target(NightDispatch.BusDoor,"登上救援车",1.15f,()=>
             {
                 State.escaped=true;
                 SaveProgress();

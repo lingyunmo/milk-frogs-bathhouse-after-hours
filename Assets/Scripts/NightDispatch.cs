@@ -16,6 +16,8 @@ namespace AfterHours
         internal static readonly Vector3 Receiver = new(7.00f, 1.02f, 6.03f);
         internal static readonly Vector3 LoadDepot = new(50.95f, .04f, 17.28f);
         internal static readonly Vector3 Barrier = new(146, 0, -20);
+        internal static readonly Vector3 StopSign = new(160,1.20f,-14.76f);
+        internal static readonly Vector3 BusDoor = new(159.2f,1.10f,-18.76f);
         internal static readonly Vector3 Winch = Barrier + new Vector3(0, 1.10f, -.54f);
         internal static readonly Vector3 ReceiverDish = new(160.66f, 1.01f, 9.62f);
         internal static float SweepSeconds(int progress) => Mathf.Lerp(3.4f, 1.28f, Mathf.Clamp01(progress / 9f));
@@ -163,17 +165,31 @@ namespace AfterHours
             world.RefreshDispatch();
         }
 
-        void SetLoadDown()
+        internal bool SetLoadDown()
         {
-            // Only leave the case on a supported floor at the player's feet. The prop is nonblocking.
-            if (Player.Vaulting || !Player.Body.isGrounded) return;
-            if (!Physics.Raycast(Player.Feet + Vector3.up * .15f, Vector3.down, out var hit, .5f,
-                    ~(1 << NightPlayer.PlayerLayer), QueryTriggerInteraction.Ignore) || hit.normal.y < .85f) return;
+            if (!State.dispatch.carrying) return false;
+            const int scene = ~(1 << NightPlayer.PlayerLayer);
+            var feet = Player.Feet;
+            bool FloorAt(Vector3 point, out RaycastHit ground) =>
+                Physics.Raycast(point + Vector3.up * .3f, Vector3.down, out ground, .8f, scene, QueryTriggerInteraction.Ignore)
+                && ground.normal.y >= Mathf.Cos(Player.Body.slopeLimit * Mathf.Deg2Rad)
+                && NightWorld.ContainsPlayable(ground.point);
+            if (Player.Vaulting || !FloorAt(feet, out var hit))
+            {
+                Notify("脚下没站稳，落地后再放。");
+                return false;
+            }
+            var forward = Player.transform.forward;
+            if (!Physics.SphereCast(feet + Vector3.up * .43f, .34f, forward, out _, .74f, scene, QueryTriggerInteraction.Ignore)
+                && FloorAt(feet + forward * .74f, out var ahead) && Mathf.Abs(ahead.point.y - hit.point.y) < .22f)
+                hit = ahead;
             State.dispatch.loadFeet = hit.point;
             State.dispatch.carrying = false;
             RefreshLoad();
             Emit(hit.point, .69f, "tool");
             SaveProgress();
+            Notify("已放下配重　·　可按 Shift 奔跑");
+            return true;
         }
 
         void ReturnLoadOnCapture()

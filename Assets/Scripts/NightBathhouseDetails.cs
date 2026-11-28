@@ -28,7 +28,13 @@ namespace AfterHours
             WallSign("水疗区",new Vector3(5.63f,2.02f,23.88f),0,new Vector2(1.15f,.30f),.116f);
             WallSign("备餐与茶水",new Vector3(-10.79f,1.45f,.12f),180,new Vector2(1.81f,.27f),.113f);
             WallSign("更衣与拖鞋",new Vector3(-1.02f,6.01f,23.88f),0,new Vector2(1.78f,.31f),.132f);
-            WallSign("夜班发车",new Vector3(100,2.29f,-10.34f),0,new Vector2(2.94f,.37f),.17f);
+            WallSign("石桥路　桥杆・站牌 →",new Vector3(100,2.29f,-10.34f),0,new Vector2(2.94f,.37f),.17f);
+            foreach (float x in new[]{16f,181f})
+            {
+                var post=new Vector3(x,1.05f,-13.1f);
+                Box("街尾路标柱",post,new(.10f,2.10f,.10f),paintedIron);
+                WallSign(x<100 ? "街尾站牌 →" : "← 街尾站牌",post+new Vector3(0,.94f,-.09f),0,new(1.85f,.38f),.16f);
+            }
             WallSign("救援接应",new Vector3(160,1.84f,-14.923f),0,new Vector2(.78f,.42f),.101f);
             Prop("metal_trash_can","门外金属废物筒",new Vector3(2.84f,0,-13.45f),new Vector3(.45f,.74f,.45f),-8,true);
             Prop("metal_trash_can","上客站垃圾桶",new Vector3(102.9f,0,-8.4f),new Vector3(.52f,.83f,.52f),17);

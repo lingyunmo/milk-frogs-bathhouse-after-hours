@@ -53,8 +53,8 @@ namespace AfterHours
                     int line = (job.sealedLines & 1) == 0 ? 0 : (job.sealedLines & 2) == 0 ? 1 : 2;
                     return ("听水声，关上漏水的阀门", NightReturnLines.Zones[line]);
                 case FieldOrder.Barrier:
-                    if (job.delivered) return ("摇绞盘，抬起路障", "街尾 · 桥杆");
-                    if (job.carrying) return ("把配重挂上绞盘", "街尾 · 桥杆");
+                    if (job.delivered) return ("摇绞盘，抬起路障", "石桥路 · 站牌前的桥杆");
+                    if (job.carrying) return ("把配重挂上绞盘", "沿石桥路往东 · 站牌前的桥杆");
                     return (job.loadFeet == NightDispatch.LoadDepot ? "去街边泵房取配重" : "取回放下的配重", "配重位置已标在地图上");
                 default:
                     if (!state.power)
@@ -71,6 +71,24 @@ namespace AfterHours
             }
         }
 
+        internal static (string name, UnityEngine.Vector3 at)? StreetWaypoint(NightState s)
+        {
+            if (s.detained || s.ended || s.escaped || s.brine.Committed || s.circuit.room is >= 1 and <= 5) return null;
+            if (s.CanBoard) return ("救援车门", NightDispatch.BusDoor);
+            if (s.beacon) return ("街尾站牌", NightDispatch.StopSign);
+            var job=s.dispatch;
+            if (job.orderHeld)
+            {
+                if (job.tracked==FieldOrder.Barrier && (job.carrying || job.delivered) && job.teeth<NightDispatch.Teeth)
+                    return ("桥杆绞盘", NightDispatch.Winch);
+                if (job.tracked==FieldOrder.Radio && s.power && s.annexIsolated && !s.annexRelay && !s.contacted)
+                    return ("维修站天线", NightDispatch.ReceiverDish);
+                return null;
+            }
+            if (s.RoadSurveyComplete) return ("街尾站牌", NightDispatch.StopSign);
+            return null;
+        }
+
         internal static (string action, string place) Current(NightState state)
         {
             if (state.brine.Live) return BrineRoute.Lead(state.brine);
@@ -79,7 +97,7 @@ namespace AfterHours
             if (state.CanBoard) return ("上救援车", "街尾 · 站牌");
             if (state.beacon) return ("听街口的车喇叭", "街尾 · 站牌");
             if (state.dispatch.orderHeld) return Direction(Tracking(state), state);
-            if (state.RescueAccess && state.contacted) return ("翻起接应板", "街尾 · 站牌");
+            if (state.RescueAccess && state.contacted) return ("翻起接应板", "石桥路 · 街尾维修站对面");
             return NightShiftTrail.Next(state);
         }
     }

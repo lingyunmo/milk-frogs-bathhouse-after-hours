@@ -13,7 +13,6 @@ namespace AfterHours
         const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
         NightGame game;
         NightHunter hunter;
-        Transform actor;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
@@ -32,15 +31,15 @@ namespace AfterHours
                 game = FindFirstObjectByType<NightGame>();
                 game.enabled = false;
                 hunter = (NightHunter)typeof(NightGame).GetField("hunter", Fields).GetValue(game);
-                actor = Read<Transform>("actor");
                 CheckBuildingBoundaries();
-                CheckLocalPatrol();
-                CheckQuietPatrol();
+                CheckFixes();
+                CheckTorch();
                 CheckStreetReturn();
                 CheckRoundClues();
                 CheckWingExit(new(27,3.6f,12), "annex");
                 CheckWingExit(new(10,-3.6f,12), "basement");
                 CheckVisualEvidence();
+                CheckRunningChase();
                 CheckLureBeforePatrol();
                 CheckFootsteps();
                 Debug.Log("FAIR PATROL SMOKE: PASS");
@@ -53,7 +52,8 @@ namespace AfterHours
             }
         }
 
-        Vector3? OutdoorCenter => Read<Vector3?>("outdoorPatrolCenter");
+        Vector3? Fix => Read<Vector3?>("positionFix");
+        void Set(string field, object value) => typeof(NightHunter).GetField(field, Fields).SetValue(hunter,value);
 
         void CheckBuildingBoundaries()
         {
@@ -69,7 +69,7 @@ namespace AfterHours
             foreach (var pos in inside)
             {
                 PlacePlayer(pos);
-                Require(game.IsInsideBuilding(pos) && !game.OutdoorPatrolCenter().HasValue, $"Interior disclosed at {pos}.");
+                Require(game.IsInsideBuilding(pos), $"Interior disclosed at {pos}.");
             }
             Vector3[] outside = {
                 new(29,0,30.75f), new(192,0,7.75f), new(29,0,18), new(20,0,12), new(41,0,13),
@@ -80,88 +80,68 @@ namespace AfterHours
             foreach (var pos in outside)
             {
                 PlacePlayer(pos);
-                Require(!game.IsInsideBuilding(pos) && game.OutdoorPatrolCenter() == new Vector3(pos.x,0,pos.z),
+                Require(!game.IsInsideBuilding(pos),
                     $"Open air misclassified at {pos}.");
             }
-            PlacePlayer(new(119,0,-18));
-            Require(game.Player.Vault(new(120,0,-18)) && !game.OutdoorPatrolCenter().HasValue,
-                "A vault published an intermediate position.");
-            PlacePlayer(new(120,0,-18));
-            Debug.Log($"PATROL BOUNDARIES: {inside.Count} interiors, {outside.Length} outdoor positions; vault skipped.");
         }
 
-        void CheckLocalPatrol()
+        void CheckFixes()
         {
-            Prepare(new(115,0,-18),new(-14,-3.6f,5),-90);
-            var start = hunter.Position;
-            float farthest = 0;
-            for (int i=0;i<2800;i++)
+            var roll = typeof(NightHunter).GetMethod("UpdateTracking",Fields);
+            int hits = 0;
+            // Isolate the simulation clock from all other consumers of Unity's random stream.
+            foreach (var place in new[]{new Vector3(-14,-3.6f,5),new Vector3(245,0,-18)})
             {
-                if(i==900) PlacePlayer(new(27,3.6f,17));
-                if(i==1800) PlacePlayer(new(32,0,35));
-                hunter.Tick(Step);
-                Require(!OutdoorCenter.HasValue && !hunter.Pursuing,"A quiet indoor move supplied a patrol target.");
-                farthest = Mathf.Max(farthest,Vector3.Distance(hunter.Position,start));
-            }
-            Require(farthest > 3f, "Hunter stood still instead of patrolling its own surroundings.");
-            Debug.Log($"INDOOR PRIVACY: 140 simulated seconds without a fix; local patrol displaced {farthest:F1}m.");
-        }
-
-        void CheckQuietPatrol()
-        {
-            Vector3 street = new(120,0,-18);
-            Prepare(new(106,0,-18),street,-90);
-            hunter.Tick(Step);
-            Require(OutdoorCenter == street,"No initial outdoor patrol.");
-            PlacePlayer(new(29,0,31.25f)); // Just inside the street laundry.
-            var posts = new HashSet<int>();
-            int previous = -1, arrivals = 0;
-            float startedAt = -1, expiredAt = -1;
-            for(int i=0;i<2400;i++)
-            {
-                if (i==60) PlacePlayer(new(-5,3.60f,12));
-                hunter.Tick(Step);
-                float t = Read<float>("elapsed");
-                Require(!hunter.Pursuing && !Read<bool>("recognized"), "A quiet snapshot became a sighting.");
-                if (!OutdoorCenter.HasValue) { expiredAt=t; break; }
-                Require(OutdoorCenter == street, "Crossing a door or changing floor moved the outdoor fix.");
-                Vector3 dest = Read<Vector3>("destination");
-                float radius = Vector2.Distance(new(dest.x,dest.z),new(street.x,street.z));
-                Require(!game.IsInsideBuilding(dest) && radius >= 4.99f && radius <= 10.01f, $"Invalid outdoor post: {dest}.");
-                Require(Vector2.Distance(new(hunter.Position.x,hunter.Position.z),new(street.x,street.z)) >= 2.44f,
-                    "Quiet route cut straight through the last known outdoor position.");
-                int post = Read<int>("lastPost");
-                if (post >= 0 && post != previous)
+                Prepare(new(115,0,-18),place,180);
+                Set("nextFix",3f);
+                UnityEngine.Random.InitState(8321+(int)place.x);
+                int localHits = 0;
+                for(int n=1;n<=500;n++)
                 {
-                    if(startedAt < 0) startedAt=t;
-                    previous=post; posts.Add(post); arrivals++;
+                    float due=n*3;
+                    Set("positionFix",null);
+                    Set("elapsed",due-.01f);
+                    roll.Invoke(hunter,new object[]{false,.01f});
+                    Require(!Fix.HasValue && Read<float>("nextFix")==due,"Early position read");
+                    var rng=UnityEngine.Random.state;
+                    bool expect=UnityEngine.Random.value<.10f;
+                    UnityEngine.Random.state=rng;
+                    Set("elapsed",due);
+                    roll.Invoke(hunter,new object[]{false,.01f});
+                    Require(Fix.HasValue==expect && Read<float>("nextFix")==due+3,"Wrong roll or interval");
+                    if(!expect) continue;
+                    localHits++;
+                    Require(Fix==game.Player.Feet,"Remote fix lost its exact floor or position");
                 }
+                Require(localHits>25 && localHits<75,"Unexpected fix frequency");
+                hits+=localHits;
             }
-            Require(posts.Count==2 && arrivals>=3, $"Expected an outdoor return leg, saw {posts.Count} posts and {arrivals} arrivals.");
-            Require(startedAt>0 && expiredAt-startedAt>=29.9f && expiredAt-startedAt<=60.6f,
-                $"Indoor player changed an outdoor patrol too early or too late: {startedAt} / {expiredAt}.");
-
-            // A duty round takes precedence over another fix when the old street circuit ends.
-            // Separately exercise leaving a building just after a missed check.
-            Prepare(new(106,0,-18),new(-14,-3.6f,5),-90);
-            hunter.Tick(Step);
-            float missedAt = Read<float>("elapsed");
-            float next = Read<float>("nextPatrolCheck");
-            Require(next-missedAt>=29.99f && next-missedAt<=60.01f,"An indoor skip did not schedule a fresh interval.");
-            Vector3 backOutside = new(245,0,-18);
-            PlacePlayer(backOutside);
-            for (int i=0;i<9600 && !OutdoorCenter.HasValue;i++)
+            Prepare(new(106,0,-18),new(158,0,-18),-90);
+            for(int seed=1;seed<1000;seed++)
             {
-                hunter.Tick(Step);
-                Require(!hunter.Pursuing,"Going outdoors triggered a chase.");
-                if(Read<float>("elapsed") < next) Require(!OutdoorCenter.HasValue,"Leaving the building bypassed the timer.");
+                UnityEngine.Random.InitState(seed);
+                var state=UnityEngine.Random.state;
+                if(UnityEngine.Random.value>=.10f) continue;
+                UnityEngine.Random.state=state; Set("nextFix",Step); break;
             }
-            Require(OutdoorCenter == backOutside,"Outdoor sampling never resumed after the independent building round.");
-            PlacePlayer(new(-14,-3.6f,5));
-            for(int i=0;i<3200 && !Read<bool>("patrolStarted");i++) hunter.Tick(Step);
-            Require(OutdoorCenter == backOutside && Read<bool>("patrolStarted") && !hunter.Pursuing,
-                "Hunter failed to physically reach the new outdoor circuit.");
-            Debug.Log($"OUTDOOR PATROL: {arrivals} arrivals, {expiredAt-startedAt:F2}s dwell; skipped indoors, resumed outside.");
+            hunter.Tick(Step);
+            Require(Fix==game.Player.Feet && hunter.Pursuing,"Successful remote fix did not drive a pursuit route");
+            var snapshot=Fix;
+            PlacePlayer(new(185,0,-18));
+            for(int n=0;n<32;n++) hunter.Tick(Step);
+            Require(Fix==snapshot && (Read<Vector3>("destination")-snapshot.Value).sqrMagnitude<.1f,
+                "Remote fix followed a silent relocation before another roll");
+            Debug.Log($"FIX PASS {hits}/1000 exact reads over indoor/outdoor trials; failed rolls and remote snapshot verified");
+        }
+
+        void CheckTorch()
+        {
+            Prepare(new(97,0,-18),new(121,0,-18),-90);
+            Set("nextDecision",3f);
+            game.Player.SetTorch(true);
+            game.Player.Eyes.LookAt(hunter.Position+Vector3.up*1.26f);
+            for (int i=0;i<26 && !hunter.Pursuing;i++) hunter.Tick(Step);
+            Require(hunter.Pursuing && Read<bool>("recognized"),"Torch beam at 24m did not reveal its source");
         }
 
         void CheckStreetReturn()
@@ -180,7 +160,7 @@ namespace AfterHours
                 hunter.Tick(Step);
                 Vector3 feet = hunter.Position;
                 bool main = NightAtlas.MainInterior(new(feet.x, feet.z));
-                Require(!hunter.Pursuing && !OutdoorCenter.HasValue, "A silent indoor player was disclosed.");
+                Require(!hunter.Pursuing && !Fix.HasValue, "A silent indoor player was disclosed.");
                 if (main && FloorRoutes.LevelAt(feet.y) >= 1 && Mathf.Abs(feet.y - FloorRoutes.LevelHeight(FloorRoutes.LevelAt(feet.y))) < .15f)
                 {
                     if (!checkedUpper) returns++;
@@ -208,7 +188,7 @@ namespace AfterHours
                 if (NightAtlas.MainInterior(plan) && floor > 0) floors.Add(floor);
                 basement |= floor == -1 && NightAtlas.MainInterior(plan);
                 annex |= floor > 0 && NightAnnexLayout.Footprint.Contains(plan);
-                Require(!OutdoorCenter.HasValue && !hunter.Pursuing, "Side rounds needed the remote indoor player's location.");
+                Require(!Fix.HasValue && !hunter.Pursuing, "Side rounds needed the remote indoor player's location.");
             }
             Require(basement && annex && floors.Count == 2, $"Quiet coverage missed a wing: upper floors {floors.Count}, basement {basement}, annex {annex}.");
             Debug.Log("ROUND COVERAGE: both main upper floors, the basement and the annex reached on foot.");
@@ -222,9 +202,8 @@ namespace AfterHours
                 UnityEngine.Random.InitState(7163);
                 Prepare(start, silentPlayer, 180);
                 // Start both trials when the same scheduled round is due.
-                typeof(NightHunter).GetField("nextRound", Fields).SetValue(hunter, 0f);
                 hunter.Tick(Step);
-                Require(Read<bool>("roundLeg") && !OutdoorCenter.HasValue, "No independent return from the far road.");
+                Require(Read<bool>("roundLeg") && !Fix.HasValue, "No independent return from the far road.");
                 return Read<Vector3>("destination");
             }
             Vector3 hall = FirstStop(new(27, 3.6f, 17));
@@ -240,7 +219,7 @@ namespace AfterHours
             {
                 if (i==460) PlacePlayer(new(35,7.2f,7));
                 hunter.Tick(Step);
-                Require(!OutdoorCenter.HasValue, "A committed return was redirected by an unobserved doorway crossing.");
+                Require(!Fix.HasValue, "A committed return was redirected by an unobserved doorway crossing.");
                 investigated |= Vector3.Distance(hunter.Position, impact) < 1;
                 resumed |= investigated && Read<bool>("roundLeg");
                 if (resumed && FloorRoutes.LevelAt(hunter.Position.y) > 0 &&
@@ -258,7 +237,7 @@ namespace AfterHours
             {
                 hunter.Tick(Step);
                 Vector3 feet = hunter.Position;
-                Require(!OutdoorCenter.HasValue && !hunter.Pursuing, $"Patrol from {wing} disclosed a distant indoor player.");
+                Require(!Fix.HasValue && !hunter.Pursuing, $"Patrol from {wing} disclosed a distant indoor player.");
                 visitedMain |= NightAtlas.MainInterior(new(feet.x, feet.z)) && FloorRoutes.LevelAt(feet.y) == 0;
                 if (visitedMain && !game.IsInsideBuilding(feet) && (feet.x > 23 || feet.z < -16 || feet.z > 30))
                 { left = true; break; }
@@ -276,17 +255,41 @@ namespace AfterHours
             Require(!hunter.Pursuing, "A 200 ms glimpse should leave time to take cover.");
             for (int i = 0; i < 25 && !hunter.Pursuing; i++) hunter.Tick(Step);
             Require(hunter.Pursuing, "Continuous unobstructed sight should start pursuit.");
-            var last = Read<Vector3>("lastSeen");
             hunter.Pose(new(29.4f, 0, 33.65f), 90);
             PlacePlayer(new(34.05f, 0, 34.65f));
             Require(Physics.Linecast(hunter.Position + Vector3.up * 1.26f, game.Player.Eyes.position,
                 ~(1 << NightPlayer.PlayerLayer), QueryTriggerInteraction.Ignore), "Laundry partition missing.");
             hunter.Tick(Step);
-            Require(!hunter.Pursuing && Read<Vector3>("lastSeen") == last, "A wall should break tracking.");
-            PlacePlayer(new(-8, 3.6f, 12));
-            for (int i = 0; i < 160; i++) hunter.Tick(Step);
-            Require(Read<Vector3>("lastSeen") == last && Read<object>("activeIntent").ToString() == "Patrol",
-                "The first night should return to patrol after the last sighting goes cold.");
+            for(int i=0;i<15;i++) hunter.Tick(Step);
+            Require(hunter.Pursuing && Read<bool>("tracking") && game.ScreenState!=NightScreen.Capture &&
+                (Read<Vector3>("destination")-game.Player.Feet).sqrMagnitude<1,
+                "A real corner broke nearby pursuit or allowed capture through a wall");
+            var last = Read<Vector3>("lastSeen");
+            PlacePlayer(new(122,0,-18));
+            for (int i=0;i<45;i++) hunter.Tick(Step);
+            Require(Read<bool>("tracking") && Read<Vector3>("lastSeen")==last,"Short separation broke tracking or telegraphed a remote target");
+            for (int i=0;i<15;i++) hunter.Tick(Step);
+            Require(!hunter.Pursuing && !Read<bool>("tracking") && Read<Vector3>("lastSeen")==last,
+                "A distant silent player could not escape");
+        }
+
+        void CheckRunningChase()
+        {
+            var start = new Vector3(60,0,-18);
+            var playerStart = start + Vector3.right * 8;
+            Prepare(start, playerStart, 90);
+            Set("nextDecision", 2f);
+            for(int i=0;i<30 && !hunter.Pursuing;i++) hunter.Tick(Step);
+            Require(hunter.Pursuing,"Could not acquire running target in the street");
+            for(int i=1;i<=200;i++)
+            {
+                PlacePlayer(playerStart + Vector3.right*(3.55f*Step*i));
+                hunter.Tick(Step);
+                Require(hunter.Pursuing,"Lost a runner on an open continuous road");
+            }
+            float advance=hunter.Position.x-start.x;
+            Require(advance>27f,"Replans stalled pursuit of a moving runner: "+advance);
+            Debug.Log($"OPEN ROAD CHASE: hunter advanced {advance:F1}m alongside 10 seconds of sprint");
         }
 
         void CheckLureBeforePatrol()
@@ -295,14 +298,14 @@ namespace AfterHours
             Vector3 lure = new(105,0,-23);
             hunter.HearNoise(lure, .90f, "land");
             hunter.Tick(Step);
-            Require(!OutdoorCenter.HasValue &&
+            Require(!Fix.HasValue &&
                 Read<object>("activeIntent").ToString() == "Investigate" &&
                 Vector3.Distance(Read<Vector3>("destination"), lure) < .2f,
                 "A real sound should be investigated before taking a quiet snapshot.");
             Prepare(new(29,0,31.65f),new(29,0,34.5f),180);
             hunter.HearNoise(game.Player.Feet,.57f,"step");
             hunter.Tick(Step);
-            Require(!OutdoorCenter.HasValue && Read<object>("activeIntent").ToString() == "Investigate" &&
+            Require(!Fix.HasValue && Read<object>("activeIntent").ToString() == "Investigate" &&
                 Vector3.Distance(Read<Vector3>("destination"),game.Player.Feet)<.2f,
                 "An audible indoor run should lead to its source without an outdoor fix.");
         }
@@ -310,9 +313,9 @@ namespace AfterHours
         void CheckFootsteps()
         {
             Prepare(new(105,0,-17), new(-5,0,12), 0);
-            hunter.HearNoise(new(105,0,-23), .57f, "step");
+            hunter.HearNoise(new(105,0,-35), .33f, "step");
             var cues = Read<IList>("noises");
-            Require(cues.Count == 1, "A nearby run should be audible.");
+            Require(cues.Count == 1, "A walk at 18 metres should be audible.");
             for (int i = 0; i < 12; i++) hunter.Tick(Step);
             hunter.HearNoise(new(109,0,-23), .57f, "step");
             Require(cues.Count == 1, "Consecutive steps should not relay each change of direction.");
@@ -320,12 +323,21 @@ namespace AfterHours
             Require(cues.Count == 2, "A distinct impact should be audible between sampled footsteps.");
             Prepare(new(29.4f,0,33.65f), new(34.05f,0,34.65f), 90);
             hunter.HearNoise(game.Player.Feet, .33f, "step");
-            Require(Read<IList>("noises").Count == 0, "Walking beyond the laundry partition gave away an exact position.");
+            Require(Read<IList>("noises").Count == 1, "Nearby walking behind a partition was inaudible.");
+            hunter.Tick(Step);
+            Require(Read<object>("activeIntent").ToString()=="Investigate","Obstructed walking failed to interrupt patrol");
+            Prepare(new(100,0,-18),new(150,0,-18),180);
+            hunter.HearNoise(new(132,0,-18), .57f, "step");
+            Require(Read<IList>("noises").Count==1, "An outdoor sprint at 32m was inaudible");
+            Prepare(new(100,0,-18),new(150,0,-18),180);
+            hunter.HearNoise(new(120,0,-18), .13f, "step");
+            Require(Read<IList>("noises").Count==0, "Distant crouched steps sounded like running");
         }
 
         void Prepare(Vector3 feet, Vector3 player, float yaw)
         {
             hunter.Reset();
+            Set("nextFix",float.PositiveInfinity); // Exercise real sensory clues in isolation except in CheckFixes.
             hunter.Pose(feet, yaw);
             PlacePlayer(player);
         }

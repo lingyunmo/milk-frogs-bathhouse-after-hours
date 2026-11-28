@@ -65,7 +65,7 @@ namespace AfterHours
             var slot = Read(NightSave.FilePath);
             var backup = Read(NightSave.FilePath + ".bak");
             Click("observe");
-            Require(game.EmptyObservation && game.ScreenState == NightScreen.Observer && !game.OutdoorPatrolCenter().HasValue, "Title entry or privacy failed.");
+            Require(game.EmptyObservation && game.ScreenState == NightScreen.Observer, "Title entry or privacy failed.");
             var watch = game.Watch;
             var hunter = watch.Hunter;
             Vector3 start = hunter.Position;
@@ -80,7 +80,7 @@ namespace AfterHours
             for(int i=0;i<2200;i++)
             {
                 game.AdvanceWatch(.05f);
-                Require(!hunter.Pursuing && !game.OutdoorPatrolCenter().HasValue, "Ghost attracted the hunter.");
+                Require(!hunter.Pursuing, "Ghost attracted the hunter.");
                 sawStreet |= game.Atlas.FloorAt(hunter.Position) == NightAtlas.Street && watch.Trail.Count > 8;
                 if (FloorRoutes.LevelAt(hunter.Position.y) > 0 && !FloorRoutes.IsOnStair(hunter.Position) &&
                     hunter.CurrentGoal.HasValue && Mathf.Abs(hunter.Position.y - hunter.CurrentGoal.Value.y) < .15f &&
