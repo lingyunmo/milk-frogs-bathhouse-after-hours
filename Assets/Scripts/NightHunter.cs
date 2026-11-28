@@ -52,8 +52,9 @@ namespace AfterHours
         const int PatrolRadius = 10;
         const float FixInterval = 3f;
         const float FixChance = .10f;
-        const float TrackDistance = 28f;
-        const float BreakAwaySeconds = 2.5f;
+        const float FixDistance = 24f;
+        const float TrackDistance = 14f;
+        const float BreakAwaySeconds = 2f;
         const int EnvironmentMask = ~(1 << NightPlayer.PlayerLayer);
         const int ClearanceMask = EnvironmentMask & ~(1 << FloorRoutes.DoorLayer);
         Vector3 recentListenTarget;
@@ -410,7 +411,7 @@ namespace AfterHours
             Vector3 listener = Position + Vector3.up * 1.26f;
             Vector3 source = place + Vector3.up * .28f;
             float distance = Vector3.Distance(listener, source);
-            float range = volume * (footstep ? 64 : 76) * Mathf.Lerp(1, 1.12f, NightPressure);
+            float range = volume * (footstep ? 40 : 54) * Mathf.Lerp(1, 1.12f, NightPressure);
             if (distance > range) return;
 
             bool obstructed = Physics.Linecast(listener, source, EnvironmentMask, QueryTriggerInteraction.Ignore);
@@ -477,7 +478,7 @@ namespace AfterHours
             if (game.Player.Concealed) return false;
             bool lit = game.Player.TorchOn;
             bool inBeam = lit && Vector3.Dot(game.Player.Eyes.forward, -toward.normalized) >= .90f;
-            float reach = inBeam ? 34f : lit ? 25f : game.Player.Crouched ? 8f : 15f;
+            float reach = inBeam ? 18f : lit ? 14f : game.Player.Crouched ? 5.5f : 10f;
             reach *= Mathf.Lerp(1, 1.10f, NightPressure);
             if (distance > reach || (!inBeam && Vector3.Dot(actor.forward, toward.normalized) < .23f)) return false;
             if (game.Player.Crouched && !game.Player.TorchOn && Physics.Raycast(game.Player.Eyes.position, Vector3.up,
@@ -590,6 +591,7 @@ namespace AfterHours
 
             var feet = game.Player.Feet;
             float gap = Vector3.Distance(Position, feet);
+            if (gap > FixDistance) return;
             if (gap <= TrackDistance)
             {
                 tracking = true;
@@ -729,7 +731,7 @@ namespace AfterHours
                     return;
                 }
             }
-            float speed = Pursuing ? Mathf.Lerp(3.20f, 3.45f, NightPressure) : activeIntent == Intent.Patrol ? patrolSpeed : 1.77f;
+            float speed = Pursuing ? Mathf.Lerp(2.45f, 2.75f, NightPressure) : activeIntent == Intent.Patrol ? patrolSpeed : 1.77f;
             Vector3 next = Vector3.MoveTowards(Position, target, speed * dt);
             bool progressed = (next - progressAnchor).sqrMagnitude >= ProgressRadius * ProgressRadius;
             if (!progressed) timeWithoutProgress += dt;
