@@ -9,6 +9,8 @@
 | 前厅、休息室和宿舍 | Poly Haven 的金属办公桌、电视、更衣长凳、Sofa 02、Vintage Day Bed 和金属货架。沙发的木脚按下方藏点的净空调整。 |
 | 地下设备间 | Poly Haven 的 Portable Generator、Tool Cart 和 Worn Metal Rack。实机维修仍使用原来面向玩家的操作点。 |
 | 室外 | tevy 的微型面包车，Poly Haven 的卷帘窗和金属废物桶。 |
+| 商铺后门、街道路肩、东堤 | tevy 的[带轮垃圾斗](https://tevy.dev/models/dumpster)和[防汛沙袋](https://tevy.dev/models/sandbag-wall-straight)，均为 v1、CC0 1.0。 |
+| 按摩室、静养室、副楼布草间 | tevy 的[旧布屏风](https://tevy.dev/models/torn-hospital-privacy-screen)，v1、CC0 1.0。 |
 | 地面、墙面和路面 | ambientCG Tiles074、Concrete034、Asphalt017，及 Poly Haven 的 Square Tiles、Painted Concrete 02、Brown Planks 05、Brick Moss 001。 |
 
 - [tevy 模型目录及许可](https://tevy.dev/models) · [浴缸](https://tevy.dev/models/bathtub) · [备餐水槽](https://tevy.dev/models/kitchen-base-unit-sink)
