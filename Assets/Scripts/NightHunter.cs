@@ -12,6 +12,24 @@ namespace AfterHours
             public float[] weights, biases;
         }
         internal Vector3 Position => actor.position;
+        internal Vector3 Facing => actor.forward;
+        internal IReadOnlyList<Vector3> PlannedSteps => path;
+        internal int NextStep => waypoint;
+        internal Vector3? CurrentGoal => waypoint < path.Count ? destination : null;
+        internal string ObservedIntent => activeIntent switch
+        {
+            Intent.Pursue => "目击追逐",
+            Intent.Search => "搜索最后目击点",
+            Intent.Investigate => investigationSound switch {
+                "step" => "调查脚步声", "land" => "调查落地声", "generator-trip" => "调查跳闸警铃", _ => "调查声响"
+            },
+            _ when roundLeg => roundStop switch {
+                RoundStop.MainHall => "回主楼巡查", RoundStop.UpperHall => "上楼巡查",
+                RoundStop.SideHall => "巡查侧廊", RoundStop.Street => "返回街面", _ => "巡逻"
+            },
+            _ when circuitLeg => "街面往返巡逻",
+            _ => "附近巡逻"
+        };
         internal Vector3 LaughSource => Position + actor.forward * .48f + Vector3.up * (Height * .79f);
         internal bool Pursuing { get; private set; }
         readonly NightGame game;
@@ -430,6 +448,7 @@ namespace AfterHours
 
         bool PlayerVisible(out float distance)
         {
+            if (game.EmptyObservation) { distance = float.PositiveInfinity; return false; }
             Vector3 eye = Position + Vector3.up * 1.26f;
             Vector3 toward = game.Player.Eyes.position - eye;
             distance = toward.magnitude;

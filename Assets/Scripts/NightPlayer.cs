@@ -161,19 +161,21 @@ namespace AfterHours
             return texture;
         }
 
-        internal void Tick(NightGame game, float dt)
+        internal void Tick(NightGame game, float dt, bool controls = true)
         {
             var options = game.Preferences;
+            float yaw = controls ? Input.GetAxisRaw("Mouse X") * options.Sensitivity : 0;
+            float look = controls ? Input.GetAxisRaw("Mouse Y") * options.Sensitivity : 0;
             if (InHideSpot)
             {
-                AdvanceHiding(dt, Input.GetAxisRaw("Mouse X") * options.Sensitivity, Input.GetAxisRaw("Mouse Y") * options.Sensitivity);
+                AdvanceHiding(dt, yaw, look);
                 return;
             }
-            float yaw = Input.GetAxisRaw("Mouse X") * options.Sensitivity;
             transform.Rotate(0, yaw, 0);
-            pitch = Mathf.Clamp(pitch - Input.GetAxisRaw("Mouse Y") * options.Sensitivity, -85, 85);
+            pitch = Mathf.Clamp(pitch - look, -85, 85);
             Eyes.localRotation = Quaternion.Euler(pitch, 0, 0);
-            TickTorch(game, dt);
+            if (controls) TickTorch(game, dt);
+            else AdvanceTorch(game, dt);
 
             if (Vaulting)
             {
@@ -181,9 +183,9 @@ namespace AfterHours
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.C)) ToggleCrouch();
-            Vector2 input = new(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (controls && Input.GetKeyDown(KeyCode.C)) ToggleCrouch();
+            Vector2 input = controls ? new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")) : Vector2.zero;
+            bool shift = controls && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
             float stride = Move(input, shift, dt);
             UpdateFootsteps(game, stride);
             UpdateCamera(dt, options.CameraMotion);

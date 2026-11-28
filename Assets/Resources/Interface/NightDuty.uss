@@ -1103,3 +1103,26 @@
 
 .plan-north { position: absolute; top: 12px; right: 17px; margin: 0; padding: 3px 5px;
     color: #d5c9a9; font-size: 16px; background-color: #182d2d; }
+
+.watch-station {
+    position: absolute;
+    top: 5%;
+    right: 3%;
+    width: 304px;
+    padding: 15px;
+    background-color: rgba(9, 16, 16, .92);
+    border-left-width: 2px;
+    border-left-color: #b49869;
+}
+.watch-view .watch-chart { height: 238px; margin-top: 10px; overflow: hidden; background-color: #101918; }
+.watch-station .watch-intent { font-size: 28px; color: #edddba; }
+.watch-station .watch-place, .watch-station .watch-goal { font-size: 17px; color: #dfdacb; }
+.watch-station .watch-legend, .watch-controls { flex-direction: row; align-items: center; }
+.watch-legend > Label { font-size: 16px; margin: 6px 13px 7px 0; }
+.watch-station .watch-footprints { color: #61e0d3; }
+.watch-station .watch-plan { color: #f9c775; }
+.watch-kicker, .watch-help { font-size: 15px; color: #c2b79e; }
+.watch-controls { position: absolute; bottom: 5%; left: 3%; background-color: rgba(8, 13, 13, .9); padding: 6px 10px; }
+.watch-controls > Button { margin-left: 8px; }
+.compact .watch-station { width: 248px; }
+.compact .watch-chart { height: 185px; }

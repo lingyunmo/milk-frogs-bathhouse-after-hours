@@ -158,6 +158,9 @@ namespace AfterHours
         {
             ClearContactPrint();
             root.Clear();
+            watchMap = null;
+            watchIntent = watchPlace = watchGoal = null;
+            watchSpeed = watchPause = null;
             switches.Clear();
             toast = null;
             toastBox = null;
@@ -169,6 +172,9 @@ namespace AfterHours
             screenOpened = Time.unscaledTime;
             switch (screen)
             {
+                case NightScreen.Observer:
+                    BuildObserver();
+                    return;
                 case NightScreen.Play:
                     BuildHud();
                     return;
@@ -254,6 +260,7 @@ namespace AfterHours
                 if (game.ResumableSave == null) game.NewNight();
                 else Open("restart");
             }, "new-night", game.ResumableSave == null);
+            Item(menu, "观察者模式", game.EnterObserver, "observe");
             Item(menu, "选项", () => Open("settings"), "options");
             Item(menu, "操作", () => Open("controls"), "controls");
             Item(menu, "退出", () => Open("quit"), "quit");
@@ -320,6 +327,7 @@ namespace AfterHours
             }
             var list = Area(column, "menu-list");
             var resume = Item(list, "继续游戏", Resume, "resume", true);
+            if (game.CanObserveLive) Item(list, "观察奶娃   F8", game.EnterObserver, "observe-live");
             Item(list, "保存进度", game.SaveHere, "save");
             Item(list, "选项", () => Open("settings"), "options");
             Item(list, "操作", () => Open("controls"), "controls");
@@ -366,7 +374,7 @@ namespace AfterHours
                         ("W A S D", "移动"), ("鼠标", "观察"), ("Shift", "按住奔跑"), ("C", "切换蹲行"),
                         (NightGame.InteractKey.ToString(), "拾取 / 藏身 / 交互 / 翻窗"),
                         (NightGame.TorchKey.ToString(), "开关手电"), ("R", "更换电池"), ("G", "投掷石子"),
-                        ("B", "背包"), ("M", "地图"), ("V", "测绘相机"), ("F5", "保存"), ("Esc", "暂停"), ("Alt + Enter", "切换全屏")
+                        ("B", "背包"), ("M", "地图"), ("V", "测绘相机"), ("F5", "保存"), ("F8", "观察奶娃 / 回到角色"), ("Esc", "暂停"), ("Alt + Enter", "切换全屏")
                     })
                     {
                         var row = Area(grid, "control-row");
@@ -794,6 +802,7 @@ namespace AfterHours
                 grainLayer.style.backgroundPositionX = new BackgroundPosition(BackgroundPositionKeyword.Left, (frame * 71) % 192);
                 grainLayer.style.backgroundPositionY = new BackgroundPosition(BackgroundPositionKeyword.Top, (frame * 113) % 192);
             }
+            if (screen == NightScreen.Observer) { RefreshObserver(); return; }
             if (screen == NightScreen.Title) TickTitle();
             if (screen == NightScreen.Detention && Application.isFocused)
                 detentionLock?.Tick(Mathf.Min(Time.unscaledDeltaTime, .075f));

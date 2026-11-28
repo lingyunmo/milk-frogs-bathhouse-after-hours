@@ -138,6 +138,7 @@ namespace AfterHours
         static readonly Color Treads = new(.80f, .66f, .44f, .50f);
         readonly NightGame game;
         readonly bool small;
+        readonly NightWatch watch;
         readonly List<(NightAtlas.Area Area, Label Title)> captions = new();
         Label building, ruler;
         Rect plan;
@@ -147,10 +148,11 @@ namespace AfterHours
         bool centeredOnPlayer;
         internal float ZoomLevel => zoom;
 
-        internal NightMapView(NightGame game, bool small)
+        internal NightMapView(NightGame game, bool small, NightWatch watch = null)
         {
             this.game = game;
             this.small = small;
+            this.watch = watch;
             pickingMode = small ? PickingMode.Ignore : PickingMode.Position;
             AddToClassList(small ? "minimap-drawing" : "map-drawing");
             generateVisualContent += Draw;
@@ -262,8 +264,9 @@ namespace AfterHours
             float height = Mathf.Max(1, contentRect.height);
             if (small)
             {
-                var here = game.Player.Feet;
-                float span = game.Atlas.Floor == NightAtlas.Street ? 38 : 23;
+                var here = watch?.Hunter.Position ?? game.Player.Feet;
+                float span = watch != null ? (game.Atlas.FloorAt(here) == NightAtlas.Street ? 60 : 39) :
+                    game.Atlas.Floor == NightAtlas.Street ? 38 : 23;
                 plan = new Rect(here.x - span / 2, here.z - span / 2, span, span);
                 float side = Mathf.Max(width, height);
                 scale = side / span;
@@ -315,14 +318,14 @@ namespace AfterHours
             paint.Stroke();
         }
 
-        bool SeenBefore(NightAtlas.Area area) => game.State.explored.Contains(area.Key);
+        bool SeenBefore(NightAtlas.Area area) => watch != null || game.State.explored.Contains(area.Key);
 
         void Draw(MeshGenerationContext context)
         {
             Fit();
             var paint = context.painter2D;
             Quad(paint, Vector2.zero, contentRect.size, PaperShade, Color.clear);
-            int floor = small ? game.Atlas.Floor : sheet;
+            int floor = watch != null ? game.Atlas.FloorAt(watch.Hunter.Position) : small ? game.Atlas.Floor : sheet;
             if (floor < 0) return;
             bool street = floor == NightAtlas.Street;
             float spacing = street ? 8 : 4;
@@ -336,7 +339,7 @@ namespace AfterHours
             foreach (var area in game.Atlas.Areas(floor))
             {
                 bool explored = SeenBefore(area);
-                bool current = game.Atlas.Current == area;
+                bool current = watch == null && game.Atlas.Current == area;
                 Color fill = current ? HereFill : explored ? SeenFill : UnknownFill;
                 AreaBox(paint, area.Bounds, fill, explored ? Wall : QuietWall);
                 if (!small && !street && !area.Route)
@@ -363,7 +366,8 @@ namespace AfterHours
                 AreaBox(paint, NightAtlas.Building, buildingFill, Wall);
                 AreaBox(paint, NightMainRing.Footprint, buildingFill, Wall);
             }
-            if (game.State.dispatch.orderHeld)
+            if (watch != null) DrawObserverRoute(paint, floor);
+            if (watch == null && game.State.dispatch.orderHeld)
             {
                 var job = game.State.dispatch;
                 if (street && job.tracked == FieldOrder.Lights)
@@ -407,11 +411,11 @@ namespace AfterHours
                 }
             }
             if (!small) DrawScale(paint, street);
-            if (floor != game.Atlas.Floor) return;
+            if (watch == null && floor != game.Atlas.Floor) return;
 
-            Vector3 boots = game.Player.Feet;
+            Vector3 boots = watch?.Hunter.Position ?? game.Player.Feet;
             Vector2 center = Point(boots.x, boots.z);
-            Vector3 yaw = game.Player.transform.forward;
+            Vector3 yaw = watch?.Hunter.Facing ?? game.Player.transform.forward;
             Vector2 forward = new Vector2(yaw.x, -yaw.z).normalized;
             Vector2 across = new(forward.y, -forward.x);
             // Field of view wedge, then a soft disc so the arrow reads at a glance.
@@ -438,6 +442,58 @@ namespace AfterHours
             paint.strokeColor = new Color(.13f, .09f, .04f);
             paint.lineWidth = 1.6f;
             paint.Stroke();
+        }
+
+        void DrawObserverRoute(Painter2D paint, int floor)
+        {
+            var hunter = watch.Hunter;
+            Color trail = new(.38f, .88f, .83f), planColor = new(.98f, .78f, .46f);
+            Vector2 Project(Vector3 feet) => Point(feet.x, feet.z);
+            Vector3 previous = default;
+            bool onSheet = false;
+            foreach (var step in watch.Trail)
+            {
+                bool thisSheet = game.Atlas.FloorAt(step) == floor;
+                if (onSheet && thisSheet) Line(paint, Project(previous), Project(step), trail, 3);
+                previous = step;
+                onSheet = thisSheet;
+            }
+            if (onSheet) Line(paint, Project(previous), Project(hunter.Position), trail, 3);
+            previous = hunter.Position;
+            onSheet = true;
+            float phase = 0;
+            for (int i = hunter.NextStep; i < hunter.PlannedSteps.Count; i++)
+            {
+                Vector3 step = hunter.PlannedSteps[i];
+                bool thisSheet = game.Atlas.FloorAt(step) == floor;
+                if (thisSheet && onSheet)
+                {
+                    Vector2 from = Project(previous), to = Project(step);
+                    Vector2 delta = to - from;
+                    float distance = delta.magnitude;
+                    if (distance > .01f)
+                    {
+                        Vector2 direction = delta / distance;
+                        for (float start = -phase; start < distance; start += 9)
+                        {
+                            float end = Mathf.Min(start + 5, distance);
+                            if (end > 0) Line(paint, from + direction * Mathf.Max(0, start), from + direction * end, planColor, 2);
+                        }
+                        phase = (phase + distance) % 9;
+                    }
+                }
+                else phase = 0;
+                previous = step;
+                onSheet = thisSheet;
+            }
+            if (hunter.CurrentGoal is Vector3 goal && game.Atlas.FloorAt(goal) == floor)
+            {
+                paint.BeginPath();
+                paint.Arc(Project(goal), 5, 0, 360);
+                paint.strokeColor = planColor;
+                paint.lineWidth = 2;
+                paint.Stroke();
+            }
         }
 
         void DrawScale(Painter2D paint, bool isStreet)
