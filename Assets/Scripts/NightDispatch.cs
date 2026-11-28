@@ -20,7 +20,8 @@ namespace AfterHours
         internal static readonly Vector3 BusDoor = new(159.2f,1.10f,-18.76f);
         internal static readonly Vector3 Winch = Barrier + new Vector3(0, 1.10f, -.54f);
         internal static readonly Vector3 ReceiverDish = new(160.66f, 1.01f, 9.62f);
-        internal static float SweepSeconds(int progress) => Mathf.Lerp(3.4f, 1.28f, Mathf.Clamp01(progress / 9f));
+        // Seconds for a single 240-degree pass. The needle reflects at either end.
+        internal static float SweepSeconds(int progress) => Mathf.Lerp(1.9f, .8f, progress / (Contacts - 1f));
     }
 
     [Serializable]
