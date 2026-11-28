@@ -55,18 +55,52 @@ namespace AfterHours
 
         IEnumerator VerifyWithPreview()
         {
+            AfterHoursBlastSmoke.Verify(game);
+            AfterHoursBrineRadiationSmoke.Verify(game);
             Check();
             var args=Environment.GetCommandLineArgs();
             int at=Array.IndexOf(args,"-brine-preview");
             if(at<0 || at+1>=args.Length) yield break;
+            var ui=(NightInterface)typeof(NightGame).GetField("hud",Flags).GetValue(game);
+            string path=args[at+1], folder=Path.GetDirectoryName(Path.GetFullPath(path));
+            game.NewNight(); game.State.brine.stage=BrineStage.Carrying; BusReady();
+            Target("登上救援车").Use();
+            var carry=CaptureField(Path.Combine(folder,"nuclear-cargo.jpg"),ui,false);
+            while(carry.MoveNext()) yield return carry.Current;
             game.NewNight(); game.State.brine.stage=BrineStage.Carrying;
             game.State.torch=true; game.State.charge=200; game.Player.SetTorch(true);
             Call("BeginBrineDefence");
             Aim(new Vector3(271,.07f,-28.2f),new Vector3(256,1.16f,-31.5f));
-            for(int i=0;i<225;i++) Call("TickBrine",.05f);
-            var ui=(NightInterface)typeof(NightGame).GetField("hud",Flags).GetValue(game);
+            // Let the rendered cloud, debris and player display advance on the same wall clock.
+            float began=Time.unscaledTime;
+            while(Time.unscaledTime-began<2.1f)
+            {
+                Call("TickBrine",Mathf.Min(Time.deltaTime,.05f));
+                yield return null;
+            }
             typeof(NightInterface).GetField("arrival",Flags).SetValue(ui,Time.unscaledTime-20);
             game.Atlas.Track(game.State,game.Player.Feet);
+            // Capture the ordinary in-game camera and panel in the same pass as the player output.
+            yield return null;
+            var frame=CaptureField(path,ui,true);
+            while(frame.MoveNext()) yield return frame.Current;
+            foreach(bool safe in new[] { false,true })
+            {
+                game.State.brine.stage=safe ? BrineStage.Flight : BrineStage.Defence;
+                game.State.brine.gateReleased=safe;
+                Call("EndBrine",safe);
+                yield return new WaitForSecondsRealtime(3.8f);
+                Call("FrameFalloutShot");
+                frame=CaptureField(Path.Combine(folder,safe?"nuclear-survivor.jpg":"nuclear-loss.jpg"),ui,false);
+                while(frame.MoveNext()) yield return frame.Current;
+                Need(game.GetComponentInChildren<UIDocument>().rootVisualElement.Q<Button>("reveal-ending")==null,"Ending controls did not appear after the camera cut");
+                game.NewNight(); game.State.brine.stage=BrineStage.Carrying; Call("BeginBrineDefence");
+            }
+            game.NewNight();
+        }
+
+        IEnumerator CaptureField(string file,NightInterface ui,bool handsVisible)
+        {
             var panel=game.GetComponentInChildren<UIDocument>().panelSettings;
             var target=new RenderTexture(1280,720,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.sRGB);
             target.Create();
@@ -80,14 +114,14 @@ namespace AfterHours
                 var cam=game.Player.Eyes.GetComponent<Camera>();
                 cam.Render();
                 var hands=game.Player.Eyes.GetComponentsInChildren<Camera>().First(c=>c.name=="First person torch camera");
-                Need(hands.enabled && gameObject.scene.IsValid(),"Projector camera is disabled"); hands.Render();
+                if(handsVisible) { Need(hands.enabled && gameObject.scene.IsValid(),"Projector camera is disabled"); hands.Render(); }
                 typeof(NightCameraGrade).GetMethod("Present",Flags).Invoke(cam.GetComponent<NightCameraGrade>(),new object[]{target});
                 var utility=typeof(UIDocument).Assembly.GetType("UnityEngine.UIElements.UIElementsRuntimeUtility",true);
                 utility.GetMethod("RenderOffscreenPanels",BindingFlags.Static|BindingFlags.NonPublic|BindingFlags.Public).Invoke(null,null);
                 RenderTexture.active=target;
                 var image=new Texture2D(1280,720,TextureFormat.RGB24,false);
                 image.ReadPixels(new Rect(0,0,1280,720),0,0); image.Apply();
-                File.WriteAllBytes(args[at+1],image.EncodeToJPG(92));
+                File.WriteAllBytes(file,image.EncodeToJPG(92));
                 Destroy(image);
             }
             finally { panel.targetTexture=previous; panel.clearColor=clear; RenderTexture.active=active; target.Release(); Destroy(target); }
@@ -180,6 +214,8 @@ namespace AfterHours
             Need(!s.CanBoard && !s.beacon && !Target("登上救援车").Available() && !game.CanObserveLive,"Bus/observer remained available");
             Use(Target("扳南线回水闸"),new Vector3(268.4f,.07f,-33.62f));
             Need(s.brine.divertedLane==0 && !Target("扳北线回水闸").Available(),"Side sluices did not share their cooldown");
+            Need(s.brine.echoes.Any(e=>e.lane>=3 && e.feet.y < -3) && s.brine.echoes.Any(e=>e.lane>=3 && e.feet.y > 7)
+                && s.brine.echoes.Any(e=>e.lane>=3 && e.feet.x > 306), "Missing basement, upper floor or far bank encounter");
             game.Captured(); Need(!s.detained && s.night==1,"Friendly frog captured player");
             // Leave the post without shooting. The frog cannot clear the event by itself.
             for(int i=0;i<6000 && s.brine.Fighting;i++) Call("TickBrine",.05f);
@@ -278,7 +314,7 @@ namespace AfterHours
             Need(s.brine.stage==BrineStage.Flight && !s.CanBoard,"Three waves could not be cleared using real shots");
             Need(!Target("拉开逃生栓").Available(),"Exit opened before the ally reached the gate");
             for(int i=0;i<140 && !s.brine.gateReleased;i++) Call("TickBrine",.05f);
-            Need(s.brine.gateReleased && s.brine.echoes.Count==2,"Gate opened without the tunnel pursuit");
+            Need(s.brine.gateReleased && s.brine.echoes.Count(e=>e.lane<3)==2 && s.brine.echoes.Any(e=>e.lane>=3),"Gate opened without the tunnel pursuit");
             Need(s.brine.escapeTime>24 && s.brine.escapeTime<=26,"Escape clock ran before the ally opened the gate");
             var flight=JsonUtility.ToJson(s);
             Call("TickBrine",53f);
@@ -298,7 +334,7 @@ namespace AfterHours
             exit.Use();
             Need(s.escaped && NightTickets.Result(s)==Ticket.NuclearEscape && NightTickets.Stamped(Ticket.NuclearEscape),"Tunnel did not award nuclear ending");
             Need(NightTickets.Stamped(Ticket.CoreCargo) && NightTickets.Stamped(Ticket.Overrun),"Missing saved tickets");
-            Need(Resources.Load<Texture2D>("Interface/BrineAfterglow") && Resources.Load<Texture2D>("Interface/Items/BrineCase") &&
+            Need(Resources.Load<Shader>("BrineFireCloud").isSupported && Resources.Load<Shader>("BrineFallout").isSupported && Resources.Load<Texture2D>("Interface/Items/BrineCase") &&
                 Resources.Load<Texture2D>("BrineDrifter") && Resources.Load<Shader>("BrineSilhouette").isSupported,"Missing encounter art");
         }
     }

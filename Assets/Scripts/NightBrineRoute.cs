@@ -9,12 +9,12 @@ namespace AfterHours
     internal sealed class BrineRun
     {
         public BrineStage stage;
-        public bool missedExit, gateReleased;
+        public bool missedExit, gateReleased, radiationLost;
         public int divertedLane = -1;
         public float divertTime, divertCooldown;
         public string[] exposures = new string[4];
         public int wheel, rubbings, wave, released, tideSeed;
-        public float heat;
+        public float heat, radiationDose;
         public bool overheated;
         internal int ShellLane
         {
@@ -38,6 +38,7 @@ namespace AfterHours
             rubbings &= 15;
             wheel = Mathf.Clamp(wheel,0,3);
             heat=Mathf.Clamp01(heat);
+            radiationDose=float.IsFinite(radiationDose) ? Mathf.Clamp01(radiationDose) : 0;
         }
     }
 
@@ -46,7 +47,7 @@ namespace AfterHours
     [Serializable]
     internal sealed class BrineEcho
     {
-        public Vector3 feet;
+        public Vector3 feet, home;
         public int lane, life;
         public DrifterKind kind;
         public bool armoured;
@@ -77,21 +78,30 @@ namespace AfterHours
             return m.Left+"  |  "+Symbols[Index(m.A,wheel)]+Symbols[Index(m.B,wheel)]+"  |  "+m.Right;
         }
         internal const string Inscription = "旧线从井到河。同印相接，每段只抄进水那头的头一个字。\n四段分别留在测站、相馆、宿舍、井房的外墙。";
-        internal static string Notebook(BrineRun run)
+        static readonly string[] MarginNotes = {
+            "测站底稿 · 八七年的最后一通电话收到两遍。第二遍，整队人已上车。",
+            "暗房底稿 · 同一张底片重印两次，第二张的人全朝着管口。",
+            "宿舍交班 · 每晚打烊，值守床就少一人。河对面却总能点齐他们。",
+            "闸井封条 · 试验站已拆。样芯还在替回水线留着最后一夜。"
+        };
+        internal static string FieldRecord(int i,int wheel) => Rubbing(i,wheel)+"　"+MarginNotes[i];
+
+        internal static string Notebook(BrineRun run, bool fieldNotes=true)
         {
             string page = Inscription+"\n";
             for(int i=0;i<Marks.Length;i++)
-                if((run.rubbings & (1<<i))!=0) page+="\n"+Marks[i].Place+"　"+Rubbing(i,run.wheel);
+                if((run.rubbings & (1<<i))!=0) page+="\n"+Marks[i].Place+"　"+(fieldNotes ? FieldRecord(i,run.wheel) : Rubbing(i,run.wheel));
             return page;
         }
 
-        internal const string CarryTitle="请勿托运", LostTitle="尸潮来袭", ClearTitle="地上烟花";
-        internal static (string title,string caption) Epilogue(Ticket ticket, bool missedExit) => ticket switch
+        internal const string CarryTitle="请勿托运", LostTitle="尸潮来袭", ClearTitle="核禁区外";
+        internal static (string title,string caption) Epilogue(Ticket ticket, BrineRun run) => ticket switch
         {
-            Ticket.CoreCargo => (CarryTitle,"车过石桥，铁匣在你膝上响了一下。封条仍写着「试验核聚变样芯」。司机把车厢的暖气关了。匣壁还是热的。"),
-            Ticket.Overrun when missedExit => (LostTitle,"最后一个湿脚印倒在闸边。你听到了奶娃在东廊敲门。晚了一步。核闪从门缝漫进来时，它还在等你。"),
-            Ticket.Overrun => (LostTitle,"第一声像有人在铁门外拍手。第二声从门里传来。浴场的核闪照白了整条堤岸。救援名单上，再也没人划掉你的名字。"),
-            _ => (ClearTitle,"你滚出检修口。奶娃留在闸的另一边，替你压住回弹的门。浴场上空升起一簇白金色的花。隔河的人说放了烟火，只有你的袖口印着核警报的三叶章。")
+            Ticket.CoreCargo => (CarryTitle,"车过石桥，路边的辐射监测灯由绿转红。司机熄了火。封条完整，车上的人却都听见了匣子里的点名。"),
+            Ticket.Overrun when run.radiationLost => (LostTitle,"离门还剩几步，胸前的辐射计已响成一声。奶娃拖着你的袖口往背风处挪。监测带上，你的那一栏停在红区。"),
+            Ticket.Overrun when run.missedExit => (LostTitle,"东闸开着。奶娃在另一头敲了三下，等你的第四声。核爆掀开廊顶时，录音在这里断了。"),
+            Ticket.Overrun => (LostTitle,"南堤停止回话。隔离闸的最后一段录音里，早已撤走的人还在报数。第二次核爆之后，再没有人接班。"),
+            _ => (ClearTitle,"你在东堤外翻过身。核爆云遮住了整条街。奶娃把闸压到最后一刻。隔离线外，接你的值班员在名单末尾写下：一人生还。")
         };
 
         internal static Vector3 Handwheel(int side) => new(268.4f,1.08f,side==0 ? -34.65f : -27.45f);
@@ -137,7 +147,7 @@ namespace AfterHours
             Target(BrineRoute.Dial,"拨动四位字轮",.36f,()=>
             {
                 var prompts=new string[4];
-                for(int i=0;i<4;i++) prompts[i]="井 → 河　　"+(i+1)+" 号字轮\n"+BrineRoute.Notebook(State.brine);
+                for(int i=0;i<4;i++) prompts[i]="井 → 河　　"+(i+1)+" 号字轮\n"+BrineRoute.Notebook(State.brine,false);
                 OpenRepair("旧线封门",BrineRoute.Dial,BrineRoute.Symbols,prompts,BrineRoute.Combination(State.brine.wheel),()=>
                 {
                     State.brine.stage=BrineStage.Unsealed;
@@ -146,16 +156,16 @@ namespace AfterHours
                 panel.wholeCode = new int[4];
             },()=>!State.detained && State.brine.stage==BrineStage.Quiet && State.brine.rubbings==15);
             Target(BrineRoute.Sample+new Vector3(-1.55f,-.10f,.35f),"翻看交运簿",.35f,()=>
-                Notify("七月十七。冷库借浴场的回水保样。今夜核样升温，下游三道闸都在敲门。交运栏写着「一匣」，守闸栏只按了一只湿手印。",9),
+                Notify("七月十七。试验站撤走时，把核样芯留在八七年的旧回水线上。每晚落闸，失踪的夜班工便沿管线回来。南堤的黄衣守闸人，一直没下班。",9),
                 ()=>!State.detained && State.brine.stage is BrineStage.Unsealed or BrineStage.Carrying);
             Target(BrineRoute.Sample,"提起试验核聚变样芯",.75f,()=>
             {
                 State.brine.stage=BrineStage.Carrying; world.Refresh(); SaveProgress();
-                Notify("封条还完整。随车带走，或送往堤岸隔离闸。",7);
+                Notify("交运联有两栏：原匣随车；留在南堤，封死回水线。守闸栏只有一枚湿手印。",7);
             },()=>!State.detained && State.brine.stage==BrineStage.Unsealed);
             Target(BrineRoute.Socket,"部署样芯 · 封锁车道",1.1f,()=>
                 OpenRepair("堤岸隔离闸",BrineRoute.Socket,new[]{"合上匣盖","封路并部署"},
-                    new[]{"核警报一响，接应车即刻撤走。闸内配有回流炮。确认留守？"},new[]{1},BeginBrineDefence),
+                    new[]{"封条背面写着：一旦接入旧线，整条街都会受冲击。车队撤离，留守者只走东闸。接入样芯？"},new[]{1},BeginBrineDefence),
                 ()=>!State.detained && State.brine.stage==BrineStage.Carrying);
             for(int side=0;side<2;side++)
             {
@@ -178,7 +188,7 @@ namespace AfterHours
             if(State.detained || State.brine.stage!=BrineStage.Quiet) return;
             State.brine.rubbings|=1<<i;
             Emit(BrineRoute.Marks[i].Point,.32f,"paper"); SaveProgress();
-            Notify(BrineRoute.Rubbing(i,State.brine.wheel)+"　·　B 查看堤墙摹本",4);
+            Notify(BrineRoute.Rubbing(i,State.brine.wheel)+"　·　B 查阅摹本与底稿",4);
         }
     }
 }

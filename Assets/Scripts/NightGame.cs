@@ -130,6 +130,8 @@ namespace AfterHours
 
         void Begin(NightState save, bool observation = false)
         {
+            LeaveFalloutShot();
+            world.SetBrineBlast(false);
             circuitAnnouncedUntil=-1;
             StopPipePlayback();
             State = save ?? new NightState { shiftEdition = 1, brine = new BrineRun { wheel = UnityEngine.Random.Range(0,4) } };
@@ -168,6 +170,7 @@ namespace AfterHours
 
         void Update()
         {
+            if (falloutShotCamera) FrameFalloutShot();
             messageTime -= Time.unscaledDeltaTime;
             if (ScreenState == NightScreen.Detention && Application.isFocused)
                 State.dispatch.playSeconds += Time.unscaledDeltaTime;
@@ -310,21 +313,25 @@ namespace AfterHours
                 Watch = null;
             }
             if (screen != NightScreen.Play) CloseDispatch();
+            LeaveFalloutShot();
             ScreenState = screen;
+            bool nuclearEnding = screen is (NightScreen.Escaped or NightScreen.Caught)
+                && State.brine.stage is (BrineStage.Clear or BrineStage.Overrun);
             bool playing = screen is NightScreen.Play or NightScreen.Capture;
             Time.timeScale = playing || screen == NightScreen.Observer ? 1 : 0;
             AudioListener.pause = screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
                 or NightScreen.Caught or NightScreen.Escaped;
             SyncCursor(Application.isFocused);
             Player.Eyes.GetComponent<Camera>().enabled = screen is not (NightScreen.Title or NightScreen.Observer);
-            if (grade) grade.SetMenu(screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
-                or NightScreen.Detention or NightScreen.Caught or NightScreen.Escaped);
+            if (grade) grade.SetMenu(!nuclearEnding && screen is (NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
+                or NightScreen.Detention or NightScreen.Caught or NightScreen.Escaped));
             Player.SetTorchVisible(screen == NightScreen.Play && (State.torch || State.brine.Live));
             soundscape.SetScreen(screen);
             if (screen != NightScreen.Capture) soundscape.StopCaptureLaugh();
             if (screen == NightScreen.Play) pauseTime = .12f;
             if (screen == NightScreen.Title)
             {
+                world.SetBrineBlast(false);
                 Player.SetTorch(false);
                 var last = NightSave.Read();
                 NightTickets.Record(last);
@@ -333,8 +340,13 @@ namespace AfterHours
             focus = held = null;
             holdTime = 0;
             if (screen is NightScreen.Escaped or NightScreen.Caught) NightTickets.Record(State);
+            if (nuclearEnding)
+            {
+                StartFalloutShot();
+                soundscape.Play(Player.Eyes.position,"district-impact",.92f,duringPause:true);
+            }
             hud.Show(screen);
-            if (screen == NightScreen.Escaped)
+            if (screen == NightScreen.Escaped && !nuclearEnding)
             {
                 string cue = State.story.choice switch
                 {

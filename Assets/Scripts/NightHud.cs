@@ -62,6 +62,7 @@ namespace AfterHours
             root = document.rootVisualElement;
             root.styleSheets.Add(Resources.Load<StyleSheet>(InterfaceFolder + "AfterHours"));
             root.styleSheets.Add(Resources.Load<StyleSheet>(InterfaceFolder + "NightDuty"));
+            root.styleSheets.Add(Resources.Load<StyleSheet>(InterfaceFolder + "BrineDosimeter"));
             var font = Resources.Load<Font>("Typeface/AfterHours");
             root.style.unityFont = font;
             root.style.unityFontDefinition = FontDefinition.FromFont(font);
@@ -498,20 +499,24 @@ namespace AfterHours
         {
             Classes(veil, safe ? "ending-veil ending--dawn" : "ending-veil ending--caught");
             Area(veil, "screen ending-vignette").style.backgroundImage = new StyleBackground(NightInterfaceArt.Vignette);
-            var scene = Area(veil, "screen");
             var ticket = NightTickets.Result(game.State);
             bool brineEnding = ticket is Ticket.CoreCargo or Ticket.Overrun or Ticket.NuclearEscape;
-            scene.style.backgroundImage = new StyleBackground(ticket is Ticket.Overrun or Ticket.NuclearEscape
-                ? Resources.Load<Texture2D>("Interface/BrineAfterglow") : safe ? Resources.Load<Texture2D>("Interface/LastBus") : titleImage);
-            scene.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
-            scene.SendToBack();
-            var ending = brineEnding ? BrineRoute.Epilogue(ticket,game.State.brine.missedExit) : NightShiftTrail.Ending(game.State);
-            Area(veil, "screen ending-scrim").style.backgroundImage = new StyleBackground(NightInterfaceArt.LeftScrim);
-            if(ticket is Ticket.NuclearEscape or Ticket.Overrun)
+            bool fallout = ticket is Ticket.Overrun or Ticket.NuclearEscape;
+            if (fallout) veil.style.backgroundColor = Color.clear;
+            else
             {
-                var bloom=Area(veil,"screen brine-whiteout");
-                bloom.schedule.Execute(()=>bloom.AddToClassList("brine-whiteout--spent")).StartingIn(80);
-                bloom.schedule.Execute(()=>bloom.RemoveFromHierarchy()).StartingIn(2100);
+                var scene = Area(veil, "screen");
+                scene.style.backgroundImage = new StyleBackground(safe ? Resources.Load<Texture2D>("Interface/LastBus") : titleImage);
+                scene.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+                scene.SendToBack();
+            }
+            var ending = brineEnding ? BrineRoute.Epilogue(ticket,game.State.brine) : NightShiftTrail.Ending(game.State);
+            Area(veil, "screen ending-scrim").style.backgroundImage = new StyleBackground(NightInterfaceArt.LeftScrim);
+            if (ticket == Ticket.CoreCargo)
+            {
+                var sample = Area(veil, "cargo-prop");
+                sample.style.backgroundImage = new StyleBackground(Resources.Load<Texture2D>("Interface/Items/BrineCase"));
+                sample.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Contain);
             }
             var column = Area(veil, "ending");
             Type(column, safe ? game.State.NightLabel + "　·　完" : game.State.NightLabel, "ending-overline");
@@ -534,7 +539,22 @@ namespace AfterHours
             var retry = Item(actions, "重新开始", game.NewNight, "retry", true);
             Item(actions, "返回标题", () => game.SetScreen(NightScreen.Title), "title");
             Stagger(column, 0);
-            Focus(retry);
+            if (fallout)
+            {
+                column.style.display = DisplayStyle.None;
+                Button skip = null;
+                void ShowRecord()
+                {
+                    if (column.style.display.value != DisplayStyle.None) return;
+                    column.style.display = DisplayStyle.Flex;
+                    skip.RemoveFromHierarchy();
+                    Focus(retry);
+                }
+                skip = Act(veil,"查看事故记录",ShowRecord,"sheet-action fallout-skip","reveal-ending");
+                Focus(skip);
+                column.schedule.Execute(ShowRecord).StartingIn(3100);
+            }
+            else Focus(retry);
         }
 
         // ------------------------------------------------------------------ Map
@@ -631,6 +651,7 @@ namespace AfterHours
             gateMeter=new Meter(brineVitals,"brine-track","brine-gate");
             Type(brineVitals,"生命","brine-meter-name");
             survivorMeter=new Meter(brineVitals,"brine-track","brine-life");
+            BuildBrineRadiationHud(layer);
             status = Area(layer, "danger field-danger");
             Area(status, "danger-dot");
             Type(status, "脚步逼近", "danger-text");
@@ -849,6 +870,7 @@ namespace AfterHours
             bool received = now < dispatchHeardUntil;
             Visible(objectiveBlock, !busy);
             Visible(brineVitals,state.brine.Live);
+            TickBrineRadiationHud(state.brine);
             Visible(brineSlot,state.brine.Live); Visible(stoneSlot,!state.brine.Live && !state.dispatch.carrying);
             Visible(carrySlot,state.dispatch.carrying);
             if(state.brine.Live)

@@ -193,4 +193,4 @@ Use case: historical-scene. Landscape 3:2 single analog vernacular photograph, p
 
 ## 东堤冷样保管间
 
-潮返者剪影、封存匣背包图与隔河核闪结局图均为本项目生成的原创图像。战场预览截自 Windows 试玩版，堤岸设施沿用本项目已有的授权模型与路面材质。
+潮返者剪影和封存匣背包图为本项目生成的原创图像。部署后的尘浪、核爆云、建筑断裂和两个事故结局的镜头均在 Unity 中实时渲染。战场预览截自 Windows 试玩版，堤岸设施沿用本项目已有的授权模型与路面材质。

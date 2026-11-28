@@ -87,9 +87,11 @@ namespace AfterHours
                         }
                         save.shiftEdition = 1;
                     }
-                    if (save.dispatch.orderHeld && NightFieldOrders.Done(save.dispatch.tracked, save))
+                    if (save.dispatch.orderHeld && (NightFieldOrders.Done(save.dispatch.tracked, save) ||
+                        !NightShiftTrail.Offered(save, save.dispatch.tracked)))
                         save.dispatch.orderHeld = false;
-                    if (!save.escaped && save.rescueTime > 27) save.rescueTime = 27;
+                    if (!save.escaped && save.rescueTime > NightEvents.BusArrivalTime) save.rescueTime = NightEvents.BusArrivalTime;
+                    if (!save.dropTaken && save.dropTime > NightEvents.DropDescentTime) save.dropTime = NightEvents.DropDescentTime;
                     // A pre-survey save may have signalled the bus already. Keep its road and radio work.
                     if (save.beacon && !save.escaped && !save.RescueAccess)
                     {

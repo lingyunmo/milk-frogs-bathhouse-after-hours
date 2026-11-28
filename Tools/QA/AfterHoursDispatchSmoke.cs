@@ -253,8 +253,11 @@ namespace AfterHours
             var legacy=NightSave.Read();
             legacy.shiftEdition=0; legacy.story=new ShiftEvidence();
             legacy.collected.Add("key-staff"); legacy.collected.Add("key-staff-used");
+            legacy.dispatch.orderHeld = true; legacy.dispatch.tracked = FieldOrder.Ledger;
             NightSave.Write(legacy); game.ContinueNight();
             Check(game.State.pump && game.State.torch && !game.State.collected.Contains("key-staff"),"Legacy rekey lost progress");
+            Check(!game.State.dispatch.orderHeld && Target(Offer(FieldOrder.Lights)).Available(),
+                "Legacy save kept a job behind a re-locked door");
             NightSave.Write(beforeDrain); game.ContinueNight();
             job=game.State.dispatch;
             lastStop=game.Player.Feet;
@@ -448,6 +451,8 @@ namespace AfterHours
                 }
             }
             Check(!game.Piloting && game.State.survey.soundings==3 && !game.State.RescueAccess,$"Launch stopped on reach {game.State.survey.soundings} at {game.State.survey.boatMetres:F1} m, across {game.State.survey.boatOffset:F1}");
+            Check(helmSeconds < 115 && SoundingReach.SpeedAt(SoundingReach.Shoal(0,0).y,0)==SoundingReach.Cruise &&
+                SoundingReach.SpeedAt(SoundingReach.Length,2)==SoundingReach.Cruise, "Open-water pace or low-speed handling regressed");
             Debug.Log($"SOUNDING PASS three reaches under helm in {helmSeconds:F1} s.");
             for (int i = 0; i < 3; i++)
             {
@@ -463,7 +468,10 @@ namespace AfterHours
                     while(finder.MoveNext()) yield return finder.Current;
                     Invoke(game,"ToggleFinder");
                 }
+                Photograph(3+i); // Record a nearby old site on the same outing.
             }
+            Check(game.State.survey.HasSites && !Target("拼接旧底片").Available() && !Target(Offer(FieldOrder.Archive)).Available(),
+                "Recording early negatives must not complete the archive job");
             Check(game.State.survey.CanPrint && !normal.Available(),"Unprocessed film accepted");
             Visit("冲洗水尺底片").Use();
             game.Develop(1,true);
@@ -482,7 +490,7 @@ namespace AfterHours
 
             Visit(Offer(FieldOrder.Archive)).Use();
             float beforeArchiveMetres = walkingMetres;
-            for(int i=3;i<6;i++) Photograph(i);
+            Check(game.State.survey.HasSites && Target("拼接旧底片").Available(),"Lost early negatives across the reload/job handoff");
             Visit("拼接旧底片").Use();
             game.AlignStrips(-1,0,true);
             Check(game.Splicing && !game.State.survey.spliced,"Misaligned strips accepted");
@@ -546,12 +554,29 @@ namespace AfterHours
             NightSave.Write(undecided); game.ContinueNight(); lastStop=game.Player.Feet;
             Visit("播出原名 · 袁素琴").Use();
             Check(NightShiftTrail.Ending(game.State).title=="有人应名" && !Target("封存原片 · 交给早班").Available(),"Missing broadcast ending");
+            // A legacy signal may already be stamped while a newly required board alignment cancels the bus.
+            var beforeSignals = NightSave.Read();
+            var stamped = NightSave.Read();
+            stamped.story.boardAligned = false;
+            stamped.circuit.mainSignal = stamped.circuit.spareSignal = stamped.beacon = true;
+            NightSave.Write(stamped); game.ContinueNight();
+            Check(!game.State.beacon && !normal.Available() && !backupBeacon.Available(), "Legacy stamp bypassed new boarding evidence");
+            Visit("校正接应板朝向").Use(); Answers(0);
+            var realigned = NightSave.Read();
+            foreach (string signal in new[] { "翻起反光接应板", "扳开备用接应灯" })
+            {
+                NightSave.Write(realigned); game.ContinueNight(); lastStop=game.Player.Feet;
+                var post = Visit(signal); Check(post.Available(), "Cannot recall bus on stamped line " + signal);
+                post.Use();
+                Check(game.State.beacon && game.State.rescueTime == NightEvents.BusArrivalTime && !post.Available(), "Repeated call on stamped line " + signal);
+            }
+            NightSave.Write(beforeSignals); game.ContinueNight(); lastStop=game.Player.Feet;
             game.State.dispatch.playSeconds=900;
             backupBeacon.Use();
-            Check(game.State.rescueTime==NightEvents.BackupArrivalTime,"Backup beacon clock gate");
+            Check(game.State.rescueTime==NightEvents.BusArrivalTime,"Backup beacon clock gate");
             Visit("翻起反光接应板").Use();
-            Check(game.State.rescueTime==NightEvents.BackupArrivalTime,"Testing second line redelayed the arriving bus");
-            Check(!Target("登上救援车").Available() && game.State.rescueTime==NightEvents.BackupArrivalTime,"Signal replay restarted clock");
+            Check(game.State.rescueTime==NightEvents.BusArrivalTime,"Testing second line redelayed the arriving bus");
+            Check(!Target("登上救援车").Available() && game.State.rescueTime==NightEvents.BusArrivalTime,"Signal replay restarted clock");
             Invoke(game,"TickWorld",28f);
             var preBoard=NightSave.Read();
             Visit("登上救援车").Use();

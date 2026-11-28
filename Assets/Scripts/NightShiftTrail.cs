@@ -119,7 +119,8 @@ namespace AfterHours
                         FieldOrder.Ledger => "早班簿夹着半张复写纸：十二人。收洗数那一角撕了。另一联送过后巷。",
                         FieldOrder.Radio => "耳机里两声忙音。老电工留字：线断了还可以用街尾的天线。",
                         FieldOrder.Survey => "司机：拿三段测深和三处洪痕来。柜台里的相机还能用。",
-                        _ => "相袋背面：两个站牌喊一个站名。照铜钉重拍三处旧址，到宿舍灯台合片。"
+                        FieldOrder.Archive when State.survey.HasSites => "相袋背面：三处都在这卷里。去守闸宿舍，灯台能把接缝照出来。",
+                        _ => "相袋背面：两个站牌喊一个站名。照铜钉拍齐三处旧址，到宿舍灯台合片。"
                     };
                     Notify(message,6.5f);
                     world.Refresh();

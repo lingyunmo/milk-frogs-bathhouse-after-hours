@@ -5,7 +5,8 @@ namespace AfterHours
     internal static class NightEvents
     {
         internal const string DutyCaseKey = "night-duty-case";
-        internal const float BackupArrivalTime = 18f;
+        internal const float BusArrivalTime = 6f;
+        internal const float DropDescentTime = 4.8f;
         internal static readonly Vector3 DutyCase = new(-9.67f, 8.19f, 18.025f);
         internal static readonly Vector3 DutyCaseTarget = DutyCase + new Vector3(0, .12f, .18f);
         internal static readonly Vector3 FreightSwitch = new(14.65f, 1.18f, 24.31f);
@@ -36,7 +37,7 @@ namespace AfterHours
                 () => Notify("指示窗还是黑的。灯座下面写着「凭回执亮灯」。"),
                 () => NightEvents.Available(State, 4) && !State.contacted);
             Target(NightEvents.BackupBeacon, "扳开备用接应灯", 1.2f, SendBackupBeacon,
-                () => NightEvents.Available(State, 4) && State.contacted && State.RescueAccess && !State.circuit.spareSignal);
+                () => NightEvents.Available(State, 4) && State.contacted && State.RescueAccess && (!State.beacon || !State.circuit.spareSignal));
         }
 
         void OpenDutyCase()
@@ -68,7 +69,7 @@ namespace AfterHours
                 State.circuit.spareSignal = true;
                 if (State.beacon) { Notify("备用灯亮了。司机在原站等你。"); return; }
                 State.beacon = true;
-                State.rescueTime = NightEvents.BackupArrivalTime;
+                State.rescueTime = NightEvents.BusArrivalTime;
                 Notify("东边的站牌亮起来了。", 5);
             }, "signal");
     }
@@ -161,8 +162,8 @@ namespace AfterHours
             freightReadyLight.SetActive(!state.collected.Contains(NightEvents.FreightBellKey(state.night)));
 
             backupBeacon.gameObject.SetActive(state.night >= 4 || state.RescueAccess);
-            backupReadyLight.SetActive(state.contacted && state.RescueAccess && !state.circuit.spareSignal);
-            backupBeaconLight.SetActive(state.circuit.spareSignal);
+            backupReadyLight.SetActive(state.contacted && state.RescueAccess && (!state.beacon || !state.circuit.spareSignal));
+            backupBeaconLight.SetActive(state.beacon && state.circuit.spareSignal);
         }
 
         Transform NightEventMount(string name, Vector3 point, Transform parent = null)

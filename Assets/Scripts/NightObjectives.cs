@@ -74,7 +74,7 @@ namespace AfterHours
             },"signal"),()=>CanService(FieldOrder.Radio)&&State.power&&State.uplink&&State.annexRelay&&!State.circuit.Has(CallPath.FrontDesk));
             Target(terminal,"请求一次补给",1.7f,()=>
             {
-                State.dropTime=21;
+                State.dropTime=NightEvents.DropDescentTime;
                 State.rearDrop=State.pump;
                 Emit(NightWorld.DropPoint(State)+Vector3.up*6,.92f,"drone");
                 Notify(State.rearDrop?"投递点 · 后场货门":"投递点 · 东侧停车棚",6);
@@ -107,9 +107,9 @@ namespace AfterHours
                 State.circuit.mainSignal=true;
                 if (State.beacon) { Notify("司机回了两下灯。车还在。"); return; }
                 State.beacon=true;
-                State.rescueTime=27;
+                State.rescueTime=NightEvents.BusArrivalTime;
                 Notify("街的另一头，有人回了两下远光。",6);
-            },"tool"),()=>!State.detained&&State.contacted&&State.RescueAccess&&!State.circuit.mainSignal,2.3f);
+            },"tool"),()=>!State.detained&&State.contacted&&State.RescueAccess&&(!State.beacon || !State.circuit.mainSignal),2.3f);
             Target(NightDispatch.BusDoor,"登上救援车",1.15f,()=>
             {
                 State.escaped=true;
