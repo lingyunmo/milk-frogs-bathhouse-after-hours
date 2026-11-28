@@ -364,7 +364,7 @@ namespace AfterHours
                     foreach (var (keys, what) in new (string, string)[]
                     {
                         ("W A S D", "移动"), ("鼠标", "观察"), ("Shift", "按住奔跑"), ("C", "切换蹲行"),
-                        (NightGame.InteractKey.ToString(), "拾取 / 交互 / 翻窗"),
+                        (NightGame.InteractKey.ToString(), "拾取 / 藏身 / 交互 / 翻窗"),
                         (NightGame.TorchKey.ToString(), "开关手电"), ("R", "更换电池"), ("G", "投掷石子"),
                         ("B", "背包"), ("M", "地图"), ("V", "测绘相机"), ("F5", "保存"), ("Esc", "暂停"), ("Alt + Enter", "切换全屏")
                     })

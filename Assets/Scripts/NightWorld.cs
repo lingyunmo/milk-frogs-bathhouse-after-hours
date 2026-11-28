@@ -140,6 +140,7 @@ namespace AfterHours
             DressAnnexEquipment();
             DressNightEvents();
             DressPursuitRoutes();
+            DressHideSpots();
             RefinishFurniture();
             FinishTrim();
             game.Player.AttachHeldTorch(HeldFlashlight());

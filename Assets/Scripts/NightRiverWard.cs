@@ -91,7 +91,7 @@ namespace AfterHours
 
             var bunk = StreetRoomShell(RiverBuildings[3],286,294,false,brick,planks,294.8f);
             Partition(bunk,292,-3,4.3f);
-            StreetRoomProp(bunk,"vintage_day_bed","护堤员行军床",new(284,.025f,.8f),new(2.09f,.86f,.91f),0);
+            BedWithClearance(bunk,"护堤员行军床",new(284,.025f,.8f),new(2.09f,.86f,.91f));
             StreetRoomProp(bunk,"folded-towel-stack","干净的旧棉被",new(284.6f,.84f,.8f),new(.52f,.16f,.48f),0,false);
             StreetRoomProp(bunk,"WoodenTable_01","守闸员饭桌",new(295,.025f,-5),new(1.5f,.82f,.89f),90);
             StreetRoomProp(bunk,"tea_set_01","交班茶壶",new(295,.85f,-5.43f),new(.39f,.20f,.28f),7,false);

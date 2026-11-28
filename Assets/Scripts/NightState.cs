@@ -113,6 +113,8 @@ namespace AfterHours
     {
         internal Vector3 Position;
         internal string Label;
+        // Additional height above the physical interaction point that can receive the reticle.
+        internal float AimHeight;
         internal float Hold;
         internal float Radius=2.15f;
         internal Func<bool> Available;
