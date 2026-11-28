@@ -324,24 +324,37 @@ namespace AfterHours
         internal void JoinGuard(Vector3 position)
         {
             actor.gameObject.SetActive(true); Pursuing=false; listenTime=0; listenRipple.Stop();
-            Pose(position,270); SetStride(0); visual.localScale=fullScale; visual.localPosition=fullOffset;
+            Pose(position,270); visual.localRotation=modelFacing; SetStride(0); visual.localScale=fullScale; visual.localPosition=fullOffset;
         }
 
-        float guardSwing;
-        internal void GuardStep(Vector3 post,Vector3 threat,float dt,bool strike)
+        internal void GuardStep(Vector3 post,Vector3 threat,float dt,bool strike,float speed=3.45f)
         {
             var before=Position;
-            actor.position=Vector3.MoveTowards(before,post,dt*3.1f);
+            actor.position=Vector3.MoveTowards(before,post,dt*speed);
             var facing=(post-before).sqrMagnitude>.1f ? post-before : threat-Position;
             facing.y=0;
             if(facing.sqrMagnitude>.01f)
-                actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(facing),dt*265);
-            bool walking=(before-Position).sqrMagnitude>.000001f;
-            stride+=dt*7;
-            SetStride(walking ? Mathf.Sin(stride) : 0);
-            guardSwing=strike ? 1 : Mathf.MoveTowards(guardSwing,0,dt*2.8f);
-            SetExpression(guardSwing);
-            visual.localRotation=Quaternion.Euler(14*guardSwing,0,-8*guardSwing)*modelFacing;
+                actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(facing),dt*300);
+            float travel=(Position-before).magnitude;
+            stride+=travel*2.35f;
+            float step=travel>.001f ? Mathf.Sin(stride) : 0;
+            SetStride(step);
+            SetExpression(strike ? .78f : .03f);
+            visual.localRotation=Quaternion.Euler(3.1f*Mathf.Abs(step),0,-2.8f*step)*modelFacing;
+            visual.localPosition=fullOffset+Vector3.up*(.042f*Mathf.Abs(step));
+            visual.localScale=fullScale;
+        }
+
+        // Feet plant, back arches, then the full weight rolls through the shoulder.
+        internal void GuardBlow(float time)
+        {
+            float coil=Mathf.SmoothStep(0,1,Mathf.Clamp01(time/.30f))*(1-Mathf.SmoothStep(0,1,(time-.30f)/.16f));
+            float drive=Mathf.SmoothStep(0,1,Mathf.Clamp01((time-.30f)/.16f))*(1-Mathf.SmoothStep(0,1,(time-.51f)/.37f));
+            SetStride(-.67f*coil+.91f*drive);
+            SetExpression(.12f+.56f*coil+.66f*drive);
+            visual.localPosition=fullOffset+new Vector3(-.06f*coil,-.16f*coil+.04f*drive,-.18f*coil+.48f*drive);
+            visual.localScale=Vector3.Scale(fullScale,new Vector3(1+.045f*coil,1-.075f*coil,1+.025f*coil));
+            visual.localRotation=Quaternion.Euler(-14*coil+27*drive,-17*coil+12*drive,10*coil-15*drive)*modelFacing;
         }
 
         internal void ReleaseReturnLine()

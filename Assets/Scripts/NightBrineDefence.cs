@@ -21,6 +21,7 @@ namespace AfterHours
         void ReleaseBrineMaterials()
         {
             ReleaseBrineDetector();
+            if(saltWater) Destroy(saltWater);
             if (drifterSkin) Destroy(drifterSkin);
             if (tracerInk) Destroy(tracerInk);
         }
@@ -37,6 +38,7 @@ namespace AfterHours
             {
                 State.dispatch.loadFeet=Player.Feet; State.dispatch.carrying=false; RefreshLoad();
             }
+            run.arming=false;
             run.tideSeed=UnityEngine.Random.Range(0,6);
             run.stage=BrineStage.Defence; run.spawnIn=3; run.shutter=run.breath=100;
             for(int i=0;i<InlandPosts.Length;i++)
@@ -44,32 +46,28 @@ namespace AfterHours
                     run.echoes.Add(new BrineEcho { feet=floor, home=floor, lane=i+3,life=2,stride=i });
             State.beacon=false; State.rescueTime=-1; circuitAnnouncedUntil=-1;
             State.spawn=new Vector3(276,.065f,-30.4f); State.yaw=270;
-            RestoreBrineScene(); world.Refresh();
-            world.SetBrineBlast(true, playImpact:true);
-            soundscape.Play(Player.Eyes.position,"district-impact",.90f);
-            // The player has just been looking down at the socket. Aim back over the spillways;
-            // normal mouse look and movement are available on the very next frame.
-            if ((Player.Feet-BrineRoute.Socket).sqrMagnitude < 16)
-            {
-                var towards = NightBrineBlast.Source - Player.Feet;
-                Player.transform.rotation = Quaternion.LookRotation(new Vector3(towards.x,0,towards.z));
-                Player.LookDown(-10);
-            }
+            SyncBrineScene(true); world.Refresh();
+            ScheduleFalloutPA();
+            guideFeedLook=false;
             grade?.Shock();
-            Notify("东堤发生核事故。司机切断了频道。奶娃守住东闸，把回流炮推到你脚边。",7);
+
             SaveProgress();
         }
 
-        void RestoreBrineScene()
+        void RestoreBrineScene() => SyncBrineScene(false);
+
+        void SyncBrineScene(bool impact)
         {
             ResetBrineDetector();
-            world.SetBrineBlast(State.brine.Committed);
+            world.SetBrineBlast(State.brine.Committed && !State.brine.arming,impact);
             foreach(var visual in drifters.Values) if(visual) Destroy(visual.gameObject);
             drifters.Clear();
+            ClearGuardContact();
             if(bolt) bolt.enabled=false;
             triggerIn=contactIn=boltLife=0; allyIn=2;
             Player.EquipBrineGun(State.brine.Live);
             world.BriefBrineWheels(State.brine.Fighting ? State.brine.ShellLane : -1);
+            if(State.brine.arming) { world.PreloadBrineMedia(); hunter.JoinGuard(Guard); }
             if(!State.brine.Live) return;
             hunter.JoinGuard(State.brine.gateReleased ? Escort : Guard);
             foreach(var echo in State.brine.echoes) SpawnVisual(echo);
@@ -114,6 +112,12 @@ namespace AfterHours
             Vector3 away=skin.position-Player.Eyes.position; away.y=0;
             if(away.sqrMagnitude>.01f)
                 skin.rotation=Quaternion.LookRotation(away)*Quaternion.Euler(0,0,3.2f*sway);
+            if(echo.fromGrate && echo.emergence<1.42f)
+            {
+                float up=Mathf.SmoothStep(0,1,Mathf.Clamp01((echo.emergence-.24f)/1.18f));
+                skin.position-=Vector3.up*((1-up)*1.43f);
+                skin.rotation*=Quaternion.Euler(-32*(1-up),0,-13*(1-up));
+            }
         }
 
         void RemoveEcho(BrineEcho echo)
@@ -125,6 +129,8 @@ namespace AfterHours
         void TickBrine(float dt)
         {
             var r=State.brine;
+            TickFalloutPA(dt);
+            TickGuardFalls(dt);
             if (TickBrineRadiation(dt)) return;
             triggerIn-=dt; allyIn-=dt; contactIn-=dt; boltLife-=dt;
             if(bolt && boltLife<=0) bolt.enabled=false;
@@ -136,10 +142,12 @@ namespace AfterHours
             {
                 var lever=new Vector3(283.1f,.04f,-32.1f);
                 var goal=r.gateReleased ? Escort : lever;
-                hunter.GuardStep(goal,goal+Vector3.right,dt,false);
+                if(!r.gateReleased) hunter.GuardStep(goal,goal+Vector3.right,dt,false,5.1f);
+                else TickBrineGuard(dt,true);
                 if(!r.gateReleased && (hunter.Position-lever).sqrMagnitude<.25f)
                 {
                     r.gateReleased=true;
+                    SpeakPA(4);
                     world.Refresh(); soundscape.Play(lever,"truck",.78f);
                     // Older flight saves have no tunnel sentries. New ones spawn once, when the gate opens.
                     foreach(var at in new[]{new Vector3(291,.04f,-32),new Vector3(299,.04f,-30)})
@@ -171,6 +179,7 @@ namespace AfterHours
             {
                 var echo=BrineRoute.NextEcho(r);
                 r.echoes.Add(echo); SpawnVisual(echo);
+                if(echo.fromGrate) soundscape.Play(echo.feet,"guard-fall",.91f);
                 r.released++;
                 r.spawnIn=BrineRoute.SpawnDelay(r.wave,r.released);
                 if(echo.armoured)
@@ -180,8 +189,6 @@ namespace AfterHours
                 }
                 soundscape.Play(echo.feet,"pipe-leak",.54f);
             }
-            BrineEcho nearest=null;
-            float remaining=float.PositiveInfinity;
             int advancing=0;
             for(int i=r.echoes.Count-1;i>=0;i--)
             {
@@ -191,6 +198,17 @@ namespace AfterHours
                     PatrolInland(echo,dt);
                     if(ContactPlayer(echo)) return;
                     continue;
+                }
+                if(echo.fromGrate && echo.emergence<1.42f)
+                {
+                    float before=echo.emergence;
+                    echo.emergence+=dt;
+                    world.TipBackwashGrate(echo.emergence);
+                    if(before<.82f && echo.emergence>=.82f)
+                    {
+                        soundscape.Play(echo.feet,"tool",1); SprayBrine(echo.feet+Vector3.up*.24f,Vector3.forward,12);
+                    }
+                    PoseDrifter(echo); advancing++; continue;
                 }
                 Vector3 goal;
                 {
@@ -224,18 +242,9 @@ namespace AfterHours
                     continue;
                 }
                 advancing++;
-                if(!echo.armoured && left<remaining) { nearest=echo; remaining=left; }
             }
             world.BriefBrineWheels(r.ShellLane);
-            // Crossing lanes costs the ally time. It catches stragglers, but cannot hold all three mouths alone.
-            var postAt=nearest!=null && remaining<7 ? BrineRoute.Breach(nearest.lane)-Vector3.right*1.8f : Guard;
-            bool strike=nearest!=null && (nearest.feet-hunter.Position).sqrMagnitude<3.2f && allyIn<=0;
-            hunter.GuardStep(postAt,nearest?.feet ?? BrineRoute.Mouth(1),dt,strike);
-            if(strike)
-            {
-                allyIn=4.8f; soundscape.Play(nearest.feet,"land",.88f);
-                if(--nearest.life<=0) { RemoveEcho(nearest); advancing--; }
-            }
+            if(TickBrineGuard(dt,false)) advancing--;
             if(advancing==0 && r.released==BrineRoute.WaveSize(r.wave))
             {
                 if(r.wave==2)
@@ -248,6 +257,7 @@ namespace AfterHours
                 else
                 {
                     r.wave++; r.released=0; r.spawnIn=4.5f;
+                    if(r.wave==1) SpeakPA(5);
                     Notify(r.wave==1 ? "两岸都在响。当心贴地跑的红衣。" : "三道暗孔全开了！",4);
                 }
                 SaveBrineCheckpoint();
@@ -324,6 +334,7 @@ namespace AfterHours
             BrineEcho hit=null;
             foreach(var echo in State.brine.echoes)
             {
+                if(echo.fromGrate && echo.emergence<.85f) continue;
                 float t=Vector3.Dot(echo.feet+Vector3.up-eye.position,eye.forward);
                 if(t<=0 || t>=reach) continue;
                 var p=ray.GetPoint(t)-echo.feet;
@@ -358,6 +369,7 @@ namespace AfterHours
         {
             var run=State.brine;
             if(!run.Live || throughHatch && (run.stage!=BrineStage.Flight || !run.gateReleased)) return;
+            ResetPA();
             run.missedExit=!throughHatch && run.stage==BrineStage.Flight && run.escapeTime<=0;
             run.stage=throughHatch ? BrineStage.Clear : BrineStage.Overrun;
             State.escaped=throughHatch; State.ended=true; State.detained=false;

@@ -9,6 +9,10 @@ namespace AfterHours
     internal sealed class BrineRun
     {
         public BrineStage stage;
+        public BrineInquiryStep inquiry;
+        internal bool CanRecordMarks => stage == BrineStage.Quiet && inquiry == BrineInquiryStep.Online;
+        public bool arming, eastSupply;
+        public float gridTime;
         public bool missedExit, gateReleased, radiationLost;
         public int divertedLane = -1;
         public float divertTime, divertCooldown;
@@ -29,13 +33,17 @@ namespace AfterHours
         public float spawnIn, shutter = 100, breath = 100, escapeTime;
         public List<BrineEcho> echoes = new();
         internal bool Fighting => stage == BrineStage.Defence;
-        internal bool Committed => stage >= BrineStage.Defence;
+        internal bool Committed => arming || stage >= BrineStage.Defence;
         internal bool Live => Fighting || stage == BrineStage.Flight;
         internal void Normalize()
         {
             echoes ??= new List<BrineEcho>();
             if(exposures==null || exposures.Length!=4) Array.Resize(ref exposures,4);
+            arming &= stage == BrineStage.Carrying;
+            gridTime = float.IsFinite(gridTime) ? Mathf.Clamp(gridTime, 0, NightGrid.FailureAt) : 0;
             rubbings &= 15;
+            if (stage != BrineStage.Quiet || rubbings != 0 || Array.Exists(exposures, p => !string.IsNullOrEmpty(p)))
+                inquiry = BrineInquiryStep.Online;
             wheel = Mathf.Clamp(wheel,0,3);
             heat=Mathf.Clamp01(heat);
             radiationDose=float.IsFinite(radiationDose) ? Mathf.Clamp01(radiationDose) : 0;
@@ -52,6 +60,8 @@ namespace AfterHours
         public DrifterKind kind;
         public bool armoured;
         public float stride;
+        public bool fromGrate;
+        public float emergence;
     }
 
     internal static class BrineRoute
@@ -115,6 +125,7 @@ namespace AfterHours
         internal static BrineEcho NextEcho(BrineRun run)
         {
             int n=run.released, wave=run.wave;
+            if(n==0 && wave==0) return new BrineEcho { lane=0, feet=NightWorld.BackwashDrain, life=1, fromGrate=true };
             bool shell=n%7==3;
             bool runner=!shell && n>0 && (n+wave)%4==1;
             int lane=shell ? 2*((run.tideSeed+wave+n/7)%2) : (n*2+n/3+wave+run.tideSeed)%3;
@@ -136,13 +147,14 @@ namespace AfterHours
     {
         void BuildBrineTargets()
         {
+            BuildBrineInquiryTargets();
             for(int i=0;i<BrineRoute.Marks.Length;i++)
             {
                 int mark=i;
                 Target(BrineRoute.Marks[i].Point,"拓下旧线记号",.65f,()=>RecordMark(mark),
-                    ()=>!State.detained && State.brine.stage==BrineStage.Quiet && (State.brine.rubbings & (1<<mark))==0);
+                    ()=>!State.detained && State.brine.CanRecordMarks && (State.brine.rubbings & (1<<mark))==0);
             }
-            Target(BrineRoute.Dial,"读封门铭牌",.18f,()=>Notify(BrineRoute.Inscription,9),
+            Target(BrineRoute.Dial,"读封门铭牌",.18f,()=>Notify(State.brine.CanRecordMarks ? BrineRoute.Inscription : BrineInquiry.LockNotice,9),
                 ()=>!State.detained && State.brine.stage==BrineStage.Quiet && State.brine.rubbings!=15);
             Target(BrineRoute.Dial,"拨动四位字轮",.36f,()=>
             {
@@ -165,8 +177,10 @@ namespace AfterHours
             },()=>!State.detained && State.brine.stage==BrineStage.Unsealed);
             Target(BrineRoute.Socket,"部署样芯 · 封锁车道",1.1f,()=>
                 OpenRepair("堤岸隔离闸",BrineRoute.Socket,new[]{"合上匣盖","封路并部署"},
-                    new[]{"封条背面写着：一旦接入旧线，整条街都会受冲击。车队撤离，留守者只走东闸。接入样芯？"},new[]{1},BeginBrineDefence),
+                    new[]{"封条背面写着：一旦接入旧线，整条街都会受冲击。车队撤离，留守者只走东闸。接入样芯？"},new[]{1},ConnectBrineFeed),
                 ()=>!State.detained && State.brine.stage==BrineStage.Carrying);
+            brineInterlock=Target(NightGrid.Switch,"拨到东闸应急供电",.72f,CloseEastSupply,
+                ()=>State.brine.arming && !State.brine.eastSupply);
             for(int side=0;side<2;side++)
             {
                 int lane=side*2;
@@ -185,9 +199,9 @@ namespace AfterHours
 
         void RecordMark(int i)
         {
-            if(State.detained || State.brine.stage!=BrineStage.Quiet) return;
+            if(State.detained || !State.brine.CanRecordMarks) return;
             State.brine.rubbings|=1<<i;
-            Emit(BrineRoute.Marks[i].Point,.32f,"paper"); SaveProgress();
+            Emit(BrineRoute.Marks[i].Point,.32f,"paper"); world.Refresh(); SaveProgress();
             Notify(BrineRoute.Rubbing(i,State.brine.wheel)+"　·　B 查阅摹本与底稿",4);
         }
     }

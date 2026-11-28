@@ -134,6 +134,8 @@ namespace AfterHours
             world.SetBrineBlast(false);
             circuitAnnouncedUntil=-1;
             StopPipePlayback();
+            ResetPA();
+            guideFeedLook=false;
             State = save ?? new NightState { shiftEdition = 1, brine = new BrineRun { wheel = UnityEngine.Random.Range(0,4) } };
             CloseDispatch();
             radioCallIn = 0;
@@ -273,13 +275,14 @@ namespace AfterHours
             if (!State.detained)
             {
                 releaseGrace = Mathf.Max(0, releaseGrace - dt);
-                if (State.brine.Live) TickBrine(dt);
+                if (State.brine.arming) TickBrineFeed(dt);
+                else if (State.brine.Live) TickBrine(dt);
                 else if (!State.circuit.Solved) hunter.Tick(dt);
                 if (ScreenState != NightScreen.Play) return;
                 TickWorld(dt);
             }
             if (panel != null || WorkingDispatch) return;
-            if (State.brine.Live)
+            if (State.brine.Live || State.brine.arming)
             {
                 if (Input.GetKeyDown(KeyCode.F5)) SaveHere();
                 FocusTarget(dt);
@@ -332,6 +335,8 @@ namespace AfterHours
             if (screen == NightScreen.Title)
             {
                 world.SetBrineBlast(false);
+                world.HideBrineFeed();
+                ResetPA();
                 Player.SetTorch(false);
                 var last = NightSave.Read();
                 NightTickets.Record(last);
@@ -343,7 +348,7 @@ namespace AfterHours
             if (nuclearEnding)
             {
                 StartFalloutShot();
-                soundscape.Play(Player.Eyes.position,"district-impact",.92f,duringPause:true);
+
             }
             hud.Show(screen);
             if (screen == NightScreen.Escaped && !nuclearEnding)
@@ -511,6 +516,7 @@ namespace AfterHours
             else if(!Player.Vaulting)
             foreach(var target in targets)
             {
+                if(State.brine.arming && target != brineInterlock) continue;
                 if(State.brine.Live && target != brineExit && target != brineWheels[0] && target != brineWheels[1]) continue;
                 if(target.Available!=null&&!target.Available())continue;
                 Vector3 offset=target.Position-eyes.position;

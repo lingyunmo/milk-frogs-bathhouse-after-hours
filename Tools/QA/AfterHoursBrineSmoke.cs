@@ -10,7 +10,7 @@ using UnityEngine.UIElements;
 
 namespace AfterHours
 {
-    internal sealed class AfterHoursBrineSmoke : MonoBehaviour
+    internal sealed partial class AfterHoursBrineSmoke : MonoBehaviour
     {
         const BindingFlags Flags=BindingFlags.Instance|BindingFlags.NonPublic;
         NightGame game;
@@ -55,6 +55,8 @@ namespace AfterHours
 
         IEnumerator VerifyWithPreview()
         {
+            var fronts=AfterHoursFrontSmoke.Verify(game);
+            while(fronts.MoveNext()) yield return fronts.Current;
             AfterHoursBlastSmoke.Verify(game);
             AfterHoursBrineRadiationSmoke.Verify(game);
             Check();
@@ -63,6 +65,8 @@ namespace AfterHours
             if(at<0 || at+1>=args.Length) yield break;
             var ui=(NightInterface)typeof(NightGame).GetField("hud",Flags).GetValue(game);
             string path=args[at+1], folder=Path.GetDirectoryName(Path.GetFullPath(path));
+            var monitor = PreviewBrineInquiry(folder, ui);
+            while (monitor.MoveNext()) yield return monitor.Current;
             game.NewNight(); game.State.brine.stage=BrineStage.Carrying; BusReady();
             Target("登上救援车").Use();
             var carry=CaptureField(Path.Combine(folder,"nuclear-cargo.jpg"),ui,false);
@@ -166,6 +170,7 @@ namespace AfterHours
             Need((int)Ticket.Return==5 && NightTickets.Book.Skip(4).Take(3).Select(p=>p.Id)
                 .SequenceEqual(new[]{Ticket.CoreCargo,Ticket.Overrun,Ticket.NuclearEscape}),"Ticket order or old bits changed");
             game.NewNight();
+            CheckBrineInquiry();
             var s=game.State;
             var book=targets.Where(t=>t.Label=="拓下旧线记号").ToArray();
             Need(book.Length==4 && !Target("拨动四位字轮").Available(),"Early vault access");
@@ -212,17 +217,48 @@ namespace AfterHours
             Need(game.RepairView==null && s.CanBoard && s.brine.stage==BrineStage.Carrying,"Cancel committed the route");
             Use(Target("部署样芯 · 封锁车道"),new Vector3(274.1f,.07f,-30.5f)); Enter(1);
             Need(!s.CanBoard && !s.beacon && !Target("登上救援车").Available() && !game.CanObserveLive,"Bus/observer remained available");
+            var handle=GameObject.Find("胶木横握把").GetComponent<Renderer>();
+            var grate=GameObject.Find("带锈的扁钢箅").GetComponent<Renderer>();
+            Need(Vector3.Distance(handle.bounds.center,NightGrid.Switch)<1 && Vector3.Distance(grate.bounds.center,NightWorld.BackwashDrain)<1,"Hardware outside the playable yard");
+            Need(s.brine.arming && !s.brine.Fighting && s.brine.echoes.Count==0,"Deployment skipped emergency feed");
+            Need(game.PaCaption.Contains("核燃料"),"No first deployment announcement");
+            for(int i=0;i<240;i++) Call("TickBrineFeed",.05f);
+            Need(s.brine.arming && s.brine.radiationDose==0 && !s.brine.eastSupply,"Unattended feed exploded");
+            Use(Target("拨到东闸应急供电"),new Vector3(280.7f,.07f,-32.6f));
+            Call("TickBrineFeed",1.2f); Call("SaveProgress"); game.ContinueNight(); s=game.State;
+            Need(s.brine.arming && s.brine.eastSupply && s.brine.gridTime>=1.19f && !s.brine.Fighting,"Live line did not resume");
+            for(int i=0;i<180 && s.brine.arming;i++) Call("TickBrineFeed",.05f);
+            Need(s.brine.Fighting && !s.brine.arming,"District never tripped");
+            foreach(var id in new[]{"intake","feedback","evacuate","radiation","gate","rollcall"})
+            {
+                var clip=Resources.Load<AudioClip>("Audio/east-pa-"+id);
+                Need(clip && clip.length>2 && clip.loadState==AudioDataLoadState.Loaded,"Missing audible PA "+id);
+            }
+            Debug.Log("BRINE_FEED_OK unpowered, interlock, live line save, accident, six installed voice clips");
             Use(Target("扳南线回水闸"),new Vector3(268.4f,.07f,-33.62f));
             Need(s.brine.divertedLane==0 && !Target("扳北线回水闸").Available(),"Side sluices did not share their cooldown");
             Need(s.brine.echoes.Any(e=>e.lane>=3 && e.feet.y < -3) && s.brine.echoes.Any(e=>e.lane>=3 && e.feet.y > 7)
                 && s.brine.echoes.Any(e=>e.lane>=3 && e.feet.x > 306), "Missing basement, upper floor or far bank encounter");
             game.Captured(); Need(!s.detained && s.night==1,"Friendly frog captured player");
             // Leave the post without shooting. The frog cannot clear the event by itself.
-            for(int i=0;i<6000 && s.brine.Fighting;i++) Call("TickBrine",.05f);
+            var guardian=(NightHunter)typeof(NightGame).GetField("hunter",Flags).GetValue(game);
+            var firstPost=guardian.Position;
+            float excursion=0; int landed=0; bool brokeThrough=false, defendedDrain=false;
+            for(int i=0;i<6000 && s.brine.Fighting;i++)
+            {
+                Call("TickBrine",.05f);
+                excursion=Mathf.Max(excursion,Vector3.Distance(firstPost,guardian.Position));
+                landed=Mathf.Max(landed,game.GuardHits);
+                defendedDrain|=game.CaughtDrainAttacker;
+                brokeThrough |= s.brine.echoes.Any(e=>e.fromGrate && e.emergence>.8f);
+            }
+            Need(brokeThrough && defendedDrain && excursion>5 && landed>0,"Guard failed to intercept the drain attacker");
+            Debug.Log($"GUARD PASS first wave drain, {excursion:F1}m from post, {landed} body impacts while player watched");
             Need(s.ended && s.night==1 && NightTickets.Result(s)==Ticket.Overrun && game.ScreenState==NightScreen.Caught,"No immediate loss");
             game.NewNight(); s=game.State; s.brine.stage=BrineStage.Carrying; Call("BeginBrineDefence");
             Aim(new Vector3(276,.07f,-29.1f),BrineRoute.Mouth(1)+Vector3.up);
             for(int i=0;i<92;i++) Call("TickBrine",.05f);
+            s.brine.Normalize();
             string snapshot=JsonUtility.ToJson(s.brine);
             Call("SaveProgress"); game.ContinueNight(); s=game.State;
             Need(snapshot==JsonUtility.ToJson(s.brine) && s.brine.echoes.Any(e=>e.lane<3),"Mid-wave reload changed battle");

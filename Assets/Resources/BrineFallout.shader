@@ -19,10 +19,11 @@ Shader "AfterHours/Brine Fallout"
             float4 frag(v2f i):SV_Target
             {
                 float2 uv=i.uv*2-1;
-                float4 grain=tex3D(_Noise,float3(uv*.51+.51,i.c.r*.83));
+                float4 grain=tex3D(_Noise,float3(uv*.51+.51,i.c.r*.83+_Time.y*.043));
                 float fold=tex3D(_Noise,float3(uv*1.06+grain.r*.21,i.c.g)).g;
-                float edge=1-length(uv*float2(.9,1.22))+(grain.r-.5)*.43+(fold-.5)*.31;
-                float alpha=smoothstep(.02,.85,edge)*(.32+fold*.68)*i.c.a;
+                float wisps=tex3D(_Noise,float3(uv*2.39+grain.g*.16,i.c.b+_Time.y*.09)).g;
+                float edge=1-length(uv*float2(.94,1.16))+(grain.r-.5)*.48+(fold-.5)*.37+(wisps-.45)*.13;
+                float alpha=smoothstep(.015,.52,edge)*(.35+fold*.53+wisps*.18)*i.c.a;
                 return float4(i.c.rgb*lerp(.51,1.06,grain.g),alpha);
             }
             ENDCG

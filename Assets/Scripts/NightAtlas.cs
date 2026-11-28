@@ -73,6 +73,7 @@ namespace AfterHours
             foreach (var pocket in NightWorld.StreetPockets)
                 Add(Street, pocket.Name, pocket.Bounds);
             for (int i=0;i<ReturnWing.Rooms.Length;i++) Add(Street,ReturnWing.Rooms[i],ReturnWing.Bounds(i+1));
+            Add(Street,"防疫监测哨",BrineInquiry.Room);
             Add(Street,"冷样保管间",BrineRoute.Room);
             Add(Street,"泄洪廊",BrineRoute.Gallery);
             foreach (var building in NightWorld.RiverBuildings)

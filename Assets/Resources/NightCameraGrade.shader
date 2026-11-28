@@ -27,6 +27,7 @@ Shader "Hidden/AfterHours/NightCameraGrade"
         float4 _Occlusion;   // radius (m), intensity, final strength, fade distance (m)
         float4 _Grade;       // exposure, contrast, saturation, grain
         float4 _Lens;        // vignette, aberration, fear, shock
+        float2 _PressureUV;
         float4 _Menu;        // blur, dim
         float _Scatter;
 
@@ -242,7 +243,8 @@ Shader "Hidden/AfterHours/NightCameraGrade"
 
         float4 FragComposite(v2f_img i) : SV_Target
         {
-            float2 uv = i.uv;
+            // Film gate moves at the pressure front. Slight overscan keeps the frame edges clean.
+            float2 uv = (i.uv-.5)*(1-2*max(abs(_PressureUV.x),abs(_PressureUV.y)))+.5+_PressureUV;
             float2 aux = AuxiliaryUV(uv);
             float fear = _Lens.z, shock = _Lens.w;
 
