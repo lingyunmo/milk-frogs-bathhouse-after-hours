@@ -278,9 +278,9 @@ namespace AfterHours
             NightItemId.BrineSample => "BrineCase",
             NightItemId.Counterweight => "counterweight",
             NightItemId.Stone => "stone",
-            NightItemId.Starter or NightItemId.RelayFuse => "starter",
+            NightItemId.Starter or NightItemId.RelayFuse or NightItemId.PlaybackCard => "starter",
             NightItemId.Seal => "seal",
-            NightItemId.LinenKey or NightItemId.StaffKey or NightItemId.UplinkKey => "key",
+            NightItemId.MonitorKey or NightItemId.LinenKey or NightItemId.StaffKey or NightItemId.UplinkKey => "key",
             _ => "receipt"
         };
     }

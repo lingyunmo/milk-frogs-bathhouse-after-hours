@@ -833,7 +833,7 @@ namespace AfterHours
             foreach (var (row, on) in switches) row.EnableInClassList("switch--on", on());
             if (toast != null)
             {
-                string message = game.Message;
+                string message = string.IsNullOrEmpty(game.PaCaption) ? game.Message : game.PaCaption;
                 var box = toastBox ?? toast;
                 if (message.Length > 0 && toast.text != message) Reveal(box);
                 Copy(toast, message);
@@ -855,7 +855,8 @@ namespace AfterHours
             var player = game.Player;
             var state = game.State;
 
-            var lead = NightFieldOrders.Current(state);
+            var localInquiry = BrineInquiry.NearbyLead(state, player.Feet, player.Eyes);
+            var lead = localInquiry ?? NightFieldOrders.Current(state);
             if (lead.action != shownObjective || lead.place != location.text)
             {
                 shownObjective = lead.action;
@@ -883,7 +884,7 @@ namespace AfterHours
                 survivorMeter.Set(state.brine.breath*.01f,state.brine.breath<=25);
             }
             objectiveBlock.EnableInClassList("objective--updated", received || now - objectiveSince < 3.2f);
-            Copy(objectiveTag, received ? "已接单　/　夜班调度" :
+            Copy(objectiveTag, localInquiry.HasValue ? "堤岸巡检" : received ? "已接单　/　夜班调度" :
                 state.dispatch.orderHeld && !state.detained && !state.beacon && !(state.contacted && state.RescueAccess)
                     ? OrderName(NightFieldOrders.Tracking(state)) : state.NightLabel);
             Visible(equipmentHints, !busy && !game.InPursuit && now - arrival < 13);

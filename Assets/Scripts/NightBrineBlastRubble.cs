@@ -12,19 +12,30 @@ namespace AfterHours
         internal int FracturedSurfaces => plates.Count;
         internal int SkylineBlocks => skyline.Count;
 
-        void CaptureArchitecture(Transform district)
+        System.Collections.IEnumerator CaptureArchitecture(Transform district)
         {
             // These are individual roof skins. Their original colliders continue to carry the
             // walkable floors, gallery and held-open doors, including while the skin is in flight.
+            var roofSurfaces = new List<MeshRenderer>();
             void Roof(Transform building, string name)
             {
                 if (!building) return;
                 foreach (Transform part in building)
                     if (part.name == name && part.TryGetComponent<MeshRenderer>(out var surface) && surface.enabled)
-                        plates.Add(new Fracture(surface, transform, Burn(surface.sharedMaterial)));
+                        roofSurfaces.Add(surface);
             }
-            foreach (var site in NightWorld.StreetRoomAreas) Roof(district.Find(site.Name),"沿街房屋屋顶");
-            foreach (var site in NightWorld.RiverBuildings) Roof(district.Find(site.Name),"沿街房屋屋顶");
+            foreach (var site in NightWorld.StreetRoomAreas)
+            {
+                Roof(district.Find(site.Name),"沿街房屋屋顶");
+                yield return null;
+            }
+            foreach (var site in NightWorld.RiverBuildings)
+            {
+                Roof(district.Find(site.Name),"沿街房屋屋顶");
+                yield return null;
+            }
+            Roof(district.Find("防疫监测哨"),"沿街房屋屋顶");
+            yield return null;
             Roof(district.Find("东堤旧票务所"),"屋面");
             Roof(district.Find("冷样保管间"),"沿街房屋屋顶");
             Roof(district.Find("主楼南翼/员工层南翼"),"南翼顶板");
@@ -34,10 +45,16 @@ namespace AfterHours
             if (road)
                 foreach (Transform child in road)
                     if (child.name.EndsWith("顶棚",System.StringComparison.Ordinal) && child.TryGetComponent<MeshRenderer>(out var canopy) && canopy.enabled)
-                        plates.Add(new Fracture(canopy,transform,Burn(canopy.sharedMaterial)));
+                        roofSurfaces.Add(canopy);
             var gate = district.Find("堤岸隔离闸");
             Roof(gate,"来水暗孔");
             Roof(gate,"泄洪廊顶");
+            foreach (var surface in roofSurfaces)
+            {
+                plates.Add(new Fracture(surface, transform, Burn(surface.sharedMaterial)));
+                yield return null;
+            }
+            foreach (var step in CaptureStructure(district)) yield return step;
             AddSkyline(district);
             AddSkyline(road);
             AddSkyline(district.Find("石桥东堤"));
@@ -67,12 +84,16 @@ namespace AfterHours
 
         void PoseArchitecture(float seconds)
         {
+            PoseDebrisBank(seconds);
+            foreach (var section in structure) section.Pose(seconds);
             foreach (var tower in skyline) tower.Pose(seconds);
             foreach (var plate in plates) plate.Pose(seconds);
         }
 
         void RestoreArchitecture()
         {
+            PoseDebrisBank(0);
+            foreach (var section in structure) section.Restore();
             foreach (var tower in skyline) tower.Restore();
             foreach (var plate in plates) plate.Restore();
         }

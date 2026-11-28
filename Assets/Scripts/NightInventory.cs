@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print, Stub, Cylinder, LostPair, BrineBook, BrineSample, Counterweight }
+    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print, Stub, Cylinder, LostPair, BrineBook, BrineSample, Counterweight, MonitorKey, PlaybackCard }
 
     internal readonly struct NightInventoryItem
     {
@@ -63,9 +63,15 @@ namespace AfterHours
                 if (State.stones > 0)
                     yield return new NightInventoryItem(NightItemId.Stone, "石子", "物资",
                         "丢到远处弄出声响，可以把奶娃引开。", count: State.stones, status: "G 投掷");
-                if (State.brine.rubbings!=0)
+                if (State.brine.inquiry == BrineInquiryStep.Key)
+                    yield return new NightInventoryItem(NightItemId.MonitorKey,"监测哨铜匙","钥匙","黄牌刻着「防疫监测哨」。从水文站往西，两块警示牌旁的铁门就在堤口。");
+                if (State.brine.inquiry == BrineInquiryStep.Card)
+                    yield return new NightInventoryItem(NightItemId.PlaybackCard,"回放板","维修","从退役录像机抽出的板卡。卡沿的蓝色漆线和终端空槽对得上。");
+                if (State.brine.inquiry == BrineInquiryStep.Online && State.brine.stage == BrineStage.Quiet)
+                    yield return new NightInventoryItem(NightItemId.BrineBook,"巡检机抄页","证物",BrineInquiry.Transcript(State.brine),status:"防疫监测哨");
+                else if (State.brine.rubbings!=0)
                     yield return new NightInventoryItem(NightItemId.BrineBook,"堤墙摹本","证物",BrineRoute.Notebook(State.brine),status:"东堤防汛旧线");
-                if (State.brine.stage==BrineStage.Carrying)
+                if (State.brine.stage==BrineStage.Carrying && !State.brine.arming)
                     yield return new NightInventoryItem(NightItemId.BrineSample,"试验核聚变样芯","物资","封条下的铁皮一直是温的。交运联盖着末班车的章。另一联写着：南堤隔离闸。启用后，封路。");
                 if (State.motorPart)
                     yield return new NightInventoryItem(NightItemId.Starter, "发电机启动件", "维修",

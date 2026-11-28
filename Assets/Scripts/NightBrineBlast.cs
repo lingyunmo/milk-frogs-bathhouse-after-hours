@@ -1,22 +1,68 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Experimental.Rendering;
 
 namespace AfterHours
 {
     internal sealed partial class NightWorld
     {
         NightBrineBlast blast;
+        ResourceRequest[] brinePreload;
+        Coroutine brineWarmup;
+
+        void EnsureBlastNode()
+        {
+            if (blast) return;
+            var node = new GameObject("东堤核事故");
+            node.transform.SetParent(root, false);
+            node.SetActive(false);
+            blast = node.AddComponent<NightBrineBlast>();
+            blast.BeginPreparation(this,game,root);
+        }
+
+        internal void PreloadBrineMedia()
+        {
+            EnsureBlastNode();
+            if (blast.Ready || brineWarmup != null) return;
+            brinePreload ??= new[] {
+                Resources.LoadAsync<Texture3D>("BrineCloudField"),
+                Resources.LoadAsync<Texture3D>("BrineDustNoise"),
+                Resources.LoadAsync<AudioClip>("Audio/brine-pressure"),
+                Resources.LoadAsync<AudioClip>("Audio/brine-masonry")
+            };
+            brineWarmup=game.StartCoroutine(WarmIncident());
+        }
+
+        IEnumerator WarmIncident()
+        {
+            yield return null;
+            while(!blast.GeometryReady)
+            {
+                double until=Time.realtimeSinceStartupAsDouble+.0015;
+                do { blast.PrepareNextMember(); }
+                while(!blast.GeometryReady && Time.realtimeSinceStartupAsDouble<until);
+                yield return null;
+            }
+            foreach(var request in brinePreload) if(!request.isDone) yield return request;
+            blast.PrepareWeather();
+            brineWarmup=null;
+        }
+
         internal void SetBrineBlast(bool devastated, bool playImpact = false)
         {
-            if (!blast && devastated)
+            if(brineWarmup!=null)
             {
-                var node = new GameObject("东堤核事故");
-                node.transform.SetParent(root, false);
-                blast = node.AddComponent<NightBrineBlast>();
-                blast.Build(this, game, root);
+                game.StopCoroutine(brineWarmup);
+                brineWarmup=null;
             }
-            if (blast) blast.Show(devastated, playImpact);
+            if (devastated)
+            {
+                EnsureBlastNode();
+                // A restored crisis can enter directly without traversing the arming sequence.
+                while(!blast.GeometryReady) blast.PrepareNextMember();
+                blast.PrepareWeather();
+            }
+            if (blast && blast.Ready) blast.Show(devastated, playImpact);
         }
 
         internal void FlareBrineBlast()
@@ -43,21 +89,35 @@ namespace AfterHours
         bool visible;
         uint random = 19870717;
 
-        internal void Build(NightWorld owner, NightGame session, Transform architecture)
+        IEnumerator pendingArchitecture;
+        internal bool GeometryReady => pendingArchitecture == null;
+        internal bool Ready { get; private set; }
+        internal void BeginPreparation(NightWorld owner,NightGame session,Transform district)
         {
-            world = owner;
-            game = session;
-            noise = MakeNoise();
+            world=owner;
+            game=session;
+            pendingArchitecture=CaptureArchitecture(district);
+        }
+
+        internal void PrepareNextMember()
+        {
+            if(pendingArchitecture != null && !pendingArchitecture.MoveNext()) pendingArchitecture=null;
+        }
+
+        internal void PrepareWeather()
+        {
+            if(Ready) return;
+            noise = Resources.Load<Texture3D>("BrineDustNoise");
             cloud = new Material(Resources.Load<Shader>("BrineFireCloud"));
             dust = new Material(Resources.Load<Shader>("BrineFallout"));
-            cloud.SetTexture("_Noise", noise);
+            BuildFront();
             dust.SetTexture("_Noise", noise);
 
             var volume = GameObject.CreatePrimitive(PrimitiveType.Cube);
             volume.name = "翻卷的热云";
             volume.transform.SetParent(transform, false);
-            volume.transform.position = Source + Vector3.up * 17.4f;
-            volume.transform.localScale = new Vector3(60, 36, 54);
+            volume.transform.position = Source + new Vector3(-3.8f, 10.65f, -.85f);
+            volume.transform.localScale = new Vector3(48, 21.8f, 43);
             var collider = volume.GetComponent<Collider>();
             collider.enabled = false;
             Destroy(collider);
@@ -116,7 +176,7 @@ namespace AfterHours
             psr.shadowCastingMode = ShadowCastingMode.Off;
             psr.receiveShadows = false;
             psr.maxParticleSize = .52f;
-            CaptureArchitecture(architecture);
+            Ready=true;
         }
 
         internal void Show(bool active, bool impact)
@@ -128,6 +188,7 @@ namespace AfterHours
                     RestoreArchitecture();
                     RestoreAtmosphere();
                 }
+                ResetFront();
                 visible = false;
                 gameObject.SetActive(false);
                 return;
@@ -144,6 +205,7 @@ namespace AfterHours
             visible = true;
             appliedScatter = -1;
             gameObject.SetActive(true);
+            ResetFront();
             age = impact ? .015f : Settled;
             finale = -1;
             ashClock = dustClock = 0;
@@ -152,7 +214,7 @@ namespace AfterHours
             main.useUnscaledTime = false;
             particles.Play();
             PoseArchitecture(age);
-            if (impact) PressureFront();
+            if (impact) StartFront();
             DrawWeather();
         }
 
@@ -161,21 +223,28 @@ namespace AfterHours
             finale = 0;
             var main = particles.main;
             main.useUnscaledTime = true;
-            PressureFront();
+            StartFront();
             DrawWeather();
         }
 
         void Update()
         {
             bool ending = game.ScreenState is NightScreen.Escaped or NightScreen.Caught;
-            if (game.ScreenState != NightScreen.Play && !ending && game.ScreenState != NightScreen.Observer) return;
+            if (game.ScreenState != NightScreen.Play && !ending && game.ScreenState != NightScreen.Observer)
+            {
+                ReleasePressure();
+                return;
+            }
             float dt = ending ? Time.unscaledDeltaTime : Time.deltaTime;
             float last = age;
             age += dt;
             if (finale >= 0) finale += dt;
-            if (last < 11)
+            TickFront(dt);
+            TickReception(dt);
+            if (last < 15)
             {
                 PoseArchitecture(age);
+                TickCollapseDust(last, age);
                 foreach (var plate in plates)
                     if (last < plate.Delay && age >= plate.Delay) Vent(plate.Origin);
             }
@@ -216,14 +285,14 @@ namespace AfterHours
             cloudLight.transform.rotation = Quaternion.LookRotation(away + Vector3.down*.56f);
             float smoulder = .86f + .09f*Mathf.Sin(age*1.37f) + .05f*Mathf.Sin(age*2.14f+.6f);
             cloudLight.color = Color.Lerp(new Color(1,.58f,.34f), new Color(1,.79f,.51f), ignition+afterflash);
-            cloudLight.intensity = smoulder*.95f + ignition*.95f + afterflash*1.22f;
-            quayBounce.intensity = 2.65f*smoulder + ignition*4.4f + afterflash*4.8f;
-            float scattered = .62f + .27f*afterflash + .10f*ignition;
+            cloudLight.intensity = smoulder*.49f + ignition*.82f + afterflash*.89f;
+            quayBounce.intensity = 1.06f*smoulder + ignition*3.2f + afterflash*2.8f;
+            float scattered = .40f + .24f*afterflash + .13f*ignition;
             if (Mathf.Abs(appliedScatter-scattered) < .015f) return;
             appliedScatter = scattered;
-            RenderSettings.ambientSkyColor = Color.Lerp(normalSky, new Color(.46f,.35f,.31f), scattered);
-            RenderSettings.ambientEquatorColor = Color.Lerp(normalHorizon, new Color(.34f,.23f,.18f), scattered);
-            RenderSettings.ambientGroundColor = Color.Lerp(normalGround, new Color(.24f,.17f,.13f), scattered);
+            RenderSettings.ambientSkyColor = Color.Lerp(normalSky, new Color(.32f,.27f,.255f), scattered);
+            RenderSettings.ambientEquatorColor = Color.Lerp(normalHorizon, new Color(.23f,.18f,.168f), scattered);
+            RenderSettings.ambientGroundColor = Color.Lerp(normalGround, new Color(.16f,.135f,.123f), scattered);
             RenderSettings.fogColor = Color.Lerp(normalFog,new Color(.245f,.174f,.144f),scattered);
             RenderSettings.fogDensity = normalFogDensity*.84f;
         }
@@ -250,21 +319,6 @@ namespace AfterHours
             particles.Emit(puff, 1);
         }
 
-        void PressureFront()
-        {
-            for (int i = 0; i < 78; i++)
-            {
-                float angle = (i + Noise01()) * (Mathf.PI * 2 / 78);
-                var outwards = new Vector3(Mathf.Sin(angle), 0, Mathf.Cos(angle));
-                float bank = .5f + .5f * Mathf.Sin(angle * 3.7f + 1.8f);
-                float spread = Noise01();
-                Emit(Source + outwards * (3 + spread * 5) + Vector3.up * (.31f + spread),
-                    outwards * (13 + bank*5 + spread*4) + Vector3.up * (.18f + Noise01()*.86f),
-                    Color.Lerp(new Color(.48f,.39f,.31f,.36f),new Color(.32f,.28f,.26f,.21f),spread),
-                    2.7f + bank*3 + Noise01()*2.3f, 3.3f + Noise01()*2.6f);
-            }
-        }
-
         void Vent(Vector3 at)
         {
             for (int i = 0; i < 8; i++)
@@ -287,51 +341,16 @@ namespace AfterHours
             }
         }
 
-        Texture3D MakeNoise()
-        {
-            const int n = 32, cells = 8;
-            var values = new float[cells*cells*cells];
-            var features = new Vector3[values.Length];
-            for (int i=0; i<values.Length; i++)
-            {
-                values[i]=Noise01();
-                features[i]=new Vector3(.15f+Noise01()*.7f,.15f+Noise01()*.7f,.15f+Noise01()*.7f);
-            }
-            float At(int x,int y,int z) => values[(x%cells) + cells*((y%cells)+cells*(z%cells))];
-            var voxels = new Color32[n*n*n];
-            for (int z=0;z<n;z++) for (int y=0;y<n;y++) for (int x=0;x<n;x++)
-            {
-                int a=x/4,b=y/4,c=z/4;
-                float u=Mathf.SmoothStep(0,1,(x%4)/4f),v=Mathf.SmoothStep(0,1,(y%4)/4f),w=Mathf.SmoothStep(0,1,(z%4)/4f);
-                float Slice(int h) => Mathf.Lerp(Mathf.Lerp(At(a,b,h),At(a+1,b,h),u),Mathf.Lerp(At(a,b+1,h),At(a+1,b+1,h),u),v);
-                byte density=(byte)(255*Mathf.Lerp(Slice(c),Slice(c+1),w));
-                // Tileable cellular noise carries the knots and dark clefts inside the plume.
-                var local = new Vector3((x%4)/4f,(y%4)/4f,(z%4)/4f);
-                float nearest=4;
-                for(int dz=-1; dz<=1; dz++) for(int dy=-1; dy<=1; dy++) for(int dx=-1; dx<=1; dx++)
-                {
-                    int grid=((a+dx+cells)%cells)+cells*(((b+dy+cells)%cells)+cells*((c+dz+cells)%cells));
-                    Vector3 delta=features[grid]+new Vector3(dx,dy,dz)-local;
-                    nearest=Mathf.Min(nearest,delta.sqrMagnitude);
-                }
-                byte cell=(byte)(255*Mathf.Clamp01(1-Mathf.Sqrt(nearest)*1.13f));
-                voxels[x+n*(y+n*z)]=new Color32(density,cell,density,255);
-            }
-            var field=new Texture3D(n,n,n,GraphicsFormat.R8G8B8A8_UNorm,TextureCreationFlags.None) { name="滚升热云噪声", wrapMode=TextureWrapMode.Repeat, filterMode=FilterMode.Bilinear };
-            field.SetPixels32(voxels);
-            field.Apply(false,true);
-            return field;
-        }
-
         void OnDestroy()
         {
             if (visible) RestoreAtmosphere();
             RestoreArchitecture();
+            DisposeFront();
+            DisposeStructure();
             foreach(var plate in plates) Destroy(plate.Mesh);
             foreach (var finish in finishes.Values) if (finish) Destroy(finish);
             if (cloud) Destroy(cloud);
             if (dust) Destroy(dust);
-            if (noise) Destroy(noise);
         }
     }
 }

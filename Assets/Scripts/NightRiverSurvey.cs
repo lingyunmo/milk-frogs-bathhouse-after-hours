@@ -233,7 +233,7 @@ namespace AfterHours
                 Subject = i;
                 nearest = distance;
             }
-            for (int m=0;m<BrineRoute.Marks.Length && State.brine.stage==BrineStage.Quiet;m++)
+            for (int m=0;m<BrineRoute.Marks.Length && State.brine.CanRecordMarks && !State.detained;m++)
             {
                 var point=BrineRoute.Marks[m].Point;
                 var delta=point-eye.position;

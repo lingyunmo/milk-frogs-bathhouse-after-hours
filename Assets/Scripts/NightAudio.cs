@@ -25,6 +25,8 @@ namespace AfterHours
             clips["hunter"]=Clip("hunter",.32f,39,.33f,38);
             clips["land"]=Clip("land",.28f,76,.55f,63);
             clips["district-impact"]=DistrictImpact();
+            foreach(var cue in new[]{"guard-brace","guard-strike","guard-fall"})
+                clips[cue]=Resources.Load<AudioClip>("Audio/"+cue);
             clips["brine-shot"]=Clip("brine-shot",.22f,106,.64f,947);
             clips["brine-hit"]=Clip("brine-hit",.38f,51,.81f,887);
             clips["tool"]=Clip("tool",.36f,314,.53f,52);
@@ -69,6 +71,9 @@ namespace AfterHours
             titleContact.volume = .57f;
             titleContact.clip = NearContact();
 
+            ambiencePressure = ambience.gameObject.AddComponent<AudioLowPassFilter>();
+            generatorPressure = generator.gameObject.AddComponent<AudioLowPassFilter>();
+            ambiencePressure.enabled = generatorPressure.enabled = false;
             captureLaugh = Source(root, "Hunter capture laugh");
             captureLaugh.clip = Resources.Load<AudioClip>("Audio/haunted-laugh-v1");
             captureLaugh.volume = .72f;
@@ -79,6 +84,17 @@ namespace AfterHours
             menu.ignoreListenerPause = true;
             menuClick = Clip("Menu confirm", .105f, 268, .57f, 62);
             menuTick = Clip("Menu adjustment", .05f, 630, .66f, 95);
+        }
+
+        readonly AudioLowPassFilter ambiencePressure, generatorPressure;
+
+        internal void SetPressureHearing(float amount)
+        {
+            bool muffled = amount > .008f;
+            ambiencePressure.enabled = generatorPressure.enabled = muffled;
+            if (!muffled) return;
+            float cutoff = Mathf.Lerp(18000, 760, Mathf.Sqrt(Mathf.Clamp01(amount)));
+            ambiencePressure.cutoffFrequency = generatorPressure.cutoffFrequency = cutoff;
         }
 
         internal void PlayCaptureLaugh(Vector3 position)
@@ -240,6 +256,7 @@ namespace AfterHours
             source.transform.position=position;
             source.volume=Mathf.Clamp01(gain);
             source.ignoreListenerPause = duringPause;
+            source.minDistance=sound.StartsWith("guard-",StringComparison.Ordinal)?6f:1.6f;
             source.pitch=sound=="step"?UnityEngine.Random.Range(.86f,1.12f):1;
             source.clip=clips[sound];
             source.Play();

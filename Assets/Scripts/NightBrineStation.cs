@@ -19,6 +19,8 @@ namespace AfterHours
 
         void DressBrineStation()
         {
+            DressBrineInquiry();
+            DressBrineFeed();
             for(int i=0;i<brineMarks.Length;i++)
                 brineMarks[i]=WallSign(BrineRoute.Rubbing(i,0),BrineRoute.Marks[i].Point,0,new(1.60f,.37f),.14f);
             var room=StreetRoomShell(("冷样保管间",BrineRoute.Room),268,271,false,brick,tiles);
@@ -42,6 +44,7 @@ namespace AfterHours
 
             var yard=new GameObject("堤岸隔离闸").transform;
             yard.SetParent(root,false);
+            DressBackwashDrain(yard);
             StreetRoomSurface(yard,"值守台",new(273,.48f,-30.5f),new(.9f,.96f,.86f),steel,1.1f);
             Box("封样座",BrineRoute.Socket,new(.49f,.10f,.41f),brass,yard);
             WallSign("隔离闸　／　东廊 →",new(274,1.85f,-34.25f),180,new(2.05f,.36f),.15f);
@@ -122,6 +125,10 @@ namespace AfterHours
 
         void RefreshBrineStation(BrineRun run)
         {
+            RefreshBrineInquiry(run);
+            var emerging=run.echoes.Find(e=>e.fromGrate && e.emergence<1.4f);
+            TipBackwashGrate(emerging!=null ? emerging.emergence : run.Committed && !run.arming && (run.released>0 || run.wave>0) ? 2f : -1f);
+            ShowBrineFeed(run);
             coldDoor.SetActive(run.stage==BrineStage.Quiet);
             sampleBox.SetActive(run.stage<=BrineStage.Unsealed);
             floodGate.transform.position=new Vector3(284,run.gateReleased ? 3.96f : 1.34f,-31);

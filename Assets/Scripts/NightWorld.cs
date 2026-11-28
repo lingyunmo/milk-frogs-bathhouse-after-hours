@@ -161,6 +161,7 @@ namespace AfterHours
             DressShiftTrail();
             DressReturnWing();
             DressBrineStation();
+            DressBrineMill();
             DressDispatch();
             DressReturnLines();
             DressAnnexEquipment();
@@ -223,6 +224,9 @@ namespace AfterHours
         internal void Dispose()
         {
             Font.textureRebuilt-=RefreshSignAtlas;
+            if(feedInk) Object.Destroy(feedInk);
+            if(gridAmber) Object.Destroy(gridAmber);
+            if(gridJade) Object.Destroy(gridJade);
             if (nightSky && RenderSettings.skybox == nightSky) RenderSettings.skybox = null;
             if (nightSky) Object.Destroy(nightSky);
         }

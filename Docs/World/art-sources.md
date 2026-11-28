@@ -194,3 +194,5 @@ Use case: historical-scene. Landscape 3:2 single analog vernacular photograph, p
 ## 东堤冷样保管间
 
 潮返者剪影和封存匣背包图为本项目生成的原创图像。部署后的尘浪、核爆云、建筑断裂和两个事故结局的镜头均在 Unity 中实时渲染。战场预览截自 Windows 试玩版，堤岸设施沿用本项目已有的授权模型与路面材质。
+
+旧脱水车间沿用场内湿砖、抹灰和老钢件。云冠的体积纹理与尘带噪声由 `Tools/bake_brine_cloud.py` 烘焙，Unity 导入为三维纹理。回流炮表盘、监测哨的两块危险标牌和受击盐水由本作制作。四格巡检画面取自游戏内的实际外墙。东堤人声与现场拟音的来源、触发场合及录音方式见[东堤应急广播与现场音](../../ArtSource/EastGateAudio.md)。

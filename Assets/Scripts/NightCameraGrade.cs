@@ -53,6 +53,13 @@ namespace AfterHours
         internal void SetFear(float amount) => fearTarget = Mathf.Clamp01(amount);
         internal void Shock() => shock = 1;
 
+        // Applied to the composed 3D frame. Mouse aim, UI and subtitle positions remain stable.
+        static readonly int PressureUV = Shader.PropertyToID("_PressureUV");
+        internal void SetPressureOffset(Vector2 offset)
+        {
+            if (grade) grade.SetVector(PressureUV, new Vector4(offset.x, offset.y, 0, 0));
+        }
+
         internal void Overlay(Camera camera)
         {
             if (!camera || overlays.Contains(camera)) return;
