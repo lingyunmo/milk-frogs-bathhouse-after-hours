@@ -413,7 +413,7 @@ namespace AfterHours
             if (placeholderBed) placeholderBed.SetActive(false);
             Prop("sofa_02","有布裙的旧沙发",new Vector3(-15,3.60f,5),new Vector3(3.4f,1.20f,1.50f),0,false,"Raised");
             Fixture(new Vector3(-17.5f,5.96f,7.35f),new Vector3(.7f,-.46f,-.68f),new Color(.95f,.73f,.53f),.42f,4.5f,86);
-            Prop("vintage_day_bed","铁架宿舍床",new Vector3(-3,7.2f,20),new Vector3(2.04f,1.08f,.92f));
+            BedWithClearance(root,"铁架宿舍床",new(-3,7.2f,20),new(2.04f,1.08f,.92f));
             DressDormDesk();
             Prop("television_02","前台报警终端",new Vector3(9,.94f,3.53f),new Vector3(.49f,.37f,.36f),180,false);
             Prop("television_02","走廊录像监视器",new Vector3(-14.2f,8.04f,2.2f),new Vector3(.51f,.43f,.41f),0,false);

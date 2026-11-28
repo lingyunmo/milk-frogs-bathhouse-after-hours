@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal sealed class NightPlayer : MonoBehaviour
+    internal sealed partial class NightPlayer : MonoBehaviour
     {
         internal const int PlayerLayer = 8;
         internal const int ViewModelLayer = 9;
@@ -113,7 +113,7 @@ namespace AfterHours
 
         internal void SetTorchVisible(bool visible)
         {
-            if (handsCamera) handsCamera.enabled = visible;
+            if (handsCamera) handsCamera.enabled = visible && !InHideSpot;
         }
 
         internal void ApplyPreferences(NightPreferences preferences)
@@ -164,6 +164,11 @@ namespace AfterHours
         internal void Tick(NightGame game, float dt)
         {
             var options = game.Preferences;
+            if (InHideSpot)
+            {
+                AdvanceHiding(dt, Input.GetAxisRaw("Mouse X") * options.Sensitivity, Input.GetAxisRaw("Mouse Y") * options.Sensitivity);
+                return;
+            }
             float yaw = Input.GetAxisRaw("Mouse X") * options.Sensitivity;
             transform.Rotate(0, yaw, 0);
             pitch = Mathf.Clamp(pitch - Input.GetAxisRaw("Mouse Y") * options.Sensitivity, -85, 85);
@@ -386,6 +391,7 @@ namespace AfterHours
 
         void SetFeet(Vector3 position, float yaw)
         {
+            ResetHiding();
             Body.enabled = false;
             transform.SetPositionAndRotation(position, Quaternion.Euler(0, yaw, 0));
             vertical = 0;

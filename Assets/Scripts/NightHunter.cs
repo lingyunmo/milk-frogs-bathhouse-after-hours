@@ -415,6 +415,7 @@ namespace AfterHours
             Vector3 eye = Position + Vector3.up * 1.26f;
             Vector3 toward = game.Player.Eyes.position - eye;
             distance = toward.magnitude;
+            if (game.Player.Concealed) return false;
             float reach = game.Player.TorchOn ? 17f : game.Player.Crouched ? 6.5f : 11f;
             reach *= Mathf.Lerp(1, 1.10f, NightPressure);
             if (distance > reach || Vector3.Dot(actor.forward, toward.normalized) < .45f) return false;
@@ -488,7 +489,7 @@ namespace AfterHours
         {
             // This quiet-period snapshot is used only to choose patrol posts. It never becomes
             // a visual memory, a sound, a chase target, or a direction to face.
-            Vector3 feet = game.Player.Feet;
+            Vector3 feet = game.Player.Concealed ? Position : game.Player.Feet;
             var center = new Vector3(feet.x, FloorRoutes.LevelHeight(FloorRoutes.LevelAt(feet.y)), feet.z);
             patrolArea = (center, FloorRoutes.IsInsideBathhouse(feet));
             firstPatrolPost = secondPatrolPost = -1;

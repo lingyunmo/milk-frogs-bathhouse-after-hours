@@ -124,6 +124,7 @@ namespace AfterHours
 
         internal bool ToggleTorch()
         {
+            if (Player.InHideSpot) return false;
             if (!State.torch)
             {
                 Notify("手里是空的。");

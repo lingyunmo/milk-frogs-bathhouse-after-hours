@@ -255,6 +255,12 @@ namespace AfterHours
                 TickWorld(dt);
             }
             if (panel != null || WorkingDispatch) return;
+            if (Player.InHideSpot)
+            {
+                if (Input.GetKeyDown(KeyCode.F5)) SaveHere();
+                FocusTarget(dt);
+                return;
+            }
             if (Input.GetKeyDown(KeyCode.Q) && State.dispatch.carrying) SetLoadDown();
             if (Input.GetKeyDown(KeyCode.V)) ToggleFinder();
             if (Framing)
@@ -327,7 +333,8 @@ namespace AfterHours
 
         internal void Captured()
         {
-            if (ScreenState != NightScreen.Play || State.detained || State.circuit.Solved || releaseGrace > 0) return;
+            if (ScreenState != NightScreen.Play || Player.Concealed || State.detained || State.circuit.Solved || releaseGrace > 0) return;
+            Player.InterruptHiding();
             panel = null;
             if (State.dispatch.carrying) ReturnLoadOnCapture();
             caughtTime = 0;
@@ -453,14 +460,21 @@ namespace AfterHours
             focus=null;
             float best=0;
             var eyes=Player.Eyes;
-            if(!Player.Vaulting)
+            if (Player.InHideSpot) focus = Player.HideExit;
+            else if(!Player.Vaulting)
             foreach(var target in targets)
             {
                 if(target.Available!=null&&!target.Available())continue;
                 Vector3 offset=target.Position-eyes.position;
                 float length=offset.magnitude;
                 if(length>target.Radius)continue;
-                float alignment=Vector3.Dot(eyes.forward,offset.normalized);
+                var aim = offset;
+                if (target.AimHeight > 0)
+                {
+                    float depth = Vector3.Dot(offset, eyes.forward);
+                    aim.y += Mathf.Clamp(eyes.forward.y * depth - offset.y, 0, target.AimHeight);
+                }
+                float alignment=Vector3.Dot(eyes.forward,aim.normalized);
                 if(alignment<.79f)continue;
                 if(Physics.Raycast(eyes.position,offset.normalized,Mathf.Max(0,length-.26f),~(1 << NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore))continue;
                 float value=alignment*.65f+(1-length/target.Radius)*.35f;
@@ -517,6 +531,7 @@ namespace AfterHours
 
         internal void SaveHere()
         {
+            if (Player.InHideSpot) { Notify("先从藏身处出来，再保存。"); return; }
             if(Player.Vaulting||!Player.Body.isGrounded||Player.Crouched||
                (hunter.Pursuing && Vector3.Distance(hunter.Position,Player.Feet)<13))
             {
