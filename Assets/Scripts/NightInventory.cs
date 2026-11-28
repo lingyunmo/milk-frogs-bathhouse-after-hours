@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print, Stub, Cylinder, LostPair, BrineBook, BrineSample }
+    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print, Stub, Cylinder, LostPair, BrineBook, BrineSample, Counterweight }
 
     internal readonly struct NightInventoryItem
     {
@@ -41,6 +41,9 @@ namespace AfterHours
         {
             get
             {
+                if (State.dispatch.carrying)
+                    yield return new NightInventoryItem(NightItemId.Counterweight, "绞盘配重", "搬运",
+                        "送往石桥路的桥杆绞盘。放下后可以奔跑，回来仍能背起。", status:"正在搬运", actionLabel:"放下配重", canUse:true);
                 if (State.torch)
                 {
                     float charge = Mathf.Clamp01(State.charge / NightState.FullTorchCharge);
@@ -122,6 +125,7 @@ namespace AfterHours
             {
                 NightItemId.Torch => ToggleTorch(),
                 NightItemId.Battery => ReplaceCell(),
+                NightItemId.Counterweight => SetLoadDown(),
                 _ => false
             };
         }

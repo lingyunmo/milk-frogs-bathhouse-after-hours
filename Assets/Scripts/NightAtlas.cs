@@ -142,7 +142,7 @@ namespace AfterHours
         readonly bool small;
         readonly NightWatch watch;
         readonly List<(NightAtlas.Area Area, Label Title)> captions = new();
-        Label building, ruler;
+        Label building, ruler, stationLabel, winchLabel;
         Rect plan;
         int sheet = -1, pointer = -1;
         float scale, zoom = 1;
@@ -210,11 +210,19 @@ namespace AfterHours
             captions.Clear();
             building?.RemoveFromHierarchy();
             building = null;
+            stationLabel?.RemoveFromHierarchy(); stationLabel=null;
+            winchLabel?.RemoveFromHierarchy(); winchLabel=null;
             if (!small)
             {
                 foreach (var area in game.Atlas.Areas(sheet))
-                    if (SeenBefore(area)) captions.Add((area, Name(area.Name, area == game.Atlas.Current)));
-                if (sheet == NightAtlas.Street) building = Name("浴场", false);
+                    if (SeenBefore(area) && !(sheet==NightAtlas.Street && area.Name=="救援站牌")) captions.Add((area, Name(area.Name, area == game.Atlas.Current)));
+                if (sheet == NightAtlas.Street)
+                {
+                    building = Name("浴场",false);
+                    stationLabel=Name("街尾站牌",false); stationLabel.name="station-label";
+                    stationLabel.AddToClassList("map-landmark");
+                    winchLabel=Name("桥杆绞盘",false); winchLabel.AddToClassList("map-landmark");
+                }
             }
             ResetView();
         }
@@ -240,6 +248,17 @@ namespace AfterHours
             if (small || sheet != game.Atlas.Floor) return;
             zoom = sheet == NightAtlas.Street ? 2.65f : 1.65f;
             centeredOnPlayer = true;
+            Redraw();
+        }
+
+        internal void LocateStreetTail()
+        {
+            centeredOnPlayer=false;
+            zoom=2.65f; pan=Vector2.zero;
+            Fit();
+            Vector3 mid=(NightDispatch.Winch+NightDispatch.StopSign)*.5f;
+            pan=contentRect.size*.5f-Point(mid.x,mid.z);
+            KeepMapInView();
             Redraw();
         }
 
@@ -367,6 +386,30 @@ namespace AfterHours
                 var buildingFill = new Color(.10f, .13f, .12f, .88f);
                 AreaBox(paint, NightAtlas.Building, buildingFill, Wall);
                 AreaBox(paint, NightMainRing.Footprint, buildingFill, Wall);
+            }
+            if (street && !small)
+            {
+                foreach(var at in new[]{NightDispatch.Winch,NightDispatch.StopSign})
+                {
+                    paint.BeginPath(); paint.Arc(Point(at.x,at.z),4,0,360);
+                    paint.fillColor=Amber; paint.Fill();
+                }
+            }
+            if (small && watch==null && NightFieldOrders.StreetWaypoint(game.State) is { } destination)
+            {
+                Vector2 centerMap=contentRect.size*.5f;
+                Vector2 delta=Point(destination.at.x,destination.at.z)-centerMap;
+                float rim=Mathf.Min(contentRect.width,contentRect.height)*.43f;
+                Vector2 pin=centerMap+Vector2.ClampMagnitude(delta,rim);
+                if (delta.magnitude>rim)
+                {
+                    Vector2 ahead=delta.normalized;
+                    Vector2 side=new(-ahead.y,ahead.x);
+                    paint.BeginPath(); paint.MoveTo(pin+ahead*5);
+                    paint.LineTo(pin-ahead*4+side*4); paint.LineTo(pin-ahead*4-side*4); paint.ClosePath();
+                }
+                else { paint.BeginPath(); paint.Arc(pin,4,0,360); }
+                paint.fillColor=new Color(.60f,.94f,.83f); paint.Fill();
             }
             if (watch != null) DrawObserverRoute(paint, floor);
             if (watch == null && game.State.dispatch.orderHeld)
@@ -523,6 +566,11 @@ namespace AfterHours
                 if (entry.Area == game.Atlas.Current && (center - Point(boots.x, boots.z)).sqrMagnitude < 900)
                     center.y += 23;
                 PositionName(entry.Title, center, bounds.width * scale);
+            }
+            if(stationLabel!=null)
+            {
+                PositionName(stationLabel,Point(NightDispatch.StopSign.x,NightDispatch.StopSign.z)+Vector2.down*17,88);
+                PositionName(winchLabel,Point(NightDispatch.Winch.x,NightDispatch.Winch.z)+Vector2.up*18,88);
             }
             if (building != null) PositionName(building, Point(NightAtlas.Building.center.x, NightAtlas.Building.center.y), 110);
             MarkDirtyRepaint();

@@ -9,6 +9,7 @@ namespace AfterHours
         const int SceneMask = ~(1 << PlayerLayer);
         const float WalkSpeed = 1.90f;
         const float RunSpeed = 3.55f;
+        const float SprintDrainPerSecond = .218f / 10f;
         const float CrouchSpeed = 1.10f;
         const float StandingHeight = 1.70f;
         const float CrouchHeight = .54f;
@@ -235,7 +236,7 @@ namespace AfterHours
         {
             if (running)
             {
-                Stamina = Mathf.Max(0, Stamina - .218f * dt / (HaulTrained ? 1.25f : 1f));
+                Stamina = Mathf.Max(0, Stamina - SprintDrainPerSecond * dt / (HaulTrained ? 1.25f : 1f));
                 breathDelay = .85f;
                 if (Stamina <= 0)
                 {

@@ -26,7 +26,8 @@ namespace AfterHours
         NightReticle reticle;
         NightDetentionLock detentionLock;
         Meter stamina, torch, gateMeter, survivorMeter;
-        VisualElement brineVitals, brineSlot, stoneSlot;
+        VisualElement brineVitals, brineSlot, stoneSlot, carrySlot;
+        Label streetBearing;
         NightMapView minimap;
         NightPursuitVignette pursuitVignette;
         Button[] mapTabs;
@@ -374,7 +375,7 @@ namespace AfterHours
                     {
                         ("W A S D", "移动"), ("鼠标", "观察"), ("Shift", "按住奔跑"), ("C", "切换蹲行"),
                         (NightGame.InteractKey.ToString(), "拾取 / 藏身 / 交互 / 翻窗"),
-                        (NightGame.TorchKey.ToString(), "开关手电"), ("R", "更换电池"), ("G", "投掷石子"),
+                        (NightGame.TorchKey.ToString(), "开关手电"), ("R", "更换电池"), ("G", "投掷石子"), ("Q", "放下配重"),
                         ("B", "背包"), ("M", "地图"), ("V", "测绘相机"), ("F5", "保存"), ("F8", "观察奶娃 / 回到角色"), ("Esc", "暂停"), ("Alt + Enter", "切换全屏")
                     })
                     {
@@ -578,6 +579,7 @@ namespace AfterHours
             if (game.State.dispatch.orderHeld)
                 Legend(legend, "legend-swatch--here", "调度点");
             var tools = Area(footer, "atlas-tools");
+            Act(tools,"看街尾",()=>{ OpenFloor(NightAtlas.Street); fullMap.LocateStreetTail(); },"chip-button","map-street-tail");
             Type(tools, "滚轮缩放　·　按住拖动", "muted");
             Act(tools, "−", () => fullMap.Zoom(1 / 1.26f), "chip-button atlas-control", "map-zoom-out");
             Act(tools, "+", () => fullMap.Zoom(1.26f), "chip-button atlas-control", "map-zoom-in");
@@ -644,6 +646,7 @@ namespace AfterHours
             mapFloor = Type(caption, "", "map-floor serif");
             mapPlace = Type(caption, "", "map-place");
             Type(caption, "M", "key");
+            streetBearing=Type(mapBox,"","street-bearing"); streetBearing.name="street-bearing";
 
             areaCard = Area(layer, "area-card");
             var floorRow = Area(areaCard, "area-floor-row");
@@ -694,6 +697,8 @@ namespace AfterHours
             stoneSlot=Slot(equipment, "G", "石子", "stone", out stoneCount);
             brineSlot=Slot(equipment,"左键","回流炮","BrineCase",out var rounds);
             Copy(rounds,"∞");
+            carrySlot=Slot(equipment,"Q","放下配重","counterweight",out var carrying);
+            Copy(carrying,"负重"); carrySlot.name="carry-slot";
 
             equipmentHints = Area(layer, "hint-row");
             var hints = equipmentHints;
@@ -843,7 +848,8 @@ namespace AfterHours
             bool received = now < dispatchHeardUntil;
             Visible(objectiveBlock, !busy);
             Visible(brineVitals,state.brine.Fighting);
-            Visible(brineSlot,state.brine.Live); Visible(stoneSlot,!state.brine.Live);
+            Visible(brineSlot,state.brine.Live); Visible(stoneSlot,!state.brine.Live && !state.dispatch.carrying);
+            Visible(carrySlot,state.dispatch.carrying);
             if(state.brine.Fighting)
             {
                 gateMeter.Set(state.brine.shutter*.01f,state.brine.shutter<=40);
@@ -931,6 +937,14 @@ namespace AfterHours
             if (now >= nextMapDraw)
             {
                 nextMapDraw = now + .075f;
+                var waypoint = NightFieldOrders.StreetWaypoint(state);
+                Visible(streetBearing,waypoint.HasValue);
+                if (waypoint is { } dest)
+                {
+                    var offset=dest.at-player.Feet;
+                    int metres=Mathf.RoundToInt(new Vector2(offset.x,offset.z).magnitude);
+                    Copy(streetBearing,dest.name+"　"+metres+" m");
+                }
                 minimap.MarkDirtyRepaint();
             }
             UpdateArrival();

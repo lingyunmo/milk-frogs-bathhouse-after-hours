@@ -721,6 +721,20 @@
     color: rgba(236, 229, 211, .78);
     text-shadow: 0 1px 4px rgba(0, 0, 0, 1);
 }
+.map-landmark {
+    color: #f1dbac;
+    background-color: rgba(16, 23, 22, .94);
+    border-radius: 3px;
+    -unity-font-style: bold;
+}
+.street-bearing {
+    -unity-text-align: middle-center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 1);
+    margin: 3px 0 0 0;
+    color: #a2e9d5;
+    font-size: 15px;
+    -unity-font-style: bold;
+}
 .map-label--here {
     color: var(--brass-bright);
     -unity-font-style: bold;

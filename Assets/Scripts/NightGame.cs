@@ -25,14 +25,6 @@ namespace AfterHours
         internal bool InPursuit => !State.brine.Committed && hunter.Pursuing;
         internal bool IsInsideBuilding(Vector3 feet) => world.IsInsideBuilding(feet);
 
-        internal Vector3? OutdoorPatrolCenter()
-        {
-            if (EmptyObservation || Player.InHideSpot || Player.Vaulting) return null;
-            var feet = Player.Feet;
-            if (IsInsideBuilding(feet)) return null;
-            // Outdoor patrol posts are on the street network, including the ground beside a window landing.
-            return new Vector3(feet.x, 0, feet.z);
-        }
         internal string Message => Time.unscaledTime < circuitAnnouncedUntil ? "触发隐藏任务：？？？　水塔背后响了一声收票铃。" : messageTime > 0 ? message : "";
         internal NightState ResumableSave { get; private set; }
         // The most recent pickup, for the acquisition card. Serial changes with every new pickup.
@@ -199,6 +191,10 @@ namespace AfterHours
                 else if (ScreenState is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory)
                     SetScreen(NightScreen.Play);
             }
+            else if (ScreenState == NightScreen.Inventory && Input.GetKeyDown(KeyCode.Q) && State.dispatch.carrying)
+            {
+                if (SetLoadDown()) SetScreen(NightScreen.Play);
+            }
             else if (ScreenState == NightScreen.Inventory && Input.GetKeyDown(KeyCode.B)) hud.CloseInventory();
             else if (ScreenState == NightScreen.Map && Input.GetKeyDown(KeyCode.M))
                 SetScreen(NightScreen.Play);
@@ -240,7 +236,7 @@ namespace AfterHours
                 }
                 if (Input.GetKeyDown(KeyCode.B) || Input.GetKeyDown(KeyCode.Tab))
                 {
-                    SetScreen(NightScreen.Inventory);
+                    hud.OpenPack();
                     return;
                 }
             }
@@ -257,6 +253,7 @@ namespace AfterHours
             }
             if ((pauseTime -= dt) > 0) return;
 
+            if (Input.GetKeyDown(KeyCode.Q) && State.dispatch.carrying && panel==null && !WorkingDispatch) SetLoadDown();
             State.dispatch.playSeconds += dt;
             if (WorkingDispatch)
             {
@@ -291,7 +288,6 @@ namespace AfterHours
                 FocusTarget(dt);
                 return;
             }
-            if (Input.GetKeyDown(KeyCode.Q) && State.dispatch.carrying) SetLoadDown();
             if (Input.GetKeyDown(KeyCode.V)) ToggleFinder();
             if (Framing)
             {
