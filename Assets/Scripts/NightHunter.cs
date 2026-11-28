@@ -52,7 +52,17 @@ namespace AfterHours
         Vector3? outdoorPatrolCenter;
         int firstPatrolPost = -1, secondPatrolPost = -1;
         float patrolRemaining, nextPatrolCheck, patrolSpeed, nextFootstepClue;
-        bool patrolStarted, circuitLeg;
+        bool patrolStarted, circuitLeg, roundLeg;
+        enum RoundStop { None, MainHall, UpperHall, SideHall, Street }
+        RoundStop roundStop;
+        int roundVariant, upperFloor, sideRotation, failedRoundStops;
+        float nextRound, retryRoundAt;
+        static readonly Vector2[] HallSectors = { new(-11, 12), new(5, 12), new(-5, -11) };
+        static readonly Vector2[] StreetSectors = { new(30, -19), new(48, -17), new(-5, 32) };
+        static readonly Vector2[] AnnexSectors = { new(28, 12), new(31, 12), new(34, 12) };
+        Vector2[] RoundSectors => roundStop == RoundStop.Street ? StreetSectors :
+            roundStop == RoundStop.SideHall && sideRotation == 2 ? AnnexSectors : HallSectors;
+
         static readonly Vector3[] NightSpawns =
         {
             new(10,0,12), new(-16,3.6f,12), new(9,7.2f,12), new(-24,0,10), new(10,-3.6f,12)
@@ -315,6 +325,14 @@ namespace AfterHours
             firstPatrolPost = secondPatrolPost = -1;
             patrolStarted = circuitLeg = false;
             patrolRemaining = nextPatrolCheck = 0;
+            roundStop = RoundStop.None;
+            roundLeg = false;
+            nextRound = UnityEngine.Random.Range(30f, 60f);
+            upperFloor = UnityEngine.Random.Range(1, 3);
+            roundVariant = UnityEngine.Random.Range(0, HallSectors.Length);
+            sideRotation = UnityEngine.Random.Range(0, 4);
+            failedRoundStops = 0;
+            retryRoundAt = 0;
             nextFootstepClue = 0;
             cycle = 0;
             path.Clear();
@@ -491,11 +509,64 @@ namespace AfterHours
             firstPatrolPost = secondPatrolPost = -1;
             patrolStarted = circuitLeg = false;
             patrolRemaining = UnityEngine.Random.Range(30f, 60f);
-            // Indoors we keep patrolling locally until the next quiet check. Crossing a
-            // doorway does not start a new check or reset the current patrol leg.
+            // Crossing a doorway never starts a new check.
             nextPatrolCheck = elapsed + (outdoorPatrolCenter.HasValue
                 ? Mathf.Clamp(45f + Vector3.Distance(Position, outdoorPatrolCenter.Value) / 1.46f, 45f, 180f)
                 : patrolRemaining);
+        }
+
+        void BeginBuildingRound()
+        {
+            outdoorPatrolCenter = null;
+            firstPatrolPost = secondPatrolPost = -1;
+            patrolStarted = circuitLeg = false;
+            SetRoundStop(RoundStop.MainHall);
+        }
+
+        void SetRoundStop(RoundStop stop)
+        {
+            roundStop = stop;
+            roundLeg = false;
+            failedRoundStops = 0;
+            retryRoundAt = elapsed;
+            int count = RoundSectors.Length;
+            roundVariant = (roundVariant + UnityEngine.Random.Range(1, count)) % count;
+        }
+
+        void FinishRoundStop()
+        {
+            switch (roundStop)
+            {
+                case RoundStop.MainHall:
+                    SetRoundStop(RoundStop.UpperHall);
+                    break;
+                case RoundStop.UpperHall:
+                    upperFloor = upperFloor == 1 ? 2 : 1;
+                    SetRoundStop(sideRotation % 2 == 0 ? RoundStop.SideHall : RoundStop.Street);
+                    break;
+                case RoundStop.SideHall:
+                    SetRoundStop(RoundStop.Street);
+                    break;
+                case RoundStop.Street:
+                    sideRotation = (sideRotation + 1) % 4;
+                    SetRoundStop(RoundStop.None);
+                    nextRound = elapsed + UnityEngine.Random.Range(30f, 60f);
+                    nextPatrolCheck = elapsed;
+                    break;
+            }
+        }
+
+        void DeferRoundStop()
+        {
+            roundLeg = false;
+            int count = RoundSectors.Length;
+            roundVariant = (roundVariant + 1) % count;
+            failedRoundStops++;
+            // Walk locally between attempts. A sealed upper landing must not trap the hunter indoors.
+            if (failedRoundStops >= count && (roundStop == RoundStop.UpperHall || roundStop == RoundStop.SideHall))
+                SetRoundStop(RoundStop.Street);
+            else
+                retryRoundAt = elapsed + (failedRoundStops % count == 0 ? 14f : 3f);
         }
 
         bool IsPatrolPost(Vector3 point)
@@ -593,6 +664,7 @@ namespace AfterHours
             {
                 RememberTraversal(Position, next);
                 RememberBlocked(activeIntent, destination, activeSlot);
+                if (roundLeg) DeferRoundStop();
                 path.Clear();
                 Pursuing = false;
                 nextDecision = 0;
@@ -682,7 +754,8 @@ namespace AfterHours
             if (activeIntent == Intent.Patrol)
             {
                 lastPost = activeSlot;
-                visits[activeSlot] = Time.time;
+                visits[activeSlot] = elapsed;
+                if (roundLeg) FinishRoundStop();
                 if (circuitLeg && IsPatrolPost(routing.PointAt(activeSlot)))
                 {
                     patrolStarted = true;
@@ -733,7 +806,15 @@ namespace AfterHours
                 faultSite = null;
             bool quiet = !faultSite.HasValue && notice <= 0 && !hasTrail && noises.Count == 0 && !keepInvestigation;
             bool sampleDue = patrolStarted ? patrolRemaining <= 0 : elapsed >= nextPatrolCheck;
-            if (quiet && sampleDue)
+            if (quiet && roundStop == RoundStop.None && elapsed >= nextRound &&
+                (!outdoorPatrolCenter.HasValue || sampleDue))
+            {
+                BeginBuildingRound();
+                path.Clear();
+                waypoint = 0;
+                underway = keepPatrol = false;
+            }
+            if (quiet && roundStop == RoundStop.None && sampleDue)
             {
                 bool hadOutdoorPatrol = outdoorPatrolCenter.HasValue;
                 RefreshOutdoorPatrol();
@@ -743,6 +824,30 @@ namespace AfterHours
                     waypoint = 0;
                     underway = keepPatrol = false;
                 }
+            }
+            if (quiet && roundStop != RoundStop.None && elapsed >= retryRoundAt)
+            {
+                if (keepPatrol && roundLeg) return;
+                goals.Clear();
+                bool street = roundStop == RoundStop.Street;
+                Vector2 sector = RoundSectors[roundVariant];
+                int floor = roundStop switch {
+                    RoundStop.UpperHall => upperFloor,
+                    RoundStop.SideHall => sideRotation == 0 ? -1 : 1,
+                    _ => 0
+                };
+                Vector3 center = new(sector.x, FloorRoutes.LevelHeight(floor), sector.y);
+                routing.CollectPatrolNodes(Position, center, !street, 5, 1, patrolNodes);
+                foreach (int node in patrolNodes)
+                {
+                    Vector3 point = routing.PointAt(node);
+                    if (street ? game.IsInsideBuilding(point) : Mathf.Abs(point.z - sector.y) > 1.25f) continue;
+                    if (patrolRetryUntil.TryGetValue(node, out float until) && elapsed < until) continue;
+                    float recent = visits.TryGetValue(node, out float visit) ? Mathf.Clamp01(1 - (elapsed - visit) / 75f) : 0;
+                    Consider(Intent.Patrol, point, 5, .2f, node, recent, bias: UnityEngine.Random.value * .12f);
+                }
+                if (TryRoute(onCircuit: false, onRound: true)) return;
+                DeferRoundStop();
             }
             if (quiet && keepPatrol) return;
             var localArea = AreaOf(Position);
@@ -799,7 +904,7 @@ namespace AfterHours
                 }
             }
 
-            if (TryRoute(keepPatrol ? circuitLeg : outdoorPatrolCenter.HasValue)) return;
+            if (TryRoute(keepPatrol ? circuitLeg : outdoorPatrolCenter.HasValue, keepPatrol && roundLeg)) return;
             if (outdoorPatrolCenter.HasValue)
             {
                 // A locked wing or one-way door may cut off the sampled patrol. Walk locally
@@ -816,18 +921,18 @@ namespace AfterHours
                 routing.CollectPatrolNodes(Position, region.Center, region.Inside, PatrolRadius, spacing, patrolNodes);
                 foreach (int node in patrolNodes)
                 {
-                    if (patrolRetryUntil.TryGetValue(node, out float until) && Time.time < until) continue;
+                    if (patrolRetryUntil.TryGetValue(node, out float until) && elapsed < until) continue;
                     Vector3 point = routing.PointAt(node);
                     if (inSampledArea && (!IsPatrolPost(point) || firstPatrolPost >= 0 &&
                         (point - routing.PointAt(firstPatrolPost)).sqrMagnitude < 16f)) continue;
-                    float recent = visits.TryGetValue(node, out float visit) ? Mathf.Clamp01(1 - (Time.time - visit) / 75f) : 0;
+                    float recent = visits.TryGetValue(node, out float visit) ? Mathf.Clamp01(1 - (elapsed - visit) / 75f) : 0;
                     float repeat = (lastPost >= 0 && (routing.PointAt(lastPost) - point).sqrMagnitude < 16 ? .85f : 0)
                         + .12f * Mathf.PerlinNoise(node * .8f, cycle * .17f);
                     Consider(Intent.Patrol, point, 5, .2f, node, recent, repeat);
                 }
             }
 
-            bool TryRoute(bool onCircuit)
+            bool TryRoute(bool onCircuit, bool onRound = false)
             {
                 goals.Sort(static (a, b) => b.Rank.CompareTo(a.Rank));
                 Func<Vector3, Vector3, bool> allowed = !game.State.firstFireDoor || blockedTraversals.Count > 0 || game.HasLockedKeyDoors
@@ -839,11 +944,13 @@ namespace AfterHours
                     bool sameImpact = goal.Kind == Intent.Investigate && activeIntent == Intent.Investigate &&
                         goal.Sound != "step" && goal.Sound == investigationSound;
                     float drift = goal.Kind == Intent.Pursue ? .68f : sameImpact ? 1.2f : .58f;
-                    bool samePatrol = activeIntent == Intent.Patrol && activeSlot == goal.Slot && circuitLeg == onCircuit;
+                    bool samePatrol = activeIntent == Intent.Patrol && activeSlot == goal.Slot &&
+                        circuitLeg == onCircuit && roundLeg == onRound;
                     if (underway && (goal.Place - destination).sqrMagnitude < drift * drift &&
                         (goal.Kind != Intent.Patrol || samePatrol))
                     {
                         circuitLeg = goal.Kind == Intent.Patrol && onCircuit;
+                        roundLeg = goal.Kind == Intent.Patrol && onRound;
                         activeIntent = goal.Kind;
                         activeSlot = goal.Slot;
                         investigationSound = goal.Sound;
@@ -865,6 +972,7 @@ namespace AfterHours
                     path.AddRange(proposedPath);
                     destination = goal.Place;
                     waypoint = 0;
+                    roundLeg = goal.Kind == Intent.Patrol && onRound;
                     circuitLeg = goal.Kind == Intent.Patrol && onCircuit;
                     activeIntent = goal.Kind;
                     activeSlot = goal.Slot;
@@ -893,7 +1001,7 @@ namespace AfterHours
                     secondPatrolPost = -1;
                 }
                 else if (slot == secondPatrolPost) secondPatrolPost = -1;
-                patrolRetryUntil[slot] = Time.time + 6f;
+                patrolRetryUntil[slot] = elapsed + 6f;
                 return;
             }
 

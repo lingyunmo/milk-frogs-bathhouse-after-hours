@@ -36,6 +36,10 @@ namespace AfterHours
                 CheckBuildingBoundaries();
                 CheckLocalPatrol();
                 CheckQuietPatrol();
+                CheckStreetReturn();
+                CheckRoundClues();
+                CheckWingExit(new(27,3.6f,12), "annex");
+                CheckWingExit(new(10,-3.6f,12), "basement");
                 CheckVisualEvidence();
                 CheckLureBeforePatrol();
                 CheckFootsteps();
@@ -137,22 +141,130 @@ namespace AfterHours
             Require(startedAt>0 && expiredAt-startedAt>=29.9f && expiredAt-startedAt<=60.6f,
                 $"Indoor player changed an outdoor patrol too early or too late: {startedAt} / {expiredAt}.");
 
+            // A duty round takes precedence over another fix when the old street circuit ends.
+            // Separately exercise leaving a building just after a missed check.
+            Prepare(new(106,0,-18),new(-14,-3.6f,5),-90);
+            hunter.Tick(Step);
+            float missedAt = Read<float>("elapsed");
             float next = Read<float>("nextPatrolCheck");
-            Require(next-expiredAt>=29.99f && next-expiredAt<=60.01f,"An indoor skip did not schedule a fresh interval.");
+            Require(next-missedAt>=29.99f && next-missedAt<=60.01f,"An indoor skip did not schedule a fresh interval.");
             Vector3 backOutside = new(245,0,-18);
             PlacePlayer(backOutside);
-            while (Read<float>("elapsed") < next+.7f && !OutdoorCenter.HasValue)
+            for (int i=0;i<9600 && !OutdoorCenter.HasValue;i++)
             {
                 hunter.Tick(Step);
                 Require(!hunter.Pursuing,"Going outdoors triggered a chase.");
                 if(Read<float>("elapsed") < next) Require(!OutdoorCenter.HasValue,"Leaving the building bypassed the timer.");
             }
-            Require(OutdoorCenter == backOutside,"The next eligible outdoor position was not sampled.");
+            Require(OutdoorCenter == backOutside,"Outdoor sampling never resumed after the independent building round.");
             PlacePlayer(new(-14,-3.6f,5));
             for(int i=0;i<3200 && !Read<bool>("patrolStarted");i++) hunter.Tick(Step);
             Require(OutdoorCenter == backOutside && Read<bool>("patrolStarted") && !hunter.Pursuing,
                 "Hunter failed to physically reach the new outdoor circuit.");
             Debug.Log($"OUTDOOR PATROL: {arrivals} arrivals, {expiredAt-startedAt:F2}s dwell; skipped indoors, resumed outside.");
+        }
+
+        void CheckStreetReturn()
+        {
+            var street = new Vector3(150, 0, -18);
+            Prepare(street, street + Vector3.right * 24, 180);
+            Vector3 impact = street + Vector3.left * 6;
+            hunter.HearNoise(impact, .90f, "land");
+            hunter.Tick(Step);
+            Require(Read<object>("activeIntent").ToString() == "Investigate", "Street bait was ignored.");
+            PlacePlayer(new(-14, -3.6f, 5));
+            int returns = 0, departures = 0;
+            bool checkedUpper = false;
+            for (int i = 0; i < 14400 && departures < 2; i++)
+            {
+                hunter.Tick(Step);
+                Vector3 feet = hunter.Position;
+                bool main = NightAtlas.MainInterior(new(feet.x, feet.z));
+                Require(!hunter.Pursuing && !OutdoorCenter.HasValue, "A silent indoor player was disclosed.");
+                if (main && FloorRoutes.LevelAt(feet.y) >= 1 && Mathf.Abs(feet.y - FloorRoutes.LevelHeight(FloorRoutes.LevelAt(feet.y))) < .15f)
+                {
+                    if (!checkedUpper) returns++;
+                    checkedUpper = true;
+                }
+                if (checkedUpper && !main && !game.IsInsideBuilding(feet) && (feet.x > 23 || feet.z < -16 || feet.z > 30))
+                {
+                    departures++;
+                    checkedUpper = false;
+                }
+            }
+            Require(departures == 2, $"After street bait: {returns} upper-floor visits, {departures} departures in 12 simulated minutes; last feet {hunter.Position}.");
+            Debug.Log($"STREET RETURN: two quiet street / main upper floor / street circuits in {Read<float>("elapsed"):F1}s.");
+
+            PlacePlayer(new(192,0,11)); // Outside the duty route, behind the hydrology station walls.
+            bool basement = false, annex = false;
+            var floors = new HashSet<int>();
+            for (int i=0;i<28000 && !(basement && annex && floors.Count == 2);i++)
+            {
+                hunter.Tick(Step);
+                Vector3 feet = hunter.Position;
+                Vector2 plan = new(feet.x, feet.z);
+                int floor = FloorRoutes.LevelAt(feet.y);
+                if (Mathf.Abs(feet.y - FloorRoutes.LevelHeight(floor)) > .15f || FloorRoutes.IsOnStair(feet)) continue;
+                if (NightAtlas.MainInterior(plan) && floor > 0) floors.Add(floor);
+                basement |= floor == -1 && NightAtlas.MainInterior(plan);
+                annex |= floor > 0 && NightAnnexLayout.Footprint.Contains(plan);
+                Require(!OutdoorCenter.HasValue && !hunter.Pursuing, "Side rounds needed the remote indoor player's location.");
+            }
+            Require(basement && annex && floors.Count == 2, $"Quiet coverage missed a wing: upper floors {floors.Count}, basement {basement}, annex {annex}.");
+            Debug.Log("ROUND COVERAGE: both main upper floors, the basement and the annex reached on foot.");
+        }
+
+        void CheckRoundClues()
+        {
+            var start = new Vector3(310, 0, -18);
+            Vector3 FirstStop(Vector3 silentPlayer)
+            {
+                UnityEngine.Random.InitState(7163);
+                Prepare(start, silentPlayer, 180);
+                // Start both trials when the same scheduled round is due.
+                typeof(NightHunter).GetField("nextRound", Fields).SetValue(hunter, 0f);
+                hunter.Tick(Step);
+                Require(Read<bool>("roundLeg") && !OutdoorCenter.HasValue, "No independent return from the far road.");
+                return Read<Vector3>("destination");
+            }
+            Vector3 hall = FirstStop(new(27, 3.6f, 17));
+            Require(FirstStop(new(-14, -3.6f, 5)) == hall, "Changing the unseen player's building changed the planned hall.");
+            PlacePlayer(new(200, 0, -18));
+            Vector3 impact = start + Vector3.left * 5;
+            hunter.HearNoise(impact, .90f, "land");
+            for (int i=0;i<15 && Read<object>("activeIntent").ToString() != "Investigate";i++) hunter.Tick(Step);
+            Require(!Read<bool>("roundLeg") && Read<object>("activeIntent").ToString() == "Investigate" &&
+                Vector3.Distance(Read<Vector3>("destination"), impact) < .2f, "A new impact failed to interrupt the return.");
+            bool investigated = false, resumed = false, reached = false;
+            for (int i=0;i<7000;i++)
+            {
+                if (i==460) PlacePlayer(new(35,7.2f,7));
+                hunter.Tick(Step);
+                Require(!OutdoorCenter.HasValue, "A committed return was redirected by an unobserved doorway crossing.");
+                investigated |= Vector3.Distance(hunter.Position, impact) < 1;
+                resumed |= investigated && Read<bool>("roundLeg");
+                if (resumed && FloorRoutes.LevelAt(hunter.Position.y) > 0 &&
+                    NightAtlas.MainInterior(new(hunter.Position.x, hunter.Position.z))) { reached = true; break; }
+            }
+            Require(reached, $"Patrol never resumed from the end of the road after an impact; last feet {hunter.Position}.");
+            Debug.Log("ROUND CLUES: identical first hall from two indoor hiding areas; investigated an impact and returned from the far road.");
+        }
+
+        void CheckWingExit(Vector3 spawn, string wing)
+        {
+            Prepare(spawn, new(192,0,11), 90);
+            bool visitedMain = false, left = false;
+            for(int i=0;i<6800;i++)
+            {
+                hunter.Tick(Step);
+                Vector3 feet = hunter.Position;
+                Require(!OutdoorCenter.HasValue && !hunter.Pursuing, $"Patrol from {wing} disclosed a distant indoor player.");
+                visitedMain |= NightAtlas.MainInterior(new(feet.x, feet.z)) && FloorRoutes.LevelAt(feet.y) == 0;
+                if (visitedMain && !game.IsInsideBuilding(feet) && (feet.x > 23 || feet.z < -16 || feet.z > 30))
+                { left = true; break; }
+            }
+            Require(left, $"Hunter failed to leave {wing} via the main ground floor; last feet {hunter.Position}.");
+            Debug.Log($"WING ROUND: left {wing}, visited main ground floor, and returned outdoors.");
         }
 
         void CheckVisualEvidence()
