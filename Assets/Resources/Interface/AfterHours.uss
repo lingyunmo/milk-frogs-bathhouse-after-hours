@@ -854,6 +854,8 @@
 .brine-vitals { flex-direction: row; align-items: center; margin-top: 6px; }
 .brine-meter-name { font-size: 13px; color: rgb(213, 209, 190); margin-right: 5px; }
 .brine-track { width: 74px; height: 6px; background-color: rgba(31,40,40,0.94); margin-right: 12px; }
+.brine-heat { height: 100%; background-color: rgb(228, 161, 91); }
+.brine-heat.meter-fill--low { background-color: rgb(244, 96, 65); }
 .brine-gate { height: 100%; background-color: rgb(142,210,192); }
 .brine-life { height: 100%; background-color: rgb(216,160,122); }
 .brine-whiteout { background-color: rgb(238,220,173); opacity: 0.83; transition-property: opacity; transition-duration: 1.65s; }

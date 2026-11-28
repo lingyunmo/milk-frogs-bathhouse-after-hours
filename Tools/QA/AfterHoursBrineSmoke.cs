@@ -191,19 +191,95 @@ namespace AfterHours
             Call("SaveProgress"); game.ContinueNight(); s=game.State;
             Need(snapshot==JsonUtility.ToJson(s.brine) && s.brine.echoes.Any(e=>e.lane<3),"Mid-wave reload changed battle");
             Aim(new Vector3(276,.07f,-29.1f),BrineRoute.Mouth(1)+Vector3.up);
-            for(int i=0;i<5000 && s.brine.Fighting;i++)
+            // Even a stationary shooter who always picks an unshielded target must now lose.
+            for(int i=0;i<4000 && s.brine.Fighting;i++)
             {
                 Call("TickBrine",.05f);
-                var e=s.brine.echoes.Where(x=>x.lane<3).OrderByDescending(x=>x.feet.x).FirstOrDefault();
-                if(e!=null && i%6==0)
+                var target=s.brine.echoes.Where(e=>e.lane<3 && !e.armoured).OrderByDescending(e=>e.feet.x).FirstOrDefault();
+                if(target!=null) game.Player.Eyes.LookAt(target.feet+Vector3.up*1.1f);
+                Call("FireBrine");
+            }
+            Need(s.brine.stage==BrineStage.Overrun,"Stationary automatic fire still cleared the encounter");
+            Debug.Log($"STATIONARY held fire and lost on wave {s.brine.wave+1}; {s.brine.shutter} gate, {s.brine.breath} health");
+            for(int seed=0;seed<6;seed++) FightAndEscape(seed);
+        }
+
+        void WalkTo(Vector3 target)
+        {
+            for(int i=0;i<350;i++)
+            {
+                var delta=target-game.Player.Feet;delta.y=0;
+                if(delta.magnitude<.16f) return;
+                game.Player.transform.rotation=Quaternion.LookRotation(delta);
+                game.Player.Move(Vector2.up,true,.05f); game.Player.SettleView(.05f);
+                var threat=game.State.brine.echoes.OrderBy(e=>(e.feet-game.Player.Feet).sqrMagnitude).FirstOrDefault();
+                if(threat!=null && i%7==0)
                 {
-                    game.Player.Eyes.LookAt(e.feet+Vector3.up*1.1f); Call("FireBrine");
+                    game.Player.Eyes.LookAt(threat.feet+Vector3.up); Call("FireBrine");
+                }
+                Call("TickBrine",.05f);
+                Need(game.State.brine.Live,"Flight ended before reaching "+target+" from "+game.Player.Feet);
+            }
+            throw new Exception("Physical evacuation path stalled near "+game.Player.Feet);
+        }
+
+        void FightAndEscape(int seed)
+        {
+            game.NewNight(); var s=game.State; s.brine.stage=BrineStage.Carrying; Call("BeginBrineDefence");
+            s.brine.tideSeed=seed;
+            Aim(new Vector3(270,.07f,-31),BrineRoute.Mouth(1)+Vector3.up);
+            // Keep the trigger down through its first lockout, including a save while hot.
+            for(int i=0;i<110 && !s.brine.overheated;i++) { Call("TickBrine",.05f); Call("FireBrine"); }
+            Need(s.brine.overheated,"Projector never vented under sustained fire");
+            float heat=s.brine.heat; Call("SaveProgress");game.ContinueNight();s=game.State;
+            Need(s.brine.overheated && Mathf.Abs(heat-s.brine.heat)<.001f,"Reload bypassed the projector lockout");
+            Call("FireBrine");Need(s.brine.heat==heat,"Overheated projector bypassed lockout");
+            Aim(new Vector3(270,.07f,-31),BrineRoute.Mouth(1)+Vector3.up);
+            int turns=0,shots=0,frames=0; float held=0,travel=0;
+            var before=game.Player.Feet;
+            for(;frames<5000 && s.brine.Fighting;frames++)
+            {
+                Call("TickBrine",.05f);
+                if(!s.brine.Fighting) break;
+                int lane=s.brine.ShellLane;
+                if(lane>=0)
+                {
+                    var wheel=Target(lane==0?"扳南线回水闸":"扳北线回水闸");
+                    var approach=BrineRoute.Handwheel(lane/2)+Vector3.forward*(lane==0?1f:-1f);
+                    var delta=approach-game.Player.Feet;delta.y=0;
+                    if(delta.magnitude>.32f)
+                    {
+                        var walk=game.Player.transform.InverseTransformDirection(delta.normalized);
+                        game.Player.Move(new Vector2(walk.x,walk.z),true,.05f);game.Player.SettleView(.05f);
+                        held=0;
+                    }
+                    else if(wheel.Available())
+                    {
+                        game.Player.Eyes.LookAt(wheel.Position);Physics.SyncTransforms();
+                        Call("FocusTarget",0f); Need(game.Focus==wheel,"Valve not reachable on foot");
+                        held+=.05f;
+                        if(held>=wheel.Hold) { wheel.Use();turns++;held=0; }
+                        continue;
+                    }
+                }
+                else held=0;
+                travel+=Vector3.Distance(before,game.Player.Feet);before=game.Player.Feet;
+                var e=s.brine.echoes.Where(x=>x.lane<3 && !x.armoured)
+                    .OrderBy(x=>x.kind==DrifterKind.Runner ? Vector3.Distance(game.Player.Feet,x.feet)/2.8f :
+                        Vector3.Distance(BrineRoute.Breach(x.lane),x.feet)/BrineRoute.Speed(x,s.brine.wave)).FirstOrDefault();
+                if(e!=null && frames%7==0 && s.brine.heat<.84f)
+                {
+                    shots++;
+                    game.Player.Eyes.LookAt(e.feet + Vector3.up*(shots%9==0 ? 3 : 1.08f)); Call("FireBrine");
                 }
             }
+            Debug.Log($"SURGE layout {seed}, played {frames*.05f:F1}s, travelled {travel:F1}m, {turns} wheel operations, {shots} aimed pulses; {s.brine.shutter} gate, {s.brine.breath} health; {s.brine.stage}");
+            Need(travel>12 && turns>=3,"Response route did not require movement between wheels");
             Need(s.brine.stage==BrineStage.Flight && !s.CanBoard,"Three waves could not be cleared using real shots");
             Need(!Target("拉开逃生栓").Available(),"Exit opened before the ally reached the gate");
             for(int i=0;i<140 && !s.brine.gateReleased;i++) Call("TickBrine",.05f);
-            Need(s.brine.gateReleased,"Ally never reached the shutter");
+            Need(s.brine.gateReleased && s.brine.echoes.Count==2,"Gate opened without the tunnel pursuit");
+            Need(s.brine.escapeTime>24 && s.brine.escapeTime<=26,"Escape clock ran before the ally opened the gate");
             var flight=JsonUtility.ToJson(s);
             Call("TickBrine",53f);
             Need(s.brine.missedExit && NightTickets.Result(s)==Ticket.Overrun,"Missed departure not terminal");
@@ -211,7 +287,15 @@ namespace AfterHours
             game.ContinueNight(); s=game.State;
             Need(!Physics.CapsuleCast(new Vector3(283,.37f,-31),new Vector3(283,1.54f,-31),.24f,Vector3.right,21,~(1<<NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore),
                  "An obstacle blocks the walkable evacuation corridor");
-            Use(Target("拉开逃生栓"),new Vector3(303.4f,.07f,-31));
+            // Run from the checkpoint at the last valve, around the sampling desk and through the opened gate.
+            WalkTo(new Vector3(game.Player.Feet.x,0,-32.2f));
+            WalkTo(new Vector3(303.7f,0,-32.2f));
+            var exit=Target("拉开逃生栓");
+            game.Player.Eyes.LookAt(exit.Position);
+            Physics.SyncTransforms();Call("FocusTarget",0f);
+            Need(game.Focus==exit && s.brine.escapeTime>exit.Hold,"Escape latch was not reached in time");
+            for(float heldTime=0;heldTime<exit.Hold;heldTime+=.05f) Call("TickBrine",.05f);
+            exit.Use();
             Need(s.escaped && NightTickets.Result(s)==Ticket.NuclearEscape && NightTickets.Stamped(Ticket.NuclearEscape),"Tunnel did not award nuclear ending");
             Need(NightTickets.Stamped(Ticket.CoreCargo) && NightTickets.Stamped(Ticket.Overrun),"Missing saved tickets");
             Need(Resources.Load<Texture2D>("Interface/BrineAfterglow") && Resources.Load<Texture2D>("Interface/Items/BrineCase") &&

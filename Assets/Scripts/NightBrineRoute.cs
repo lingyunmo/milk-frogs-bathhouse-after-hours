@@ -13,7 +13,19 @@ namespace AfterHours
         public int divertedLane = -1;
         public float divertTime, divertCooldown;
         public string[] exposures = new string[4];
-        public int wheel, rubbings, wave, released;
+        public int wheel, rubbings, wave, released, tideSeed;
+        public float heat;
+        public bool overheated;
+        internal int ShellLane
+        {
+            get
+            {
+                BrineEcho first=null;
+                foreach(var echo in echoes)
+                    if(echo.armoured && (first==null || echo.feet.x>first.feet.x)) first=echo;
+                return first?.lane ?? -1;
+            }
+        }
         public float spawnIn, shutter = 100, breath = 100, escapeTime;
         public List<BrineEcho> echoes = new();
         internal bool Fighting => stage == BrineStage.Defence;
@@ -25,14 +37,19 @@ namespace AfterHours
             if(exposures==null || exposures.Length!=4) Array.Resize(ref exposures,4);
             rubbings &= 15;
             wheel = Mathf.Clamp(wheel,0,3);
+            heat=Mathf.Clamp01(heat);
         }
     }
+
+    internal enum DrifterKind { Walker, Runner, Dredger }
 
     [Serializable]
     internal sealed class BrineEcho
     {
         public Vector3 feet;
         public int lane, life;
+        public DrifterKind kind;
+        public bool armoured;
         public float stride;
     }
 
@@ -78,13 +95,31 @@ namespace AfterHours
         };
 
         internal static Vector3 Handwheel(int side) => new(268.4f,1.08f,side==0 ? -34.65f : -27.45f);
-        internal static int WaveSize(int wave) => 4 + 2 * wave;
-        internal static float Speed(BrineEcho echo, int wave) => 1.12f + .19f*wave + .12f*echo.lane;
+        internal static int WaveSize(int wave) => 8 + 6 * wave;
+        internal static float Speed(BrineEcho echo, int wave) => echo.kind switch
+        {
+            DrifterKind.Runner => 2.65f + .14f * wave,
+            DrifterKind.Dredger => 1.28f + .08f * wave,
+            _ => 1.42f + .12f * wave + .10f * echo.lane
+        };
+        internal static BrineEcho NextEcho(BrineRun run)
+        {
+            int n=run.released, wave=run.wave;
+            bool shell=n%7==3;
+            bool runner=!shell && n>0 && (n+wave)%4==1;
+            int lane=shell ? 2*((run.tideSeed+wave+n/7)%2) : (n*2+n/3+wave+run.tideSeed)%3;
+            return new BrineEcho { lane=lane, feet=Mouth(lane), stride=n*1.73f,
+                kind=shell?DrifterKind.Dredger:runner?DrifterKind.Runner:DrifterKind.Walker,
+                armoured=shell, life=shell?3:runner || wave>0?2:1 };
+        }
+        internal static float SpawnDelay(int wave,int released) =>
+            released%5==0 ? 2.8f : released%5<=wave+1 ? .52f : 1.8f-wave*.15f;
         internal static Vector3 Mouth(int lane) => new(249+lane*.7f,.04f,-33.4f+lane*2.15f);
         internal static Vector3 Breach(int lane) => new(272.8f,.04f,-33.4f+lane*2.15f);
         internal static (string action,string place) Lead(BrineRun run) => run.Fighting
-            ? ("守住隔离闸　"+(run.wave+1)+" / 3","南堤隔离闸　·　鼠标左键 开火")
-            : (run.gateReleased ? "穿过泄洪廊" : "跟上奶娃，去东闸", "向东 · 拉开尽头的逃生栓　　"+Mathf.CeilToInt(run.escapeTime)+" 秒");
+            ? ("守住隔离闸　"+(run.wave+1)+" / 3",run.ShellLane switch { 0=>"南线硬壳　·　扳南手轮", 2=>"北线硬壳　·　扳北手轮", _=>"南堤隔离闸　·　守住三道来水口" })
+            : run.gateReleased ? ("穿过泄洪廊","向东 · 拉开尽头的逃生栓　　"+Mathf.CeilToInt(run.escapeTime)+" 秒")
+            : ("跟上奶娃，去东闸","隔离闸东侧 · 等奶娃拉开闸门");
     }
 
     internal sealed partial class NightGame
@@ -129,7 +164,7 @@ namespace AfterHours
                 brineWheels[side]=Target(at,side==0 ? "扳南线回水闸" : "扳北线回水闸",.65f,()=>
                 {
                     var r=State.brine;
-                    r.divertedLane=lane; r.divertTime=5; r.divertCooldown=13;
+                    r.divertedLane=lane; r.divertTime=4; r.divertCooldown=7;
                     soundscape.Play(at,"pipe-leak",1);
                     Notify("水头顶住了这一线。",3);
                 },()=>State.brine.Fighting && State.brine.divertCooldown<=0);

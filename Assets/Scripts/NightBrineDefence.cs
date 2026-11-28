@@ -13,6 +13,7 @@ namespace AfterHours
             new(101,.04f,-18), new(160,.04f,-18), new(199,.04f,4), new(243,.04f,3.7f) };
         readonly Dictionary<BrineEcho,Transform> drifters = new();
         Material drifterSkin, tracerInk;
+        readonly MaterialPropertyBlock brineCloth = new();
         void ReleaseBrineMaterials()
         {
             if (drifterSkin) Destroy(drifterSkin);
@@ -31,6 +32,7 @@ namespace AfterHours
             {
                 State.dispatch.loadFeet=Player.Feet; State.dispatch.carrying=false; RefreshLoad();
             }
+            run.tideSeed=UnityEngine.Random.Range(0,6);
             run.stage=BrineStage.Defence; run.spawnIn=3; run.shutter=run.breath=100;
             for(int i=0;i<InlandPosts.Length;i++)
                 run.echoes.Add(new BrineEcho { feet=InlandPosts[i],lane=i+3,life=2,stride=i });
@@ -49,6 +51,7 @@ namespace AfterHours
             if(bolt) bolt.enabled=false;
             triggerIn=contactIn=boltLife=0; allyIn=2;
             Player.EquipBrineGun(State.brine.Live);
+            world.BriefBrineWheels(State.brine.Fighting ? State.brine.ShellLane : -1);
             if(!State.brine.Live) return;
             hunter.JoinGuard(State.brine.gateReleased ? Escort : Guard);
             foreach(var echo in State.brine.echoes) SpawnVisual(echo);
@@ -66,15 +69,23 @@ namespace AfterHours
             go.GetComponent<Collider>().enabled=false;
             var renderer=go.GetComponent<Renderer>();
             renderer.sharedMaterial=drifterSkin;
-            var cloth=new MaterialPropertyBlock();
-            cloth.SetFloat("_Phase",echo.stride);
-            cloth.SetColor("_Coat",(echo.lane%3) switch { 0=>new Color(.73f,.87f,.79f),1=>new Color(.91f,.70f,.48f),_=>new Color(.65f,.73f,.87f) });
-            renderer.SetPropertyBlock(cloth);
+            DressDrifter(renderer,echo);
             go.transform.SetParent(transform,false);
-            float height=1.83f+.09f*(echo.lane%3);
-            go.transform.localScale=new Vector3(height*2/3f,height,1);
+            float height=echo.kind switch { DrifterKind.Dredger=>2.15f, DrifterKind.Runner=>1.57f, _=>1.83f+.06f*(echo.lane%3) };
+            go.transform.localScale=new Vector3(height*(echo.kind==DrifterKind.Dredger?.78f:.66f),height,1);
             drifters.Add(echo,go.transform);
             PoseDrifter(echo);
+        }
+
+        void DressDrifter(Renderer renderer,BrineEcho echo)
+        {
+            brineCloth.SetFloat("_Phase",echo.stride);
+            brineCloth.SetFloat("_Crust",echo.armoured?1:0);
+            brineCloth.SetFloat("_StepRate",echo.kind==DrifterKind.Runner?9:echo.kind==DrifterKind.Dredger?3.2f:5);
+            brineCloth.SetColor("_Coat",echo.kind switch {
+                DrifterKind.Runner=>new Color(1,.54f,.32f), DrifterKind.Dredger=>new Color(.56f,.80f,.84f),
+                _=>new Color(.73f,.87f,.79f) });
+            renderer.SetPropertyBlock(brineCloth);
         }
 
         void PoseDrifter(BrineEcho echo)
@@ -98,7 +109,10 @@ namespace AfterHours
             var r=State.brine;
             triggerIn-=dt; allyIn-=dt; contactIn-=dt; boltLife-=dt;
             if(bolt && boltLife<=0) bolt.enabled=false;
-            if(Input.GetMouseButton(0) && triggerIn<=0) FireBrine();
+            r.heat=Mathf.Max(0,r.heat-dt*(r.overheated?.38f:.23f));
+            if(r.overheated && r.heat<=.22f) r.overheated=false;
+            if(Input.GetMouseButton(0)) FireBrine();
+            Player.SetProjectorHeat(r.heat,r.overheated);
             if(!r.Fighting)
             {
                 var lever=new Vector3(283.1f,.04f,-32.1f);
@@ -108,22 +122,42 @@ namespace AfterHours
                 {
                     r.gateReleased=true;
                     world.Refresh(); soundscape.Play(lever,"truck",.78f);
-                    Notify("奶娃扯断了闸链。跑！",4);
+                    // Older flight saves have no tunnel sentries. New ones spawn once, when the gate opens.
+                    foreach(var at in new[]{new Vector3(291,.04f,-32),new Vector3(299,.04f,-30)})
+                    {
+                        var echo=new BrineEcho { lane=1,kind=DrifterKind.Runner,feet=at,life=2,stride=at.x };
+                        r.echoes.Add(echo); SpawnVisual(echo);
+                    }
+                    Notify("奶娃扯断了闸链。东廊还有东西，跑！",4);
                     SaveBrineCheckpoint();
                 }
-                if((r.escapeTime-=dt)<=0) EndBrine(false);
+                if(r.gateReleased)
+                {
+                    foreach(var echo in r.echoes)
+                    {
+                        var to=new Vector3(Player.Feet.x,echo.feet.y,Player.Feet.z);
+                        if((to-echo.feet).sqrMagnitude<100 && FloorRoutes.CanMove(echo.feet,to))
+                            echo.feet=Vector3.MoveTowards(echo.feet,to,dt*1.9f);
+                        echo.stride+=dt*6; PoseDrifter(echo);
+                        if(ContactPlayer(echo)) return;
+                    }
+                    if((r.escapeTime-=dt)<=0) EndBrine(false);
+                }
                 return;
             }
             r.divertCooldown=Mathf.Max(0,r.divertCooldown-dt);
             r.divertTime=Mathf.Max(0,r.divertTime-dt);
             if(r.released<BrineRoute.WaveSize(r.wave) && (r.spawnIn-=dt)<=0)
             {
-                int lane=(r.released*2+r.wave)%3;
-                var echo=new BrineEcho {lane=lane,feet=BrineRoute.Mouth(lane),stride=r.released*1.73f,
-                    life=r.wave==2 && r.released%3==0 ? 3 : r.wave!=0 ? 2 : 1};
+                var echo=BrineRoute.NextEcho(r);
                 r.echoes.Add(echo); SpawnVisual(echo);
                 r.released++;
-                r.spawnIn=r.wave==1 && r.released%2==1 ? .38f : 2.1f-r.wave*.24f;
+                r.spawnIn=BrineRoute.SpawnDelay(r.wave,r.released);
+                if(echo.armoured)
+                {
+                    soundscape.Play(BrineRoute.Handwheel(echo.lane/2),"signal",.88f);
+                    Notify(echo.lane==0 ? "南管在响。开南手轮，冲掉它的壳！" : "北管在响。开北手轮，冲掉它的壳！",4);
+                }
                 soundscape.Play(echo.feet,"pipe-leak",.54f);
             }
             BrineEcho nearest=null;
@@ -146,28 +180,42 @@ namespace AfterHours
                     if(Physics.Raycast(echo.feet+Vector3.up*.85f,ray.normalized,.55f,~(1<<NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore))
                         goal=echo.feet;
                 }
-                else goal=r.divertTime>0 && echo.lane==r.divertedLane ? BrineRoute.Mouth(echo.lane) : BrineRoute.Breach(echo.lane);
-                echo.feet=Vector3.MoveTowards(echo.feet,goal,dt*(inland?.82f:BrineRoute.Speed(echo,r.wave)));
-                echo.stride+=dt*(4.5f+.36f*(echo.lane%3));
-                PoseDrifter(echo);
-                if((echo.feet-Player.Feet).sqrMagnitude<1.55f && contactIn<=0)
+                else
                 {
-                    contactIn=1.25f; r.breath-=25; grade?.Shock();
-                    soundscape.Play(Player.Feet,"land",.8f);
-                    if(r.breath<=0) { EndBrine(false); return; }
+                    bool flushing=r.divertTime>0 && echo.lane==r.divertedLane;
+                    goal=flushing ? BrineRoute.Mouth(echo.lane) : BrineRoute.Breach(echo.lane);
+                    if(flushing && echo.armoured)
+                    {
+                        echo.armoured=false;
+                        DressDrifter(drifters[echo].GetComponent<Renderer>(),echo);
+                        soundscape.Play(echo.feet,"brine-hit",.85f);
+                    }
+                    if(!flushing && echo.kind==DrifterKind.Runner)
+                    {
+                        Vector3 feet=Player.Feet;
+                        Vector3 flat=new(feet.x,echo.feet.y,feet.z);
+                        if(Mathf.Abs(feet.y-echo.feet.y)<.8f && (flat-echo.feet).sqrMagnitude<81 &&
+                            (flat-BrineRoute.Breach(echo.lane)).sqrMagnitude<100 &&
+                            FloorRoutes.CanMove(echo.feet,flat)) goal=flat;
+                    }
                 }
+                echo.feet=Vector3.MoveTowards(echo.feet,goal,dt*(inland?.82f:BrineRoute.Speed(echo,r.wave)));
+                echo.stride+=dt*(echo.kind==DrifterKind.Runner?8.5f:4.5f+.36f*(echo.lane%3));
+                PoseDrifter(echo);
+                if(ContactPlayer(echo)) return;
                 if(inland) continue;
                 float left=(BrineRoute.Breach(echo.lane)-echo.feet).magnitude;
                 if(left<.24f)
                 {
-                    r.shutter-=20; RemoveEcho(echo);
+                    r.shutter=Mathf.Max(0,r.shutter-(echo.kind==DrifterKind.Dredger?38:18)); RemoveEcho(echo);
                     soundscape.Play(BrineRoute.Socket,"land",.95f);
                     if(r.shutter<=0) { EndBrine(false); return; }
                     continue;
                 }
                 advancing++;
-                if(left<remaining) { nearest=echo; remaining=left; }
+                if(!echo.armoured && left<remaining) { nearest=echo; remaining=left; }
             }
+            world.BriefBrineWheels(r.ShellLane);
             // Crossing lanes costs the ally time. It catches stragglers, but cannot hold all three mouths alone.
             var postAt=nearest!=null && remaining<7 ? BrineRoute.Breach(nearest.lane)-Vector3.right*1.8f : Guard;
             bool strike=nearest!=null && (nearest.feet-hunter.Position).sqrMagnitude<3.2f && allyIn<=0;
@@ -181,7 +229,7 @@ namespace AfterHours
             {
                 if(r.wave==2)
                 {
-                    r.stage=BrineStage.Flight; r.escapeTime=52;
+                    r.stage=BrineStage.Flight; r.escapeTime=26;
                     foreach(var stray in r.echoes.ToArray()) RemoveEcho(stray);
                     world.Refresh();
                     Notify("奶娃拍了两下地，转身奔向东闸。",5);
@@ -189,10 +237,21 @@ namespace AfterHours
                 else
                 {
                     r.wave++; r.released=0; r.spawnIn=4.5f;
-                    Notify(r.wave==1 ? "两边的暗孔同时响了。扳动岸边回水闸，能顶回一线。" : "最后一道闸裂开了。穿厚衣的还站着。",4);
+                    Notify(r.wave==1 ? "两岸都在响。当心贴地跑的红衣。" : "三道暗孔全开了！",4);
                 }
                 SaveBrineCheckpoint();
             }
+        }
+
+        bool ContactPlayer(BrineEcho echo)
+        {
+            if(contactIn>0 || (echo.feet-Player.Feet).sqrMagnitude>=1.55f ||
+                Physics.Linecast(echo.feet+Vector3.up,Player.Eyes.position,~(1<<NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore)) return false;
+            contactIn=1.25f; State.brine.breath-=25; grade?.Shock();
+            soundscape.Play(Player.Feet,"land",.8f);
+            if(State.brine.breath>0) return false;
+            EndBrine(false);
+            return true;
         }
 
         void SaveBrineCheckpoint()
@@ -207,7 +266,15 @@ namespace AfterHours
 
         void FireBrine()
         {
-            triggerIn=.23f;
+            var run=State.brine;
+            if(!run.Live || triggerIn>0 || run.overheated) return;
+            triggerIn=.24f;
+            run.heat=Mathf.Min(1,run.heat+.16f);
+            if(run.heat>=1)
+            {
+                run.overheated=true;
+                soundscape.Play(Player.Feet,"pipe-leak",.82f);
+            }
             var eye=Player.Eyes;
             var ray=new Ray(eye.position,eye.forward);
             float reach=Physics.Raycast(ray,out var wall,55,~(1<<NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore) ? wall.distance : 55;
@@ -225,8 +292,9 @@ namespace AfterHours
             soundscape.Play(eye.position+eye.forward*.3f,"brine-shot",.78f);
             if(hit==null) return;
             soundscape.Play(hit.feet,"brine-hit",.66f);
+            if(hit.armoured) return;
             if(--hit.life<=0) RemoveEcho(hit);
-            else if(hit.lane<3) hit.feet.x=Mathf.Max(BrineRoute.Mouth(hit.lane).x,hit.feet.x-.46f);
+            else if(hit.lane<3 && hit.kind!=DrifterKind.Runner) hit.feet.x=Mathf.Max(BrineRoute.Mouth(hit.lane).x,hit.feet.x-.46f);
         }
 
         void ShowBolt(Vector3 start,Vector3 end)

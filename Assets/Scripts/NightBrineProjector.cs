@@ -7,6 +7,15 @@ namespace AfterHours
         Transform projector;
         Material[] projectorFinishes;
         float recoil;
+        int heatBand=-1;
+        internal void SetProjectorHeat(float heat,bool venting)
+        {
+            int band=venting ? 8 : Mathf.FloorToInt(heat*7);
+            if(projectorFinishes==null || band==heatBand) return;
+            heatBand=band;
+            var glow=Color.Lerp(new Color(.22f,.88f,.76f),new Color(1.8f,.22f,.035f),band/8f);
+            projectorFinishes[2].SetColor("_EmissionColor",glow);
+        }
         internal void EquipBrineGun(bool equip)
         {
             if(equip && !projector)
