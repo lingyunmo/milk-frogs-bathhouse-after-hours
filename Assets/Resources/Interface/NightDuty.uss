@@ -54,37 +54,23 @@
     flex-direction: row;
 }
 .pause-brief {
-    position: absolute;
-    right: 7.2%;
-    top: 19%;
-    width: 380px;
-    padding: 26px 30px 28px;
-    background-color: rgba(6, 8, 7, .58);
-    border-width: 1px;
-    border-color: var(--hairline);
-    border-top-color: var(--brass-soft);
-    transition-property: opacity, translate;
-    transition-duration: .45s;
-    transition-timing-function: ease-out;
+    position: absolute; right: 9%; top: 20%; width: 355px;
+    padding: 26px 29px 30px 35px;
+    background-color: #cabb9f; background-image: url("TicketWallet.jpg");
+    background-size: 100% 100%; rotate: 1deg;
+    transition-property: opacity, translate; transition-duration: .32s;
 }
-.brief-objective {
-    margin: 2px 0 0;
-    font-size: 25px;
-    letter-spacing: 2px;
-    color: var(--ink-bright);
-    white-space: normal;
+.brief-dateline { margin: 0; font-size: 18px; letter-spacing: 3px; color: #574532; }
+.brief-rule { height: 1px; margin: 12px 0 24px; background-color: #827056; }
+.brief-place { font-size: 16px; color: #66462e; white-space: normal; }
+.brief-objective { margin: 5px 0 0; font-size: 29px; color: #2d2c22; white-space: normal; }
+.pinned-print {
+    align-self: flex-end; margin: 22px 0 2px; padding: 8px 8px 3px;
+    width: 210px; rotate: -4deg; background-color: #e3d6bb; border-width: 1px; border-color: #a79778;
+    transition-property: rotate, translate; transition-duration: .18s;
 }
-.brief-rule {
-    height: 1px;
-    margin: 20px 0;
-    background-color: var(--hairline);
-}
-.brief-line {
-    margin: 0;
-    font-size: 15px;
-    color: var(--ink-soft);
-    white-space: normal;
-}
+.pinned-print:hover, .pinned-print:focus { rotate: -1deg; translate: 0 -3px; border-color: #724a22; }
+.pinned-image { height: 125px; width: 100%; background-size: cover; }
 
 /* ------------------------------------------------------------------ Sheets: options, controls, confirmations */
 
@@ -1047,3 +1033,73 @@
     background-color: rgb(200,186,152); background-image: url("TicketWallet.jpg"); background-size: 100% 100%; rotate: -2deg; border-left-color: rgb(114,73,54); border-left-width: 5px;}
 .proof-mark {font-size: 20px; color: rgb(41,49,42);}
 .proof-sign {font-size: 15px; color: rgb(94,49,36);}
+
+/* Green linoleum belongs to the duty desk; ink on paper belongs to the objects laid on it. */
+.desk-surface, .survey-plan, .sheet {
+    background-image: url("NightDesk.jpg"); background-size: cover;
+    -unity-background-image-tint-color: rgb(161,174,164);
+}
+.inventory-workspace { width: 89%; }
+.inventory-work { margin-top: 7px; }
+.inventory-library { width: 43%; }
+.item-inspection { width: 57%; border-left-width: 0; padding: 12px 2% 0 3%; }
+.inventory-item { background-color: rgba(13,20,16,.53); border-radius: 1px; }
+.inventory-item--selected { border-bottom-width: 3px; border-bottom-color: #d8b078; }
+.inventory-tab { color: #bcb8a5; }
+.inventory-tab--active { color: #fff2d7; }
+.evidence-index { flex-direction: column; flex-wrap: nowrap; align-content: stretch; }
+.evidence-index .inventory-item {
+    width: 100%; min-height: 62px; height: auto; flex-shrink: 0; margin: 0;
+    padding: 8px 16px; border-width: 0; border-left-width: 2px; border-bottom-width: 1px;
+    border-color: rgba(188,185,151,.28); background-color: rgba(4,8,6,.12); border-radius: 0;
+}
+.evidence-index .inventory-item:hover, .evidence-index .inventory-item:focus { translate: 0 0; background-color: rgba(200,184,142,.12); border-left-color: #f4d09a; }
+.evidence-index .inventory-item--selected { background-color: rgba(219,188,130,.16); border-left-color: #edc486; }
+.evidence-entry { align-items: flex-start; }
+.entry-title { margin: 0; color: #efe8d6; font-size: 22px; }
+.entry-source { margin: 2px 0 0; color: #c1bba8; font-size: 14px; }
+.evidence-table { flex-grow: 1; min-height: 0; justify-content: center; align-items: center; }
+.evidence-photo, .evidence-paper { width: 91%; transition-property: opacity, translate, rotate; transition-duration: .22s; }
+.evidence-photo.entrance, .evidence-paper.entrance { rotate: 1deg; }
+.evidence-photo { height: 70%; max-height: 415px; padding: 9px 9px 6px; rotate: -2deg; background-color: #dcd0b9; }
+.evidence-emulsion { flex-grow: 1; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.photo-pencil { font-size: 18px; margin-top: 4px; color: #443e31; -unity-text-align: middle-center; }
+.evidence-paper {
+    height: 64%; max-height: 350px; padding: 26px 32px 24px 38px;
+    background-color: #c7b799; background-image: url("TicketWallet.jpg");
+    background-size: 100% 100%; rotate: -0.6deg;
+}
+.paper-scroll { flex-grow: 1; min-height: 0; }
+.paper-origin { margin: 0; color: #744a33; font-size: 16px; }
+.paper-title { font-size: 28px; color: #39382e; white-space: normal; margin-top: 9px; }
+.paper-rule { margin: 12px 0 14px; height: 1px; background-color: rgba(75,62,44,.52); }
+.paper-writing { color: #343129; font-size: 22px; white-space: normal; margin: 0; }
+.print-turn { margin-top: 14px; align-self: center; }
+.evidence-link { color: #edd09a; font-size: 16px; margin-top: 12px; padding: 3px 8px; background-color: rgba(0,0,0,0); border-width: 0; border-bottom-width: 1px; border-bottom-color: #b59f76; }
+.evidence-link:hover, .evidence-link:focus { background-color: #454939; }
+.instrument-tabs { flex-direction: row; margin: 4px 0 12px; }
+.instrument-tab { padding: 6px 18px; margin: 0 8px 0 0; color: #cbc8ba; font-size: 18px; border-width: 0; border-radius: 0; border-bottom-width: 2px; border-bottom-color: #5c6252; background-color: rgba(15,22,17,.70); }
+.instrument-tab:hover, .instrument-tab:focus { color: #fff4dc; background-color: #505342; }
+.instrument-tab--selected { color: #ffebbd; border-bottom-color: #e5b778; background-color: #3a4034; }
+.instrument-page { padding: 4px 0 10px; }
+.setting-row, .switch-row { min-height: 46px; }
+.survey-plan { padding: 23px 30px 19px; background-color: #203029; }
+.survey-plan .map-drawing { background-color: rgba(21,50,54,.69); border-color: #7f8774; }
+.survey-plan .floor-tab { color: #bdbeb0; }
+.survey-plan .floor-tab--selected { color: #ffe2ab; }
+.survey-plan .legend-text, .survey-plan .muted { color: #d0d0c1; }
+.ending-veil { align-items: flex-start; }
+.ending { align-items: flex-start; margin-left: 8%; max-width: 68%; }
+.ending-scrim { background-size: 100% 100%; }
+.ending-caption { white-space: normal; max-width: 680px; margin-bottom: 8px; color: #e4decc; }
+.ending-title, .ending-overline { padding-left: 0; }
+.ending-actions .menu-item { margin: 0 18px 0 0; }
+.ending .return-proof { align-self: flex-start; }
+.compact .survey-plan { padding: 12px; }
+.compact .evidence-paper { width: 98%; padding: 16px 18px 14px 24px; }
+.compact .evidence-photo { width: 98%; }
+.compact .ending { max-width: 85%; }
+.compact .ending-title { font-size: 64px; letter-spacing: 7px; }
+
+.plan-north { position: absolute; top: 12px; right: 17px; margin: 0; padding: 3px 5px;
+    color: #d5c9a9; font-size: 16px; background-color: #182d2d; }

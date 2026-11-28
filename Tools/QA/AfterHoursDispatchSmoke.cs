@@ -126,6 +126,67 @@ namespace AfterHours
             Visit("拿起手电").Use();
             game.State.charge = 300;
             game.Player.SetTorch(true);
+            var root=Field<VisualElement>(ui,"root");
+            game.SetScreen(NightScreen.Pause);
+            Check(root.Q<Button>("inspect-pinned-print")==null,"Paused menu leaked undiscovered photograph");
+            Submit(root.Q<Button>("options"));
+            Submit(root.Q<Button>("settings-1"));
+            Check(root.Q<Button>("practical-glow").parent.style.display.value==DisplayStyle.Flex,"Video controls unavailable");
+            if(preview!=null)
+            {
+                yield return new WaitForSecondsRealtime(.5f);
+                var shot=CaptureInstrument(SiblingPreview("settings"));
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            Submit(root.Q<Button>("settings-2"));
+            Check(root.Q<Button>("practical-glow").parent.style.display.value==DisplayStyle.None,"Settings pages overlap");
+            Check(ui.CloseSubpage(),"Options did not close");
+            game.SetScreen(NightScreen.Play);
+            var loosePrint = Visit("取前台招领照");
+            if(preview!=null)
+            {
+                ShowEstablishedView(); ui.Tick();
+                var shot=CaptureInstrument(SiblingPreview("counter"));
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            loosePrint.Use();
+            Check(!Target("取前台招领照").Available() && NightSave.Read().collected.Contains(NightGame.LostPhotoId),"Lost-property print not collected or saved");
+            game.SetScreen(NightScreen.Pause);
+            if(preview!=null)
+            {
+                yield return new WaitForSecondsRealtime(.5f);
+                var shot=CaptureInstrument(SiblingPreview("pause"));
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            Submit(root.Q<Button>("inspect-pinned-print"));
+            Check(root.Q("evidence-front")!=null && root.Q("evidence-transcript")==null,"Print or hidden handwriting missing");
+            if(preview!=null)
+            {
+                yield return new WaitForSecondsRealtime(.5f);
+                var shot=CaptureInstrument(SiblingPreview("desk"));
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            Submit(root.Q<Button>("turn-print"));
+            Check(root.Q<Label>("evidence-transcript").text.Contains("鞋还在") && root.Q<Button>("compare-record")==null,"Missing back or undiscovered note exposed");
+            Submit(root.Q<Button>("turn-print"));
+            Check(ui.CloseSubpage() && game.ScreenState==NightScreen.Pause,"Photo did not return to pause");
+            game.SetScreen(NightScreen.Map);
+            Submit(root.Q<Button>("floor-0"));
+            Submit(root.Q<Button>("map-locate"));
+            Check(root.Q<Button>("floor-"+game.Atlas.Floor).ClassListContains("floor-tab--selected") &&
+                root.Q<NightMapView>().ZoomLevel>1,"Map could not locate player from another floor");
+            if(preview!=null)
+            {
+                yield return new WaitForSecondsRealtime(.5f);
+                var shot=CaptureInstrument(SiblingPreview("plan"),1024,768);
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            yield return null;
+            var located = root.Q<NightMapView>();
+            var playerPoint = (Vector2)typeof(NightMapView).GetMethod("Point",Private).Invoke(located,new object[]{game.Player.Feet.x,game.Player.Feet.z});
+            Check(located.contentRect.width>1 && Vector2.Distance(playerPoint,located.contentRect.center)<3,"Located map arrow not on paper: "+playerPoint+" "+located.contentRect);
+            Submit(root.Q<Button>("map-reset"));
+            game.SetScreen(NightScreen.Play);
             string Offer(FieldOrder o) => "接取"+NightFieldOrders.Name(o);
             foreach(var station in NightShiftTrail.Stations) Check(!Target(Offer(station.Order)).Available(),"Opening offer: "+station.Order);
             Visit("拿起毛巾库钥匙").Use();
@@ -133,7 +194,6 @@ namespace AfterHours
             Visit("用毛巾库钥匙开门").Use();
             Visit(Offer(FieldOrder.Drain)).Use();
             game.SetScreen(NightScreen.Map);
-            var root=Field<VisualElement>(ui,"root");
             Submit(root.Q<Button>("switch-orders"));
             Check(root.Query<Button>(className:"order-entry").ToList().Count==1,"Undiscovered jobs in docket");
             game.ContinueNight();
@@ -413,6 +473,23 @@ namespace AfterHours
             Visit("翻阅浴票第一号").Use();
             Visit("翻阅关门试音记录").Use();
             Visit("翻阅借衣簿 · 末页").Use();
+            game.SetScreen(NightScreen.Inventory);
+            Submit(root.Q<Button>("inventory-tab-notes"));
+            Submit(root.Q<Button>("inventory-item-Print"));
+            Check(root.Q("evidence-front").style.backgroundImage.value.texture.name=="FloodWatch","Darkroom and bag show different prints");
+            Submit(root.Q<Button>("turn-print"));
+            Check(root.Q<Label>("evidence-transcript").text.Contains("朝水塔"), "Board alignment clue absent");
+            Submit(root.Q<Button>("compare-record"));
+            Check(root.Q<Label>("evidence-transcript").text.Contains("袁素琴"),"Cannot compare photographic clues");
+            if(preview!=null)
+            {
+                yield return new WaitForSecondsRealtime(.5f);
+                var shot=CaptureInstrument(SiblingPreview("files"),1024,768);
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            ui.CloseInventory();
+            Check(game.ScreenState==NightScreen.Play,"Standard inventory closed into a pause menu");
+            Debug.Log("DESK PASS physical pickup, save, two-sided evidence, comparison, pause, tabs and map location.");
             Check(NightShiftTrail.Ending(game.State).title=="未寄出的名字","Missing name");
             var undecided=NightSave.Read();
             Visit("封存原片 · 交给早班").Use();
@@ -593,9 +670,8 @@ namespace AfterHours
         string SiblingPreview(string suffix) => Path.Combine(Path.GetDirectoryName(preview),
             Path.GetFileNameWithoutExtension(preview) + "-" + suffix + Path.GetExtension(preview));
 
-        IEnumerator CaptureInstrument(string path)
+        IEnumerator CaptureInstrument(string path, int width=1280, int height=720)
         {
-            const int width=1280, height=720;
             var camera=game.Player.Eyes.GetComponent<Camera>();
             var panel=game.GetComponentInChildren<UIDocument>().panelSettings;
             var previousPanel=panel.targetTexture;

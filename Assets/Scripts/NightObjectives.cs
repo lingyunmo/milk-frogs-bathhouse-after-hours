@@ -18,6 +18,7 @@ namespace AfterHours
                 SaveProgress();
             },()=>!State.torch);
 
+            Supply(LostPhotoId, LostPhotoPosition + Vector3.up * .025f, "取前台招领照", "招领照 · 小布鞋", sound: "paper");
             Supply(FaultNoteId, new(9,1.00f,3.74f), "读夜班故障单", "故障单 · B 查看", sound: "paper");
             Supply("motor", new(-14,-2.30f,4.46f), "取发电机启动件", "发电机启动件", () => State.motorPart = true);
             Supply("seal", new(8,4.72f,4.20f), "取回水接头密封圈", "回水密封圈", () => State.seal = true);
@@ -166,6 +167,7 @@ namespace AfterHours
 
         static string SupplyArt(string id) => id switch
         {
+            LostPhotoId => "LostPair",
             FaultNoteId or AnnexDiagramId => "receipt",
             "motor" or NightStreetRelay.FuseId => "starter",
             "seal" => "seal",

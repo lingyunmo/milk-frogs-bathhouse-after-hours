@@ -22,6 +22,7 @@ namespace AfterHours
         VisualElement objectiveBlock, equipmentHints, prompt, promptHold, status, repairSlot, torchSlot, runHint, crouchHint;
         VisualElement staminaBlock, pickupCard, pickupArt, areaCard, minimapRing, north, curtain, chapter, letterbox;
         VisualElement grainLayer, toastBox;
+        VisualElement mapHousing, equipmentHousing;
         NightReticle reticle;
         NightDetentionLock detentionLock;
         Meter stamina, torch;
@@ -148,6 +149,7 @@ namespace AfterHours
         internal void Show(NightScreen screen)
         {
             subpage = "";
+            if (screen != NightScreen.Inventory) fromPause = false;
             if (screen == NightScreen.Title) titleElapsed = 0;
             Draw(screen);
         }
@@ -282,6 +284,11 @@ namespace AfterHours
 
         internal bool CloseSubpage()
         {
+            if (game.ScreenState == NightScreen.Inventory && fromPause)
+            {
+                CloseInventory();
+                return true;
+            }
             if (subpage.Length == 0) return false;
             PlayerPrefs.Save();
             subpage = "";
@@ -303,7 +310,7 @@ namespace AfterHours
                 Type(column, "暂停", "menu-heading serif");
                 Area(column, "menu-rule");
             }
-            BuildBrief(veil);
+            if (subpage.Length == 0) BuildBrief(veil);
             var footer = Area(veil, "menu-footer");
             Keys(footer, "Esc", subpage.Length == 0 ? "返回游戏" : "返回");
             if (subpage.Length != 0)
@@ -327,53 +334,33 @@ namespace AfterHours
             var brief = Area(veil, "pause-brief");
             Reveal(brief);
             var lead = NightFieldOrders.Current(state);
-            Type(brief, lead.place, "overline");
+            Type(brief, state.NightLabel + "　／　值班摘记", "brief-dateline serif");
+            Area(brief, "brief-rule");
+            Type(brief, lead.place, "brief-place");
             Type(brief, lead.action, "brief-objective serif");
-            Area(brief, "brief-rule");
-            int explored = 0, total = 0;
-            for (int floor = 0; floor < NightAtlas.FloorNames.Length; ++floor)
-                foreach (var area in game.Atlas.Areas(floor))
-                {
-                    total++;
-                    if (state.explored.Contains(area.Key)) explored++;
-                }
-            Type(brief, "调查进度", "overline");
-            Type(brief, $"已走过 {explored} / {total} 处", "brief-line");
-            Area(brief, "brief-rule");
-            Type(brief, "随身", "overline");
-            string light = state.torch ? Percent(Mathf.Clamp01(state.charge / NightState.FullTorchCharge)) : "未拾取";
-            Type(brief, $"手电 {light}　·　电池 {state.cells}　·　石子 {state.stones}", "brief-line");
+            if (state.collected.Contains(NightGame.LostPhotoId))
+            {
+                var print = Act(brief, "", () => OpenEvidence(NightItemId.LostPair), "pinned-print", "inspect-pinned-print");
+                SetItemArt(Area(print, "pinned-image"), "LostPair");
+                Type(print, "前台招领照", "photo-pencil serif");
+                print.tooltip = "翻看招领照";
+            }
         }
 
         void BuildSubpage(VisualElement card)
         {
-            var preferences = game.Preferences;
             Button primary = null;
             switch (subpage)
             {
                 case "settings":
-                    Type(card, "选项", "sheet-heading serif");
-                    var scroll = new ScrollView(ScrollViewMode.Vertical);
-                    scroll.AddToClassList("sheet-scroll");
-                    card.Add(scroll);
-                    var rows = scroll.contentContainer;
-                    Type(rows, "操作", "sheet-section");
-                    Slider(rows, "鼠标灵敏度", .5f, 5, preferences.Sensitivity, preferences.SetSensitivity, v => v.ToString("0.0"));
-                    Slider(rows, "镜头晃动", 0, 1, preferences.CameraMotion, preferences.SetMotion, Percent);
-                    Slider(rows, "视野", 50, 82, preferences.FieldOfView, preferences.SetFov, v => Mathf.RoundToInt(v) + "°");
-                    Type(rows, "画面", "sheet-section");
-                    Slider(rows, "亮度", .7f, 1.45f, preferences.Brightness, preferences.SetBrightness, v => Mathf.RoundToInt(v * 100) + "%");
-                    Switch(rows, "灯光柔晕", "practical-glow", () => preferences.PracticalGlow, preferences.SetPracticalGlow);
-                    Switch(rows, "环境光遮蔽", "ambient-occlusion", () => preferences.AmbientOcclusion, preferences.SetAmbientOcclusion);
-                    Switch(rows, "胶片颗粒", "film-grain", () => preferences.FilmGrain, preferences.SetFilmGrain);
-                    Switch(rows, "全屏", "fullscreen", () => Screen.fullScreen, on =>
-                        Screen.fullScreenMode = on ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed);
-                    Type(rows, "声音", "sheet-section");
-                    Slider(rows, "音量", 0, 1, preferences.Volume, preferences.SetVolume, Percent);
+                    primary = BuildSettings(card);
                     break;
                 case "controls":
                     Type(card, "操作", "sheet-heading serif");
-                    var grid = Area(card, "control-grid");
+                    var bindings = new ScrollView(ScrollViewMode.Vertical);
+                    bindings.AddToClassList("sheet-scroll");
+                    card.Add(bindings);
+                    var grid = Area(bindings.contentContainer, "control-grid");
                     foreach (var (keys, what) in new (string, string)[]
                     {
                         ("W A S D", "移动"), ("鼠标", "观察"), ("Shift", "按住奔跑"), ("C", "切换蹲行"),
@@ -409,6 +396,49 @@ namespace AfterHours
             if (subpage == "quit") primary = Act(actions, "退出", Quit, "sheet-action sheet-action--primary serif", "quit-confirm");
             var back = Act(actions, "返回", () => CloseSubpage(), "sheet-action serif", "back");
             Focus(primary ?? back);
+        }
+
+        int settingsSection;
+        Button BuildSettings(VisualElement card)
+        {
+            Type(card, "选项", "sheet-heading serif");
+            var tabs = Area(card, "instrument-tabs");
+            var pages = new VisualElement[3];
+            var buttons = new Button[3];
+            var labels = new[] { "操作", "画面", "声音" };
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("sheet-scroll");
+            card.Add(scroll);
+            for (int i = 0; i < pages.Length; i++)
+            {
+                int section = i;
+                buttons[i] = Act(tabs, labels[i], () => Select(section), "instrument-tab", "settings-" + i);
+                pages[i] = Area(scroll.contentContainer, "instrument-page");
+            }
+            var pref = game.Preferences;
+            Slider(pages[0], "鼠标灵敏度", .5f, 5, pref.Sensitivity, pref.SetSensitivity, v => v.ToString("0.0"));
+            Slider(pages[0], "镜头晃动", 0, 1, pref.CameraMotion, pref.SetMotion, Percent);
+            Slider(pages[0], "视野", 50, 82, pref.FieldOfView, pref.SetFov, v => Mathf.RoundToInt(v) + "°");
+            Slider(pages[1], "亮度", .7f, 1.45f, pref.Brightness, pref.SetBrightness, v => Mathf.RoundToInt(v * 100) + "%");
+            Switch(pages[1], "灯光柔晕", "practical-glow", () => pref.PracticalGlow, pref.SetPracticalGlow);
+            Switch(pages[1], "环境光遮蔽", "ambient-occlusion", () => pref.AmbientOcclusion, pref.SetAmbientOcclusion);
+            Switch(pages[1], "胶片颗粒", "film-grain", () => pref.FilmGrain, pref.SetFilmGrain);
+            Switch(pages[1], "全屏", "fullscreen", () => Screen.fullScreen, on =>
+                Screen.fullScreenMode = on ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed);
+            Slider(pages[2], "音量", 0, 1, pref.Volume, pref.SetVolume, Percent);
+            Select(settingsSection);
+            return buttons[settingsSection];
+
+            void Select(int index)
+            {
+                settingsSection = index;
+                scroll.scrollOffset = Vector2.zero;
+                for (int i = 0; i < pages.Length; i++)
+                {
+                    Visible(pages[i], i == index);
+                    buttons[i].EnableInClassList("instrument-tab--selected", i == index);
+                }
+            }
         }
 
         void Slider(VisualElement parent, string title, float min, float max, float value, Action<float> set, Func<float, string> format)
@@ -457,14 +487,12 @@ namespace AfterHours
         {
             Classes(veil, safe ? "ending-veil ending--dawn" : "ending-veil ending--caught");
             Area(veil, "screen ending-vignette").style.backgroundImage = new StyleBackground(NightInterfaceArt.Vignette);
-            if (safe)
-            {
-                var scene = Area(veil,"screen");
-                scene.style.backgroundImage = new StyleBackground(Resources.Load<Texture2D>("Interface/LastBus"));
-                scene.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
-                scene.SendToBack();
-            }
+            var scene = Area(veil, "screen");
+            scene.style.backgroundImage = new StyleBackground(safe ? Resources.Load<Texture2D>("Interface/LastBus") : titleImage);
+            scene.style.backgroundSize = new BackgroundSize(BackgroundSizeType.Cover);
+            scene.SendToBack();
             var ending = NightShiftTrail.Ending(game.State);
+            Area(veil, "screen ending-scrim").style.backgroundImage = new StyleBackground(NightInterfaceArt.LeftScrim);
             var column = Area(veil, "ending");
             Type(column, safe ? game.State.NightLabel + "　·　完" : game.State.NightLabel, "ending-overline");
             Type(column, safe ? ending.title : "最后一夜", "ending-title serif");
@@ -497,7 +525,7 @@ namespace AfterHours
             var card = Area(veil, "atlas-card");
             Reveal(card);
             bool docket = subpage == "orders";
-            if (docket) card.AddToClassList("dispatch-board");
+            card.AddToClassList(docket ? "dispatch-board" : "survey-plan");
             var header = Area(card, "atlas-header");
             var titles = Area(header, "atlas-titles");
             Type(titles, docket ? "奶娃浴场　/　" + game.State.NightLabel : LocationName(), "overline");
@@ -535,6 +563,7 @@ namespace AfterHours
             Type(tools, "滚轮缩放　·　按住拖动", "muted");
             Act(tools, "−", () => fullMap.Zoom(1 / 1.26f), "chip-button atlas-control", "map-zoom-out");
             Act(tools, "+", () => fullMap.Zoom(1.26f), "chip-button atlas-control", "map-zoom-in");
+            Act(tools, "定位", () => { OpenFloor(game.Atlas.Floor); fullMap.LocatePlayer(); }, "chip-button atlas-control", "map-locate");
             Act(tools, "复位", fullMap.ResetView, "chip-button atlas-control", "map-reset");
             OpenFloor(game.Atlas.Floor);
         }
@@ -582,7 +611,7 @@ namespace AfterHours
             Visible(status, false);
 
             BuildDispatchHud(layer);
-            var mapBox = Area(layer, "minimap");
+            var mapBox = mapHousing = Area(layer, "minimap");
             minimapRing = Area(mapBox, "minimap-ring");
             minimap = new NightMapView(game, true);
             minimapRing.Add(minimap);
@@ -633,7 +662,7 @@ namespace AfterHours
             stamina = new Meter(staminaBlock, "stamina-track", "stamina-fill");
             stamina.Track.name = "stamina-meter";
 
-            var equipment = Area(layer, "equipment");
+            var equipment = equipmentHousing = Area(layer, "equipment");
             torchSlot = Slot(equipment, NightGame.TorchKey.ToString(), "手电", "torch", out charge);
             torchSlot.AddToClassList("torch-slot");
             charge.name = "torch-charge";
@@ -781,7 +810,10 @@ namespace AfterHours
                 Copy(task, lead.action);
                 Copy(location, lead.place);
             }
+            bool reading = game.Framing || game.Processing || game.Splicing || game.AlbumOpen || game.Piloting;
             bool busy = game.WorkingDispatch || game.Framing || game.RepairView != null;
+            Visible(mapHousing, !reading);
+            Visible(equipmentHousing, !reading);
             bool received = now < dispatchHeardUntil;
             Visible(objectiveBlock, !busy);
             objectiveBlock.EnableInClassList("objective--updated", received || now - objectiveSince < 3.2f);
@@ -841,7 +873,7 @@ namespace AfterHours
 
             var focus = game.Focus;
             var repair = game.RepairView;
-            Visible(reticle, repair == null && !game.WorkingDispatch && !game.Framing);
+            Visible(reticle, !busy);
             reticle.Set(focus != null, game.Hold);
             reticle.Tick();
             Visible(prompt, focus != null && !busy);

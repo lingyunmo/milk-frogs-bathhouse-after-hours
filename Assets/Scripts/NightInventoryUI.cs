@@ -8,7 +8,8 @@ namespace AfterHours
     internal sealed partial class NightInterface
     {
         readonly Dictionary<string, Texture2D> inventoryArt = new();
-        bool showNotes;
+        bool showNotes, photoBack, fromPause;
+        internal void CloseInventory() => game.SetScreen(fromPause ? NightScreen.Pause : NightScreen.Play);
         NightItemId? selectedItem;
         VisualElement inventoryGrid, itemInspection;
         Button supplyTab, recordTab;
@@ -16,14 +17,14 @@ namespace AfterHours
         void BuildInventory(VisualElement veil)
         {
             veil.AddToClassList("inventory-veil");
-            Area(veil, "screen menu-scrim").style.backgroundImage = new StyleBackground(NightInterfaceArt.LeftScrim);
+            Area(veil, "screen desk-surface");
             var workspace = Area(veil, "inventory-workspace");
             Reveal(workspace);
             var heading = Area(workspace, "inventory-header");
             var titles = Area(heading, "inventory-headings");
             Type(titles, LocationName(), "overline");
             Type(titles, "随身背包", "inventory-heading serif");
-            Act(heading, "B　收起", Resume, "chip-button", "inventory-close");
+            Act(heading, "B　收起", CloseInventory, "chip-button", "inventory-close");
 
             var work = Area(workspace, "inventory-work");
             var library = Area(work, "inventory-library");
@@ -44,10 +45,20 @@ namespace AfterHours
             RefreshInventory(true);
         }
 
+        void OpenEvidence(NightItemId id)
+        {
+            fromPause = game.ScreenState == NightScreen.Pause;
+            showNotes = true;
+            selectedItem = id;
+            photoBack = false;
+            game.SetScreen(NightScreen.Inventory);
+        }
+
         void ChangeInventoryTab(bool notes)
         {
             if (showNotes == notes) return;
             showNotes = notes;
+            photoBack = false;
             selectedItem = null;
             RefreshInventory();
         }
@@ -56,6 +67,7 @@ namespace AfterHours
         {
             supplyTab.EnableInClassList("inventory-tab--active", !showNotes);
             recordTab.EnableInClassList("inventory-tab--active", showNotes);
+            inventoryGrid.EnableInClassList("evidence-index", showNotes);
             inventoryGrid.Clear();
             itemInspection.Clear();
 
@@ -68,22 +80,36 @@ namespace AfterHours
                 return;
             }
 
-            if (!items.Any(item => item.Id == selectedItem)) selectedItem = items[0].Id;
+            if (!items.Any(item => item.Id == selectedItem))
+            {
+                selectedItem = items[0].Id;
+                photoBack = false;
+            }
 
             foreach (var item in items)
             {
                 string art = ArtFor(item.Id);
                 var button = Act(inventoryGrid, "", () =>
                 {
+                    if (selectedItem != item.Id) photoBack = false;
                     selectedItem = item.Id;
                     RefreshInventory(true);
                 }, "inventory-item", "inventory-item-" + item.Id);
                 button.tooltip = item.Name;
-                Area(button, "inventory-item-glow").style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
-                SetItemArt(Area(button, "inventory-item-art"), art);
-                if (item.Count > 1 || item.Id is NightItemId.Battery or NightItemId.Stone)
-                    Type(button, "× " + item.Count, "inventory-count");
-                Type(button, item.Name, "inventory-item-name");
+                if (showNotes)
+                {
+                    var entry = Area(button, "evidence-entry");
+                    Type(entry, item.Name, "entry-title serif");
+                    Type(entry, item.Status, "entry-source");
+                }
+                else
+                {
+                    Area(button, "inventory-item-glow").style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
+                    SetItemArt(Area(button, "inventory-item-art"), art);
+                    if (item.Count > 1 || item.Id is NightItemId.Battery or NightItemId.Stone)
+                        Type(button, "× " + item.Count, "inventory-count");
+                    Type(button, item.Name, "inventory-item-name");
+                }
                 bool active = item.Id == selectedItem;
                 button.EnableInClassList("inventory-item--selected", active);
                 if (!active) continue;
@@ -94,6 +120,11 @@ namespace AfterHours
 
         void BuildInspection(NightInventoryItem item, string art)
         {
+            if (showNotes && item.Id is not (NightItemId.Receipt or NightItemId.AnnexDiagram))
+            {
+                InspectEvidence(item);
+                return;
+            }
             var stand = Area(itemInspection, "item-stand");
             Area(stand, "item-spotlight").style.backgroundImage = new StyleBackground(NightInterfaceArt.Glow);
             var interactive = NightItemPreview.TryCreate(game.transform, item.Id);
@@ -128,6 +159,58 @@ namespace AfterHours
             action.SetEnabled(item.CanUse);
         }
 
+        void InspectEvidence(NightInventoryItem item)
+        {
+            bool photograph = item.Id is NightItemId.Print or NightItemId.LostPair;
+            var table = Area(itemInspection, "evidence-table");
+            var page = Area(table, photograph && !photoBack ? "evidence-photo" : "evidence-paper");
+            Reveal(page);
+            if (photograph && !photoBack)
+            {
+                var image = Area(page, "evidence-emulsion");
+                image.name = "evidence-front";
+                SetItemArt(image, ArtFor(item.Id));
+                Type(page, item.Name, "photo-pencil serif");
+            }
+            else
+            {
+                var scroll = new ScrollView(ScrollViewMode.Vertical);
+                scroll.AddToClassList("paper-scroll");
+                page.Add(scroll);
+                var leaf = scroll.contentContainer;
+                Type(leaf, item.Status, "paper-origin");
+                if (!photograph) Type(leaf, item.Name, "paper-title serif");
+                Area(leaf, "paper-rule");
+                Type(leaf, item.Description, "paper-writing serif").name = "evidence-transcript";
+            }
+            var partner = item.Id switch
+            {
+                NightItemId.LostPair => NightItemId.WashSlip,
+                NightItemId.WashSlip => NightItemId.LostPair,
+                NightItemId.Print => NightItemId.Names,
+                NightItemId.Names => NightItemId.Print,
+                _ => (NightItemId?)null
+            };
+            if (partner.HasValue && (!photograph || photoBack))
+                foreach (var other in game.InventoryItems)
+                    if (other.Id == partner.Value)
+                        Act(table, "对照　" + other.Name, () =>
+                        {
+                            selectedItem = other.Id;
+                            photoBack = false;
+                            RefreshInventory(true);
+                        }, "evidence-link", "compare-record");
+            if (!photograph) return;
+            var turn = Act(table, photoBack ? "看正面" : "翻到背面", () =>
+            {
+                photoBack = !photoBack;
+                itemInspection.Clear();
+                InspectEvidence(item);
+                Focus(itemInspection.Q<Button>("turn-print"));
+            }, "sheet-action serif print-turn", "turn-print");
+            turn.tooltip = photoBack ? "看照片" : "看背面的字";
+        }
+
         void SetItemArt(VisualElement picture, string name)
         {
             if (string.IsNullOrEmpty(name)) return;
@@ -156,7 +239,7 @@ namespace AfterHours
             }
             if (!inventoryArt.TryGetValue(name, out var texture))
             {
-                texture = Resources.Load<Texture2D>(InterfaceFolder + "Items/" + name);
+                texture = Resources.Load<Texture2D>(name == "FloodWatch" ? InterfaceFolder + name : InterfaceFolder + "Items/" + name);
                 inventoryArt.Add(name, texture);
             }
             if (texture) picture.style.backgroundImage = new StyleBackground(texture);
@@ -164,6 +247,8 @@ namespace AfterHours
 
         static string ArtFor(NightItemId id) => id switch
         {
+            NightItemId.Print => "FloodWatch",
+            NightItemId.LostPair => "LostPair",
             NightItemId.Torch => "torch",
             NightItemId.Battery => "cell",
             NightItemId.Stone => "stone",
