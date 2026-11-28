@@ -23,6 +23,16 @@ namespace AfterHours
         internal RepairPanel RepairView => panel;
         internal float Hold => held != null && held.Hold > 0 ? Mathf.Clamp01(holdTime / held.Hold) : 0;
         internal bool InPursuit => hunter.Pursuing;
+        internal bool IsInsideBuilding(Vector3 feet) => world.IsInsideBuilding(feet);
+
+        internal Vector3? OutdoorPatrolCenter()
+        {
+            if (Player.InHideSpot || Player.Vaulting) return null;
+            var feet = Player.Feet;
+            if (IsInsideBuilding(feet)) return null;
+            // Outdoor patrol posts are on the street network, including the ground beside a window landing.
+            return new Vector3(feet.x, 0, feet.z);
+        }
         internal string Message => Time.unscaledTime < circuitAnnouncedUntil ? "触发隐藏任务：？？？　水塔背后响了一声收票铃。" : messageTime > 0 ? message : "";
         internal NightState ResumableSave { get; private set; }
         // The most recent pickup, for the acquisition card. Serial changes with every new pickup.

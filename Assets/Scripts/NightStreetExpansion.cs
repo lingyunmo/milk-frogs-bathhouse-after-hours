@@ -112,7 +112,10 @@ namespace AfterHours
             }
 
             // Support the model's existing raised plinth and its shallow step at the south doorway.
-            CollisionBox(shed.transform, "工具间石地台", new Vector3(5.4f, .22f, 36.665f), new Vector3(3.8f, .46f, 3.36f));
+            var plinth = new Rect(3.5f,34.985f,3.8f,3.36f);
+            RegisterInterior(plinth, .45f, 3.16f);
+            CollisionBox(shed.transform, "工具间石地台", new Vector3(plinth.center.x, .22f, plinth.center.y),
+                new Vector3(plinth.width, .46f, plinth.height));
             CollisionBox(shed.transform, "工具间门口台阶", new Vector3(5.4f, .132f, 34.73f), new Vector3(1.94f, .284f, .55f));
             CollisionBox(shed.transform, "工具间后墙", new Vector3(5.4f, 1.35f, 38.28f), new Vector3(3.8f, 2.70f, .18f));
             foreach (int side in new[] { -1, 1 })

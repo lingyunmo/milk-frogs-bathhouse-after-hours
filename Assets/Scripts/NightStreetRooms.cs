@@ -114,6 +114,7 @@ namespace AfterHours
             const float doorHeight = 2.36f;
             const float doorHalfWidth = .98f;
             var (name, bounds) = area;
+            RegisterInterior(bounds, 0, height);
             var building = new GameObject(name).transform;
             building.SetParent(root, false);
 
