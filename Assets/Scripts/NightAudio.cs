@@ -112,7 +112,7 @@ namespace AfterHours
             titleSpark.Stop();
             titleContact.Stop();
             // The shared listener pauses this source in menus and preserves its playhead.
-            if (screen == NightScreen.Play && ambience.clip && !ambience.isPlaying) ambience.Play();
+            if ((screen == NightScreen.Play || screen == NightScreen.Observer) && ambience.clip && !ambience.isPlaying) ambience.Play();
             if (screen == NightScreen.Capture) ambience.volume = PursuitAmbience;
         }
 

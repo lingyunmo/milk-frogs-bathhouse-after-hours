@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 
 namespace AfterHours
 {
-    internal enum NightScreen { Title, Play, Map, Inventory, Pause, Capture, Detention, Caught, Escaped }
+    internal enum NightScreen { Title, Play, Map, Inventory, Pause, Capture, Detention, Caught, Escaped, Observer }
 
     internal sealed partial class NightGame : MonoBehaviour
     {
@@ -27,7 +27,7 @@ namespace AfterHours
 
         internal Vector3? OutdoorPatrolCenter()
         {
-            if (Player.InHideSpot || Player.Vaulting) return null;
+            if (EmptyObservation || Player.InHideSpot || Player.Vaulting) return null;
             var feet = Player.Feet;
             if (IsInsideBuilding(feet)) return null;
             // Outdoor patrol posts are on the street network, including the ground beside a window landing.
@@ -81,6 +81,7 @@ namespace AfterHours
             ApplyPreferences();
             SetScreen(NightScreen.Title);
             world.CaptureReflections();
+            if (Array.IndexOf(Environment.GetCommandLineArgs(), "-observe-hunter") >= 0) EnterObserver();
         }
 
         void OnDestroy()
@@ -88,6 +89,7 @@ namespace AfterHours
             Time.timeScale = 1;
             AudioListener.pause = false;
             SyncCursor(false);
+            Watch?.Close();
             hud?.Dispose();
             world?.Dispose();
         }
@@ -133,7 +135,7 @@ namespace AfterHours
             if (save != null) Begin(save);
         }
 
-        void Begin(NightState save)
+        void Begin(NightState save, bool observation = false)
         {
             circuitAnnouncedUntil=-1;
             StopPipePlayback();
@@ -158,6 +160,13 @@ namespace AfterHours
             LastPickup = default;
             Atlas.Track(State, Player.Feet);
             if (grade) grade.SetFear(0);
+            if (observation)
+            {
+                hunter.Pose(new Vector3(106, 0, -18), -90);
+                OpenWatch(true);
+                Emit(new Vector3(101, 0, -18), .90f, "land");
+                return;
+            }
             if (save == null) SaveProgress();
             SetScreen(NightScreen.Play);
             hud.Arrive(save == null);
@@ -178,6 +187,7 @@ namespace AfterHours
                     hunter.FrameCapture(Player.Eyes, caughtTime);
                 }
             }
+            else if (ScreenState == NightScreen.Observer) TickObserver(Time.deltaTime);
             else if (ScreenState == NightScreen.Play) TickPlay(Time.deltaTime);
             else if (Input.GetKeyDown(KeyCode.Escape))
             {
@@ -220,6 +230,7 @@ namespace AfterHours
             }
             if (panel == null && !WorkingDispatch)
             {
+                if (Input.GetKeyDown(KeyCode.F8) && CanObserveLive) { EnterObserver(); return; }
                 if (Input.GetKeyDown(KeyCode.M))
                 {
                     SetScreen(NightScreen.Map);
@@ -288,14 +299,19 @@ namespace AfterHours
 
         internal void SetScreen(NightScreen screen)
         {
+            if (ScreenState == NightScreen.Observer && screen != NightScreen.Observer)
+            {
+                Watch.Close();
+                Watch = null;
+            }
             if (screen != NightScreen.Play) CloseDispatch();
             ScreenState = screen;
             bool playing = screen is NightScreen.Play or NightScreen.Capture;
-            Time.timeScale = playing ? 1 : 0;
+            Time.timeScale = playing || screen == NightScreen.Observer ? 1 : 0;
             AudioListener.pause = screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
                 or NightScreen.Caught or NightScreen.Escaped;
             SyncCursor(Application.isFocused);
-            Player.Eyes.GetComponent<Camera>().enabled = screen != NightScreen.Title;
+            Player.Eyes.GetComponent<Camera>().enabled = screen is not (NightScreen.Title or NightScreen.Observer);
             if (grade) grade.SetMenu(screen is NightScreen.Pause or NightScreen.Map or NightScreen.Inventory
                 or NightScreen.Detention or NightScreen.Caught or NightScreen.Escaped);
             Player.SetTorchVisible(screen == NightScreen.Play && State.torch);
@@ -326,7 +342,11 @@ namespace AfterHours
         void OnApplicationFocus(bool focused)
         {
             if (hud == null) return;
-            if (!focused && ScreenState == NightScreen.Play && !Capturing)
+            if (!focused && ScreenState == NightScreen.Observer)
+            {
+                if (!EmptyObservation) SetScreen(NightScreen.Pause);
+            }
+            else if (!focused && ScreenState == NightScreen.Play && !Capturing)
                 SetScreen(NightScreen.Pause);
             else
                 SyncCursor(focused);
@@ -343,7 +363,7 @@ namespace AfterHours
 
         internal void Captured()
         {
-            if (ScreenState != NightScreen.Play || Player.Concealed || State.detained || State.circuit.Solved || releaseGrace > 0) return;
+            if ((ScreenState != NightScreen.Play && !(ScreenState == NightScreen.Observer && !EmptyObservation)) || Player.Concealed || State.detained || State.circuit.Solved || releaseGrace > 0) return;
             Player.InterruptHiding();
             panel = null;
             if (State.dispatch.carrying) ReturnLoadOnCapture();
@@ -555,6 +575,7 @@ namespace AfterHours
 
         bool SaveProgress()
         {
+            if (EmptyObservation) return false;
             FinishShiftOrder();
             CheckReturnCircuit();
             if (Capturing) return true;
