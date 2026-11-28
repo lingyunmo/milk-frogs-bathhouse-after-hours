@@ -28,6 +28,7 @@ namespace AfterHours
         internal bool RoadSurveyComplete => dispatch.RoadReady && Drained && survey.ReportReady && survey.archive && story.ledger && story.exchanged && NightShiftTrail.DoorUsed(this, "key-uplink");
         internal bool CanBoard => beacon && rescueTime == 0 && RescueAccess;
         public ShiftEvidence story = new();
+        public ReturnCircuit circuit = new();
         public SurveyFilm survey = new();
         public DispatchState dispatch = new();
         public bool annexIsolated, annexRelay;
@@ -66,6 +67,8 @@ namespace AfterHours
                     save.dispatch.Normalize();
                     save.survey ??= new SurveyFilm();
                     save.survey.Normalize();
+                    save.circuit ??= new ReturnCircuit();
+                    save.circuit.Normalize();
                     save.story ??= new ShiftEvidence();
                     // Old desks gave out the later keys before any investigation. Re-seat only
                     // those locks in an unfinished legacy run; preserve repairs, photos and supplies.

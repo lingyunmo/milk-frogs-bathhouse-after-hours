@@ -284,9 +284,16 @@ namespace AfterHours
             SetExpression(0);
         }
 
+        internal void ReleaseReturnLine()
+        {
+            Pursuing=false;
+            actor.gameObject.SetActive(false);
+        }
+
         internal void Reset()
         {
             EndCapture();
+            actor.gameObject.SetActive(!game.State.circuit.Solved);
             actor.SetPositionAndRotation(NightSpawns[game.State.night - 1], Quaternion.identity);
             destination = lastSeen = Position;
             lastHeading = actor.forward;

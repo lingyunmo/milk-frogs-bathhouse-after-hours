@@ -51,24 +51,25 @@ namespace AfterHours
             },"switch"),()=>State.motorStage==3&&!State.power);
 
             Vector3 sink=new(1,4.36f,2.46f);
-            Target(sink,"关掉水槽进水阀",2.5f,()=>Repair(sink,.44f,()=>State.sinkStage++),()=>WorkingOn(FieldOrder.Drain)&&State.sinkStage==0);
-            Target(sink,"换密封圈，拧紧回水接头",4.5f,()=>Repair(sink,.65f,()=>{State.sinkStage++;State.seal=false;}),()=>WorkingOn(FieldOrder.Drain)&&State.sinkStage==1&&State.seal);
+            Target(sink,"关掉水槽进水阀",2.5f,()=>Repair(sink,.44f,()=>State.sinkStage++),()=>CanService(FieldOrder.Drain)&&State.sinkStage==0);
+            Target(sink,"换密封圈，拧紧回水接头",4.5f,()=>Repair(sink,.65f,()=>{State.sinkStage++;State.seal=false;}),()=>CanService(FieldOrder.Drain)&&State.sinkStage==1&&State.seal);
             Vector3 pump=new(1,-2.54f,20.08f);
-            Target(pump,"排空后场积水",3,()=>Repair(pump,1.0f,()=>State.pump=true,"switch"),()=>WorkingOn(FieldOrder.Drain)&&State.power&&State.sinkStage==2&&!State.pump);
+            Target(pump,"排空后场积水",3,()=>Repair(pump,1.0f,()=>State.pump=true,"switch"),()=>CanService(FieldOrder.Drain)&&State.power&&State.sinkStage==2&&!State.pump);
 
             Vector3 network=new(12,8.38f,19.47f);
             Target(network,"检查标签，接好浴场上行线",0,()=>OpenRepair("弱电间接线",network,
                 new[]{"前台","外线","监控"},new[]{"这条粗线穿墙通到街上，旧线套印着「外」。","细线从楼下电话引来，线头还缠着前台的号码签。"},
-                new[]{1,0},()=>Repair(network,.36f,()=>State.networkStage=1)),()=>WorkingOn(FieldOrder.Radio)&&State.networkStage==0);
-            Target(network,"打开路由器，确认链路灯",3.6f,()=>Repair(network,.42f,()=>State.uplink=true,"signal"),()=>WorkingOn(FieldOrder.Radio)&&State.power&&State.networkStage==1&&!State.uplink);
+                new[]{1,0},()=>Repair(network,.36f,()=>State.networkStage=1)),()=>CanService(FieldOrder.Radio)&&State.networkStage==0);
+            Target(network,"打开路由器，确认链路灯",3.6f,()=>Repair(network,.42f,()=>State.uplink=true,"signal"),()=>CanService(FieldOrder.Radio)&&State.power&&State.networkStage==1&&!State.uplink);
             Vector3 terminal=new(9,1.12f,3.94f);
             Target(terminal,"检查终端线路",0,()=>Notify("拨号声到了副楼就断了。",6),
-                ()=>WorkingOn(FieldOrder.Radio)&&State.power&&State.uplink&&!State.annexRelay&&!State.contacted);
+                ()=>CanService(FieldOrder.Radio)&&State.power&&State.uplink&&!State.annexRelay&&!State.circuit.Has(CallPath.FrontDesk));
             Target(terminal,"发送街名与站牌编号",3.1f,()=>Repair(terminal,.73f,()=>
             {
+                State.circuit.LogCall(CallPath.FrontDesk);
                 State.contacted=true;
                 Notify("听筒里传来人声：「街尾那块反光板，翻起来我才看得见你。」",7);
-            },"signal"),()=>WorkingOn(FieldOrder.Radio)&&State.power&&State.uplink&&State.annexRelay&&!State.contacted);
+            },"signal"),()=>CanService(FieldOrder.Radio)&&State.power&&State.uplink&&State.annexRelay&&!State.circuit.Has(CallPath.FrontDesk));
             Target(terminal,"请求一次补给",1.7f,()=>
             {
                 State.dropTime=21;
@@ -101,10 +102,12 @@ namespace AfterHours
             Target(pole,"听接应频道",0,()=>Notify("「水尺和旧接应板都认准了再叫我。有两处都叫石桥，夜里我可分不清。」"),()=>State.contacted&&!State.beacon&&!State.RoadSurveyComplete,2.3f);
             Target(pole,"翻起反光接应板",1.25f,()=>Repair(pole,.95f,()=>
             {
+                State.circuit.mainSignal=true;
+                if (State.beacon) { Notify("司机回了两下灯。车还在。"); return; }
                 State.beacon=true;
                 State.rescueTime=27;
                 Notify("街的另一头，有人回了两下远光。",6);
-            },"tool"),()=>State.contacted&&State.RescueAccess&&!State.beacon,2.3f);
+            },"tool"),()=>!State.detained&&State.contacted&&State.RescueAccess&&!State.circuit.mainSignal,2.3f);
             Target(new Vector3(159.2f,1.10f,-18.76f),"登上救援车",1.15f,()=>
             {
                 State.escaped=true;

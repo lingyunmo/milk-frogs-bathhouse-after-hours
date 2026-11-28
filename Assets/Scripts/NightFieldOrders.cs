@@ -74,6 +74,7 @@ namespace AfterHours
         internal static (string action, string place) Current(NightState state)
         {
             if (state.detained) return ("拨开门上的卡簧锁", "地下室 · 门边的橙灯");
+            if (state.circuit.room is >= 1 and <= 5) return ReturnCircuit.Lead(state);
             if (state.CanBoard) return ("上救援车", "街尾 · 站牌");
             if (state.beacon) return ("听街口的车喇叭", "街尾 · 站牌");
             if (state.dispatch.orderHeld) return Direction(Tracking(state), state);

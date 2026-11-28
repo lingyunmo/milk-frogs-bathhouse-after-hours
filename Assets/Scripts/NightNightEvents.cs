@@ -14,7 +14,7 @@ namespace AfterHours
         internal static readonly Vector3 BackupBeacon = new(147f, 1.25f, -12f);
 
         internal static bool Available(NightState state, int minimumNight) =>
-            state.night >= minimumNight && !state.detained && !state.ended;
+            (state.night >= minimumNight || state.RescueAccess) && !state.detained && !state.ended;
 
         internal static string FreightBellKey(int night) => $"night-freight-bell-{night}";
     }
@@ -36,7 +36,7 @@ namespace AfterHours
                 () => Notify("指示窗还是黑的。灯座下面写着「凭回执亮灯」。"),
                 () => NightEvents.Available(State, 4) && !State.contacted);
             Target(NightEvents.BackupBeacon, "扳开备用接应灯", 1.2f, SendBackupBeacon,
-                () => NightEvents.Available(State, 4) && State.contacted && State.RescueAccess && !State.beacon && State.rescueTime < 0);
+                () => NightEvents.Available(State, 4) && State.contacted && State.RescueAccess && !State.circuit.spareSignal);
         }
 
         void OpenDutyCase()
@@ -65,6 +65,8 @@ namespace AfterHours
         void SendBackupBeacon() =>
             Repair(NightEvents.BackupBeacon, 1.12f, () =>
             {
+                State.circuit.spareSignal = true;
+                if (State.beacon) { Notify("备用灯亮了。司机在原站等你。"); return; }
                 State.beacon = true;
                 State.rescueTime = NightEvents.BackupArrivalTime;
                 Notify("东边的站牌亮起来了。", 5);
@@ -149,18 +151,18 @@ namespace AfterHours
         void RefreshNightEvents()
         {
             var state = game.State;
-            dutyCase.gameObject.SetActive(state.night >= 2);
+            dutyCase.gameObject.SetActive(state.night >= 2 || state.RescueAccess);
             bool supplied = state.collected.Contains(NightEvents.DutyCaseKey);
             dutyCaseHinge.localRotation = Quaternion.Euler(supplied ? -77f : 0, 0, 0);
             dutyCaseContents.SetActive(!supplied);
 
-            freightSwitch.gameObject.SetActive(state.night >= 3);
-            freightHorn.gameObject.SetActive(state.night >= 3);
+            freightSwitch.gameObject.SetActive(state.night >= 3 || state.RescueAccess);
+            freightHorn.gameObject.SetActive(state.night >= 3 || state.RescueAccess);
             freightReadyLight.SetActive(!state.collected.Contains(NightEvents.FreightBellKey(state.night)));
 
-            backupBeacon.gameObject.SetActive(state.night >= 4);
-            backupReadyLight.SetActive(state.contacted && state.RescueAccess && !state.beacon);
-            backupBeaconLight.SetActive(state.beacon);
+            backupBeacon.gameObject.SetActive(state.night >= 4 || state.RescueAccess);
+            backupReadyLight.SetActive(state.contacted && state.RescueAccess && !state.circuit.spareSignal);
+            backupBeaconLight.SetActive(state.circuit.spareSignal);
         }
 
         Transform NightEventMount(string name, Vector3 point, Transform parent = null)

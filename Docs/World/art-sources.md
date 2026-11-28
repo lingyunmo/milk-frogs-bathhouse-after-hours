@@ -174,3 +174,5 @@ Game prop texture photographed straight-on: the entire faceplate of a battered l
 ## 末班车
 
 车厢结局底图为本项目生成的原创场景图。运行时从 Interface/LastBus 读取；结局文字与声音根据本局调查和证物处置分别呈现。
+
+票夹使用本项目生成的无字油布装订纸叶。全部章印、正文和签收信息由游戏排印。旧票务所的桌、架、座椅、无线电与壁灯沿用清单中的已有模型。

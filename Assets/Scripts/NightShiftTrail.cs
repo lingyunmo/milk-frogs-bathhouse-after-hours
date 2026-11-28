@@ -83,7 +83,7 @@ namespace AfterHours
         internal static bool Has(NightState s, NightItemId id) => s.collected.Contains(id.ToString());
         internal static bool CanReadArchive(NightState s) => s.survey.archive && Offered(s,FieldOrder.Archive);
         internal static bool CanTestify(NightState s) => CanReadArchive(s) && s.story.choice == WitnessChoice.Undecided && Has(s,NightItemId.Names);
-        internal static (string title, string caption) Ending(NightState s) => s.story.choice switch
+        internal static (string title, string caption) Ending(NightState s) => s.circuit.Solved ? (NightTickets.TrueTitle, ReturnCircuit.FinalCaption(s)) : s.story.choice switch
         {
             WitnessChoice.Broadcast => ("有人应名","车载电台念出了袁素琴。司机把车停了片刻。最后一排响起三下敲窗声，像有人终于答了到。"),
             WitnessChoice.Seal => ("请日班亲启","早班邮袋搁在副座。司机摸到那封硬硬的底片，没拆，只在交接栏里端正地签了自己的名字。"),
@@ -96,6 +96,7 @@ namespace AfterHours
     {
         void BuildShiftTrail()
         {
+            BuildReturnWingTargets();
             foreach (var station in NightShiftTrail.Stations)
             {
                 var order = station.Order;
