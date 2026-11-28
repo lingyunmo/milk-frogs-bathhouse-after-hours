@@ -18,6 +18,14 @@ namespace AfterHours
             };
         }
         internal static float Buoy(int leg) => Centre(Length,leg) + (leg==1 ? 2.6f : -2.6f);
+        internal static float SpeedAt(float metres, int leg)
+        {
+            float clearance = Length - metres;
+            for (int i = 0; i < 3; i++)
+                clearance = Mathf.Min(clearance, Mathf.Abs(metres - Shoal(i,leg).y));
+            // Slow on approach to bars and the buoy; the open reaches can be traversed at cruise.
+            return Mathf.Lerp(Cruise, 7.6f, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(6f, 14f, clearance)));
+        }
         internal static Vector2 Shoal(int index,int leg)
         {
             float m = 32 + index*42 + 5*leg;
@@ -48,7 +56,7 @@ namespace AfterHours
             int leg=film.soundings;
             float m=film.boatMetres;
             float crossflow=Mathf.Sin(m*.18f+leg*1.56f)*(.32f+leg*.20f);
-            float speed=Time.unscaledTime<LaunchKnock ? .9f : SoundingReach.Cruise;
+            float speed=Time.unscaledTime<LaunchKnock ? .9f : SoundingReach.SpeedAt(m,leg);
             float next=Mathf.Min(SoundingReach.Length,m+(throttle?dt*speed:0));
             sideways=Mathf.MoveTowards(sideways,Mathf.Clamp(rudder,-1,1)*4.7f,dt*11);
             float x=film.boatOffset+(sideways + (throttle ? crossflow : 0))*dt;

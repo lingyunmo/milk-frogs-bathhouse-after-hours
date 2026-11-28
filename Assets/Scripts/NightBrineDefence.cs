@@ -10,12 +10,17 @@ namespace AfterHours
         // The isolation shutters draw the main surge along three parallel spillways. The inland
         // sentries occupy their own pieces of floor and never count against the three waves.
         static readonly Vector3[] InlandPosts = { new(-4,.04f,12), new(30,3.65f,12),
-            new(101,.04f,-18), new(160,.04f,-18), new(199,.04f,4), new(243,.04f,3.7f) };
+            new(101,.04f,-18), new(160,.04f,-18), new(199,.04f,4), new(243,.04f,3.7f),
+            new(-4,-3.56f,12), new(4,3.64f,12), new(-7,7.24f,12), new(31,7.24f,12),
+            new(30,.04f,35), new(50,.04f,14), new(70,.04f,-3), new(118,.04f,-29),
+            new(154,.04f,5), new(197,.04f,12), new(248,.04f,11), new(289,.04f,-5),
+            new(314,.04f,16), new(268,.04f,13), new(330,.04f,-17) };
         readonly Dictionary<BrineEcho,Transform> drifters = new();
         Material drifterSkin, tracerInk;
         readonly MaterialPropertyBlock brineCloth = new();
         void ReleaseBrineMaterials()
         {
+            ReleaseBrineDetector();
             if (drifterSkin) Destroy(drifterSkin);
             if (tracerInk) Destroy(tracerInk);
         }
@@ -35,17 +40,30 @@ namespace AfterHours
             run.tideSeed=UnityEngine.Random.Range(0,6);
             run.stage=BrineStage.Defence; run.spawnIn=3; run.shutter=run.breath=100;
             for(int i=0;i<InlandPosts.Length;i++)
-                run.echoes.Add(new BrineEcho { feet=InlandPosts[i],lane=i+3,life=2,stride=i });
+                if (FindInlandFloor(InlandPosts[i], out var floor))
+                    run.echoes.Add(new BrineEcho { feet=floor, home=floor, lane=i+3,life=2,stride=i });
             State.beacon=false; State.rescueTime=-1; circuitAnnouncedUntil=-1;
             State.spawn=new Vector3(276,.065f,-30.4f); State.yaw=270;
             RestoreBrineScene(); world.Refresh();
-            soundscape.Play(BrineRoute.Socket,"signal",.95f);
-            Notify("警报压过了车喇叭。奶娃背朝你，堵住了闸口。　鼠标左键 · 回流炮",7);
+            world.SetBrineBlast(true, playImpact:true);
+            soundscape.Play(Player.Eyes.position,"district-impact",.90f);
+            // The player has just been looking down at the socket. Aim back over the spillways;
+            // normal mouse look and movement are available on the very next frame.
+            if ((Player.Feet-BrineRoute.Socket).sqrMagnitude < 16)
+            {
+                var towards = NightBrineBlast.Source - Player.Feet;
+                Player.transform.rotation = Quaternion.LookRotation(new Vector3(towards.x,0,towards.z));
+                Player.LookDown(-10);
+            }
+            grade?.Shock();
+            Notify("东堤发生核事故。司机切断了频道。奶娃守住东闸，把回流炮推到你脚边。",7);
             SaveProgress();
         }
 
         void RestoreBrineScene()
         {
+            ResetBrineDetector();
+            world.SetBrineBlast(State.brine.Committed);
             foreach(var visual in drifters.Values) if(visual) Destroy(visual.gameObject);
             drifters.Clear();
             if(bolt) bolt.enabled=false;
@@ -107,6 +125,7 @@ namespace AfterHours
         void TickBrine(float dt)
         {
             var r=State.brine;
+            if (TickBrineRadiation(dt)) return;
             triggerIn-=dt; allyIn-=dt; contactIn-=dt; boltLife-=dt;
             if(bolt && boltLife<=0) bolt.enabled=false;
             r.heat=Mathf.Max(0,r.heat-dt*(r.overheated?.38f:.23f));
@@ -135,6 +154,7 @@ namespace AfterHours
                 {
                     foreach(var echo in r.echoes)
                     {
+                        if (echo.lane>=3) { PatrolInland(echo,dt); if(ContactPlayer(echo)) return; continue; }
                         var to=new Vector3(Player.Feet.x,echo.feet.y,Player.Feet.z);
                         if((to-echo.feet).sqrMagnitude<100 && FloorRoutes.CanMove(echo.feet,to))
                             echo.feet=Vector3.MoveTowards(echo.feet,to,dt*1.9f);
@@ -166,21 +186,13 @@ namespace AfterHours
             for(int i=r.echoes.Count-1;i>=0;i--)
             {
                 var echo=r.echoes[i];
-                bool inland=echo.lane>=3;
-                Vector3 goal;
-                if(inland)
+                if(echo.lane>=3)
                 {
-                    var post=InlandPosts[echo.lane-3];
-                    var delta=Player.Feet-echo.feet;
-                    bool sense=delta.sqrMagnitude<36 && Mathf.Abs(delta.y)<1.25f &&
-                        (Player.Feet-post).sqrMagnitude<64;
-                    goal=sense?Player.Feet:post+Vector3.right*(1.45f*Mathf.Sin(echo.stride*.18f));
-                    goal.y=post.y;
-                    var ray=goal-echo.feet;
-                    if(Physics.Raycast(echo.feet+Vector3.up*.85f,ray.normalized,.55f,~(1<<NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore))
-                        goal=echo.feet;
+                    PatrolInland(echo,dt);
+                    if(ContactPlayer(echo)) return;
+                    continue;
                 }
-                else
+                Vector3 goal;
                 {
                     bool flushing=r.divertTime>0 && echo.lane==r.divertedLane;
                     goal=flushing ? BrineRoute.Mouth(echo.lane) : BrineRoute.Breach(echo.lane);
@@ -199,11 +211,10 @@ namespace AfterHours
                             FloorRoutes.CanMove(echo.feet,flat)) goal=flat;
                     }
                 }
-                echo.feet=Vector3.MoveTowards(echo.feet,goal,dt*(inland?.82f:BrineRoute.Speed(echo,r.wave)));
+                echo.feet=Vector3.MoveTowards(echo.feet,goal,dt*BrineRoute.Speed(echo,r.wave));
                 echo.stride+=dt*(echo.kind==DrifterKind.Runner?8.5f:4.5f+.36f*(echo.lane%3));
                 PoseDrifter(echo);
                 if(ContactPlayer(echo)) return;
-                if(inland) continue;
                 float left=(BrineRoute.Breach(echo.lane)-echo.feet).magnitude;
                 if(left<.24f)
                 {
@@ -230,7 +241,7 @@ namespace AfterHours
                 if(r.wave==2)
                 {
                     r.stage=BrineStage.Flight; r.escapeTime=26;
-                    foreach(var stray in r.echoes.ToArray()) RemoveEcho(stray);
+                    // The inland streets stay occupied while the two tunnel pursuers enter.
                     world.Refresh();
                     Notify("奶娃拍了两下地，转身奔向东闸。",5);
                 }
@@ -241,6 +252,38 @@ namespace AfterHours
                 }
                 SaveBrineCheckpoint();
             }
+        }
+
+        static bool FindInlandFloor(Vector3 anchor,out Vector3 floor)
+        {
+            int mask=~(1<<NightPlayer.PlayerLayer);
+            for(int i=0;i<9;i++)
+            {
+                float angle=i*Mathf.PI/4;
+                var point=i==0?anchor:anchor+new Vector3(Mathf.Cos(angle),0,Mathf.Sin(angle))*1.25f;
+                if(!Physics.Raycast(point+Vector3.up*.45f,Vector3.down,out var hit,.8f,mask,QueryTriggerInteraction.Ignore)
+                    || hit.normal.y<.75f) continue;
+                floor=hit.point+Vector3.up*.045f;
+                if(!Physics.CheckCapsule(floor+Vector3.up*.34f,floor+Vector3.up*1.45f,.29f,mask,QueryTriggerInteraction.Ignore)) return true;
+            }
+            floor=default;
+            return false;
+        }
+
+        void PatrolInland(BrineEcho echo,float dt)
+        {
+            var delta=Player.Feet-echo.feet;
+            if(delta.sqrMagnitude>55*55) return;
+            var home=echo.home==Vector3.zero ? InlandPosts[echo.lane-3] : echo.home;
+            bool hunting=Mathf.Abs(delta.y)<1.3f && delta.sqrMagnitude<9*9 && (Player.Feet-home).sqrMagnitude<13*13
+                && !Physics.Linecast(echo.feet+Vector3.up*1.15f,Player.Eyes.position,~(1<<NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore);
+            var goal=hunting ? Player.Feet : home+Vector3.right*(1.5f*Mathf.Sin(echo.stride*.18f));
+            goal.y=home.y;
+            var step=Vector3.MoveTowards(echo.feet,goal,dt*(hunting?1.48f:.82f));
+            if(FloorRoutes.CanMove(echo.feet,step) && Physics.Raycast(step+Vector3.up*.32f,Vector3.down,.65f,
+                ~(1<<NightPlayer.PlayerLayer),QueryTriggerInteraction.Ignore)) echo.feet=step;
+            echo.stride+=dt*(hunting?6.4f:4.5f);
+            PoseDrifter(echo);
         }
 
         bool ContactPlayer(BrineEcho echo)
@@ -315,11 +358,11 @@ namespace AfterHours
         {
             var run=State.brine;
             if(!run.Live || throughHatch && (run.stage!=BrineStage.Flight || !run.gateReleased)) return;
-            run.missedExit=!throughHatch && run.stage==BrineStage.Flight;
+            run.missedExit=!throughHatch && run.stage==BrineStage.Flight && run.escapeTime<=0;
             run.stage=throughHatch ? BrineStage.Clear : BrineStage.Overrun;
             State.escaped=throughHatch; State.ended=true; State.detained=false;
             RestoreBrineScene();
-            soundscape.Play(Player.Feet,"brine-hit",1,true);
+            world.FlareBrineBlast();
             SaveProgress();
             SetScreen(throughHatch ? NightScreen.Escaped : NightScreen.Caught);
         }

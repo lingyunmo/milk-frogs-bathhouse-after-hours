@@ -24,6 +24,7 @@ namespace AfterHours
             clips["step"]=Clip("step",.19f,60,.50f,13);
             clips["hunter"]=Clip("hunter",.32f,39,.33f,38);
             clips["land"]=Clip("land",.28f,76,.55f,63);
+            clips["district-impact"]=DistrictImpact();
             clips["brine-shot"]=Clip("brine-shot",.22f,106,.64f,947);
             clips["brine-hit"]=Clip("brine-hit",.38f,51,.81f,887);
             clips["tool"]=Clip("tool",.36f,314,.53f,52);
@@ -242,6 +243,30 @@ namespace AfterHours
             source.pitch=sound=="step"?UnityEngine.Random.Range(.86f,1.12f):1;
             source.clip=clips[sound];
             source.Play();
+        }
+
+        static AudioClip DistrictImpact()
+        {
+            const int rate = 24000;
+            var samples = new float[rate * 4];
+            var noise = new System.Random(817);
+            float rumble = 0, previous = 0, grit = 0;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                float t = (float)i / rate;
+                float white = (float)noise.NextDouble() * 2 - 1;
+                rumble += .023f * (white - rumble);
+                grit += .22f * (white - grit);
+                float body = Mathf.Sin(2 * Mathf.PI * (34 * t + 7 * (1 - Mathf.Exp(-5 * t))));
+                float pulse = Mathf.Min(t * 38, 1) * Mathf.Exp(-2.7f * t);
+                float rolling = Mathf.Min(t * 8, 1) * Mathf.Exp(-1.12f * t);
+                float tail = Mathf.Max(t - .53f, 0);
+                float rattle = Mathf.Exp(-1.8f * tail) * Mathf.Pow(.5f + .5f * Mathf.Cos(32 * tail + 8 * Mathf.Sin(4 * tail)), 9);
+                samples[i] = Mathf.Clamp(.55f * body * pulse + 2.2f * rumble * rolling
+                    + (t > .53f ? .25f * (grit - previous) * rattle : 0), -.92f, .92f);
+                previous += .05f * (grit - previous);
+            }
+            return Ready("堤岸冲击与结构落响", samples, rate);
         }
 
         static AudioClip Clip(string name,float seconds,float frequency,float grit,int seed,bool loop=false)

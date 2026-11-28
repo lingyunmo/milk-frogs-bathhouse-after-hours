@@ -223,7 +223,8 @@ namespace AfterHours
             float nearest = 18f;
             for (int i = 0; i < RiverSurvey.Plates.Length; i++)
             {
-                if (!WorkingOn(i < 3 ? FieldOrder.Survey : FieldOrder.Archive)) continue;
+                // Once issued, the camera can record old site marks encountered on the survey route.
+                if (i < 3 ? !WorkingOn(FieldOrder.Survey) : !State.survey.camera || State.detained) continue;
                 Vector3 delta = RiverSurvey.Plates[i].Center - eye.position;
                 float distance = delta.magnitude;
                 if (distance > nearest || delta.z < .5f || Vector3.Dot(delta.normalized, eye.forward) < .72f) continue;
@@ -285,7 +286,8 @@ namespace AfterHours
             State.survey.negatives |= 1 << Subject;
             FlashUntil = Time.unscaledTime + .17f;
             Emit(Player.Feet, .48f, "switch");
-            if (Subject >= 3 && State.survey.HasSites && !State.survey.spliced) Notify("三处旧址齐了。到守闸宿舍的灯台拼底片。");
+            if (Subject >= 3 && !WorkingOn(FieldOrder.Archive)) Notify("旧址底片已收好。");
+            else if (Subject >= 3 && State.survey.HasSites && !State.survey.spliced) Notify("三处旧址齐了。到守闸宿舍的灯台拼底片。");
             else if (Subject < 3 && State.survey.CanPrint) Notify("水尺底片齐了。回照相馆暗房。");
             SaveProgress();
         }

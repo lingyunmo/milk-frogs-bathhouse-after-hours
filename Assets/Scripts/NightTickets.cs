@@ -17,7 +17,7 @@ namespace AfterHours
             (Ticket.Deposit,"请日班亲启","交班桌上有一块还软的封蜡。","司机签收了那封交给早班的底片。"),
             (Ticket.CoreCargo,BrineRoute.CarryTitle,"？？？","司机没问你，为什么一路抱着那只暖匣。"),
             (Ticket.Overrun,BrineRoute.LostTitle,"？？？","核警报响过，隔离闸内再无回音。"),
-            (Ticket.NuclearEscape,BrineRoute.ClearTitle,"？？？","你穿过泄洪廊，在对岸看见浴场开花。"),
+            (Ticket.NuclearEscape,BrineRoute.ClearTitle,"？？？","东闸外只留下你一个人的脚印。核事故档案记下了一名生还者。"),
             (Ticket.LastNight,"最后一夜","地下室的门闩又落下一格。","第五夜，走廊的灯再也没亮。"),
             (Ticket.Return,TrueTitle,"？？？","最后那通求救电话终于等到了回话。")
         };

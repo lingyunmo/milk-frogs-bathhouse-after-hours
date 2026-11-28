@@ -25,7 +25,9 @@ namespace AfterHours
             },
             _ when roundLeg => roundStop switch {
                 RoundStop.MainHall => "回主楼巡查", RoundStop.UpperHall => "上楼巡查",
-                RoundStop.SideHall => "巡查侧廊", RoundStop.Street => "返回街面", _ => "巡逻"
+                RoundStop.SideHall => "巡查侧廊",
+                RoundStop.Street => streetDistrict switch { 0 => "巡查浴场街面", 1 => "巡查街尾站牌", _ => "巡查东堤" },
+                _ => "巡逻"
             },
             _ => "附近巡逻"
         };
@@ -71,16 +73,21 @@ namespace AfterHours
         readonly Dictionary<int,float> patrolRetryUntil=new();
         readonly List<int> patrolNodes = new();
         Vector3? positionFix;
-        float fixUntil, nextFix, separation, patrolSpeed, nextFootstepClue;
+        float fixUntil, nextFix, separation, patrolSpeed, nextFootstepClue, searchUntil;
         bool tracking, roundLeg;
         enum RoundStop { None, MainHall, UpperHall, SideHall, Street }
         RoundStop roundStop;
-        int roundVariant, upperFloor, sideRotation, failedRoundStops;
+        int roundVariant, upperFloor, sideRotation, streetDistrict, failedRoundStops;
         float retryRoundAt;
         static readonly Vector2[] HallSectors = { new(-11, 12), new(5, 12), new(-5, -11) };
-        static readonly Vector2[] StreetSectors = { new(30, -19), new(48, -17), new(-5, 32) };
+        // One street leg per building round. Rotate districts on arrival; sensor rolls stay local.
+        static readonly Vector2[][] StreetDistricts = {
+            new Vector2[] { new(30, -19), new(48, -17), new(-5, 32) },
+            new Vector2[] { new(152, -18), new(160, -18), new(157, -2) },
+            new Vector2[] { new(316, -18), new(311, 4), new(300, -14) }
+        };
         static readonly Vector2[] AnnexSectors = { new(28, 12), new(31, 12), new(34, 12) };
-        Vector2[] RoundSectors => roundStop == RoundStop.Street ? StreetSectors :
+        Vector2[] RoundSectors => roundStop == RoundStop.Street ? StreetDistricts[streetDistrict] :
             roundStop == RoundStop.SideHall && sideRotation == 2 ? AnnexSectors : HallSectors;
 
         static readonly Vector3[] NightSpawns =
@@ -366,12 +373,13 @@ namespace AfterHours
             patrolRetryUntil.Clear();
             positionFix = null;
             nextFix = FixInterval;
-            fixUntil = separation = 0;
+            fixUntil = separation = searchUntil = 0;
             tracking = roundLeg = false;
             roundStop = RoundStop.None;
             upperFloor = UnityEngine.Random.Range(1, 3);
             roundVariant = UnityEngine.Random.Range(0, HallSectors.Length);
             sideRotation = UnityEngine.Random.Range(0, 4);
+            streetDistrict = game.State.night % StreetDistricts.Length;
             failedRoundStops = 0;
             retryRoundAt = 0;
             nextFootstepClue = 0;
@@ -579,6 +587,8 @@ namespace AfterHours
                 if (separation >= BreakAwaySeconds)
                 {
                     tracking = Pursuing = false;
+                    // Search time includes the walk to the last clue, never the distance to the hidden player.
+                    searchUntil = elapsed + Mathf.Clamp(Vector3.Distance(Position, lastSeen) / 1.77f + 5f, 7f, 18f);
                     nextDecision = 0;
                 }
             }
@@ -634,6 +644,7 @@ namespace AfterHours
                     SetRoundStop(RoundStop.Street);
                     break;
                 case RoundStop.Street:
+                    streetDistrict = (streetDistrict + 1) % StreetDistricts.Length;
                     sideRotation = (sideRotation + 1) % 4;
                     SetRoundStop(RoundStop.None);
                     break;
@@ -647,8 +658,12 @@ namespace AfterHours
             roundVariant = (roundVariant + 1) % count;
             failedRoundStops++;
             // Walk locally between attempts. A sealed upper landing must not trap the hunter indoors.
-            if (failedRoundStops >= count && (roundStop == RoundStop.UpperHall || roundStop == RoundStop.SideHall))
+            if (failedRoundStops >= count && roundStop == RoundStop.Street)
+                FinishRoundStop();
+            else if (failedRoundStops >= count && (roundStop == RoundStop.UpperHall || roundStop == RoundStop.SideHall))
                 SetRoundStop(RoundStop.Street);
+            else if (failedRoundStops >= count && roundStop == RoundStop.Street)
+                FinishRoundStop();
             else
                 retryRoundAt = elapsed + (failedRoundStops % count == 0 ? 14f : 3f);
         }
@@ -874,7 +889,7 @@ namespace AfterHours
             bool underway = waypoint < path.Count;
             bool keepPatrol = underway && activeIntent == Intent.Patrol;
             bool keepInvestigation = underway && activeIntent == Intent.Investigate;
-            bool hasTrail = sinceSeen < Mathf.Lerp(6f, 10f, NightPressure);
+            bool hasTrail = elapsed < searchUntil || sinceSeen < Mathf.Lerp(6f, 10f, NightPressure);
             if (faultSite.HasValue && (elapsed > faultUntil || sees || (Position - faultSite.Value).sqrMagnitude < 2.25f))
                 faultSite = null;
             bool quiet = !tracking && !positionFix.HasValue && !faultSite.HasValue && notice <= 0 && !hasTrail && noises.Count == 0 && !keepInvestigation;
@@ -910,7 +925,7 @@ namespace AfterHours
             void Consider(Intent kind, Vector3 point, float age, float strength, int slot = -1,
                 float recent = 0, float repeats = 0, float bias = 0, string sound = null)
             {
-                if (kind != Intent.Patrol && Time.time < retry && (point - unreachable).sqrMagnitude < 1.96f) return;
+                if (kind != Intent.Patrol && elapsed < retry && (point - unreachable).sqrMagnitude < 1.96f) return;
                 float rank = Score((int)kind, point, age, strength, recent, repeats, sees) + bias;
                 if (underway && kind == activeIntent && (point - destination).sqrMagnitude < .81f) rank += .10f;
                 goals.Add((kind, point, rank, slot, sound));
@@ -922,12 +937,15 @@ namespace AfterHours
             else if (hasTrail)
             {
                 Vector3 right = Vector3.Cross(Vector3.up, lastHeading);
+                float forwardReach = game.IsInsideBuilding(lastSeen) ? 1f : 2.3f;
                 for (int i = 0; i < SearchSpots.Length; i++)
                 {
                     if ((searched & (1 << i)) != 0) continue;
-                    Vector3 point = lastSeen + right * SearchSpots[i].x + lastHeading * SearchSpots[i].y;
+                    Vector2 offset = SearchSpots[i];
+                    Vector3 point = lastSeen + right * offset.x + lastHeading * (offset.y > 0 ? offset.y * forwardReach : offset.y);
                     if ((point - Position).sqrMagnitude < .36f) searched |= 1 << i;
-                    else Consider(Intent.Search, point, sinceSeen, .90f, i, bias: i == 0 ? .34f : i == 1 ? .11f : 0);
+                    else Consider(Intent.Search, point, sinceSeen, .90f, i,
+                        bias: (elapsed < searchUntil && noises.Count == 0 ? 2f : 0f) + (i == 0 ? .34f : i == 1 ? .11f : 0));
                 }
             }
             foreach (var cue in noises)
@@ -1047,7 +1065,7 @@ namespace AfterHours
             }
 
             unreachable = point;
-            retry = Time.time + 2.4f;
+            retry = elapsed + 2.4f;
         }
 
         void BeginListening(Vector3 toward)
