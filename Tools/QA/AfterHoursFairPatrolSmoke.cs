@@ -40,6 +40,9 @@ namespace AfterHours
                 CheckWingExit(new(10,-3.6f,12), "basement");
                 CheckVisualEvidence();
                 CheckRunningChase();
+                game.State.night=NightState.MaxNights;
+                CheckRunningChase();
+                game.State.night=1;
                 CheckLureBeforePatrol();
                 CheckFootsteps();
                 Debug.Log("FAIR PATROL SMOKE: PASS");
@@ -90,9 +93,9 @@ namespace AfterHours
             var roll = typeof(NightHunter).GetMethod("UpdateTracking",Fields);
             int hits = 0;
             // Isolate the simulation clock from all other consumers of Unity's random stream.
-            foreach (var place in new[]{new Vector3(-14,-3.6f,5),new Vector3(245,0,-18)})
+            foreach (var place in new[]{new Vector3(156,0,4),new Vector3(176,0,-18)})
             {
-                Prepare(new(115,0,-18),place,180);
+                Prepare(new(156,0,-18),place,180);
                 Set("nextFix",3f);
                 UnityEngine.Random.InitState(8321+(int)place.x);
                 int localHits = 0;
@@ -116,7 +119,8 @@ namespace AfterHours
                 Require(localHits>25 && localHits<75,"Unexpected fix frequency");
                 hits+=localHits;
             }
-            Prepare(new(106,0,-18),new(158,0,-18),-90);
+            // The same winning roll must miss a quiet target beyond the hard distance cap.
+            Prepare(new(106,0,-18),new(132,0,-18),-90);
             for(int seed=1;seed<1000;seed++)
             {
                 UnityEngine.Random.InitState(seed);
@@ -124,6 +128,12 @@ namespace AfterHours
                 if(UnityEngine.Random.value>=.10f) continue;
                 UnityEngine.Random.state=state; Set("nextFix",Step); break;
             }
+            var winningRoll = UnityEngine.Random.state;
+            hunter.Tick(Step);
+            Require(!Fix.HasValue && !Read<bool>("tracking") && !hunter.Pursuing,"Long-range position leaked beyond 24m");
+            Prepare(new(106,0,-18),new(129.8f,0,-18),-90);
+            Set("nextFix",Step);
+            UnityEngine.Random.state=winningRoll;
             hunter.Tick(Step);
             Require(Fix==game.Player.Feet && hunter.Pursuing,"Successful remote fix did not drive a pursuit route");
             var snapshot=Fix;
@@ -136,12 +146,18 @@ namespace AfterHours
 
         void CheckTorch()
         {
-            Prepare(new(97,0,-18),new(121,0,-18),-90);
+            Prepare(new(97,0,-18),new(118,0,-18),-90);
+            Set("nextDecision",3f);
+            game.Player.SetTorch(true);
+            game.Player.Eyes.LookAt(hunter.Position+Vector3.up*1.26f);
+            for (int i=0;i<26;i++) hunter.Tick(Step);
+            Require(!hunter.Pursuing && !Read<bool>("recognized"),"Direct beam revealed its source from beyond its range");
+            Prepare(new(97,0,-18),new(114,0,-18),-90);
             Set("nextDecision",3f);
             game.Player.SetTorch(true);
             game.Player.Eyes.LookAt(hunter.Position+Vector3.up*1.26f);
             for (int i=0;i<26 && !hunter.Pursuing;i++) hunter.Tick(Step);
-            Require(hunter.Pursuing && Read<bool>("recognized"),"Torch beam at 24m did not reveal its source");
+            Require(hunter.Pursuing && Read<bool>("recognized"),"Torch beam at 17m did not reveal its source");
         }
 
         void CheckStreetReturn()
@@ -266,7 +282,7 @@ namespace AfterHours
                 "A real corner broke nearby pursuit or allowed capture through a wall");
             var last = Read<Vector3>("lastSeen");
             PlacePlayer(new(122,0,-18));
-            for (int i=0;i<45;i++) hunter.Tick(Step);
+            for (int i=0;i<30;i++) hunter.Tick(Step);
             Require(Read<bool>("tracking") && Read<Vector3>("lastSeen")==last,"Short separation broke tracking or telegraphed a remote target");
             for (int i=0;i<15;i++) hunter.Tick(Step);
             Require(!hunter.Pursuing && !Read<bool>("tracking") && Read<Vector3>("lastSeen")==last,
@@ -284,12 +300,21 @@ namespace AfterHours
             for(int i=1;i<=200;i++)
             {
                 PlacePlayer(playerStart + Vector3.right*(3.55f*Step*i));
+                // Keep an unobstructed beam aimed at the hunter so the first 10 seconds measure speed.
+                game.Player.SetTorch(true);
+                game.Player.Eyes.LookAt(hunter.Position+Vector3.up*1.26f);
                 hunter.Tick(Step);
-                Require(hunter.Pursuing,"Lost a runner on an open continuous road");
             }
             float advance=hunter.Position.x-start.x;
-            Require(advance>27f,"Replans stalled pursuit of a moving runner: "+advance);
-            Debug.Log($"OPEN ROAD CHASE: hunter advanced {advance:F1}m alongside 10 seconds of sprint");
+            float leadGained=(game.Player.Feet.x-hunter.Position.x)-(playerStart.x-start.x);
+            Require(advance>20f && advance<28.5f && leadGained>7f,"Sprint could not open a gap: "+advance+" / "+leadGained);
+            for(int i=201;i<=300;i++)
+            {
+                PlacePlayer(playerStart + Vector3.right*(3.55f*Step*i));
+                hunter.Tick(Step);
+            }
+            Require(!Read<bool>("tracking") && !hunter.Pursuing,"A runner outside the reduced sight and retention ranges stayed locked");
+            Debug.Log($"OPEN ROAD CHASE: night {game.State.night}, hunter advanced {advance:F1}m; runner gained {leadGained:F1}m in 10s");
         }
 
         void CheckLureBeforePatrol()
@@ -314,8 +339,10 @@ namespace AfterHours
         {
             Prepare(new(105,0,-17), new(-5,0,12), 0);
             hunter.HearNoise(new(105,0,-35), .33f, "step");
+            Require(Read<IList>("noises").Count==0,"Walking at 18m exceeded the reduced range");
+            hunter.HearNoise(new(105,0,-29), .33f, "step");
             var cues = Read<IList>("noises");
-            Require(cues.Count == 1, "A walk at 18 metres should be audible.");
+            Require(cues.Count == 1, "A walk at 12 metres should be audible.");
             for (int i = 0; i < 12; i++) hunter.Tick(Step);
             hunter.HearNoise(new(109,0,-23), .57f, "step");
             Require(cues.Count == 1, "Consecutive steps should not relay each change of direction.");
@@ -328,7 +355,9 @@ namespace AfterHours
             Require(Read<object>("activeIntent").ToString()=="Investigate","Obstructed walking failed to interrupt patrol");
             Prepare(new(100,0,-18),new(150,0,-18),180);
             hunter.HearNoise(new(132,0,-18), .57f, "step");
-            Require(Read<IList>("noises").Count==1, "An outdoor sprint at 32m was inaudible");
+            Require(Read<IList>("noises").Count==0, "A sprint at 32m exceeded the reduced range");
+            hunter.HearNoise(new(122,0,-18), .57f, "step");
+            Require(Read<IList>("noises").Count==1, "A nearby outdoor sprint at 22m was inaudible");
             Prepare(new(100,0,-18),new(150,0,-18),180);
             hunter.HearNoise(new(120,0,-18), .13f, "step");
             Require(Read<IList>("noises").Count==0, "Distant crouched steps sounded like running");
