@@ -133,6 +133,7 @@ namespace AfterHours
             DressStreetRooms();
             DressRiverWard();
             DressShiftTrail();
+            DressReturnWing();
             DressDispatch();
             DressReturnLines();
             DressAnnexEquipment();
@@ -268,6 +269,7 @@ namespace AfterHours
             SetPowerLighting(s.power);
             foreach(var (id,model) in pickups)model.SetActive(id=="torch"?!s.torch:!s.collected.Contains(id) && NightShiftTrail.KeyAvailable(s,id));
             RefreshShiftCabinet(s);
+            RefreshReturnWing(s);
             AnimateArrival();
         }
 

@@ -23,7 +23,7 @@ namespace AfterHours
         internal RepairPanel RepairView => panel;
         internal float Hold => held != null && held.Hold > 0 ? Mathf.Clamp01(holdTime / held.Hold) : 0;
         internal bool InPursuit => hunter.Pursuing;
-        internal string Message => messageTime > 0 ? message : "";
+        internal string Message => Time.unscaledTime < circuitAnnouncedUntil ? "触发隐藏任务：？？？　水塔背后响了一声收票铃。" : messageTime > 0 ? message : "";
         internal NightState ResumableSave { get; private set; }
         // The most recent pickup, for the acquisition card. Serial changes with every new pickup.
         internal (string Art, string Text, int Serial) LastPickup { get; private set; }
@@ -125,6 +125,8 @@ namespace AfterHours
 
         void Begin(NightState save)
         {
+            circuitAnnouncedUntil=-1;
+            StopPipePlayback();
             State = save ?? new NightState { shiftEdition = 1 };
             CloseDispatch();
             radioCallIn = 0;
@@ -248,7 +250,7 @@ namespace AfterHours
             if (!State.detained)
             {
                 releaseGrace = Mathf.Max(0, releaseGrace - dt);
-                hunter.Tick(dt);
+                if (!State.circuit.Solved) hunter.Tick(dt);
                 if (ScreenState != NightScreen.Play) return;
                 TickWorld(dt);
             }
@@ -287,10 +289,13 @@ namespace AfterHours
             if (screen == NightScreen.Title)
             {
                 Player.SetTorch(false);
-                ResumableSave = LoadUnfinished();
+                var last = NightSave.Read();
+                NightTickets.Record(last);
+                ResumableSave = last != null && !last.escaped && !last.ended ? last : null;
             }
             focus = held = null;
             holdTime = 0;
+            if (screen is NightScreen.Escaped or NightScreen.Caught) NightTickets.Record(State);
             hud.Show(screen);
             if (screen == NightScreen.Escaped)
             {
@@ -322,7 +327,7 @@ namespace AfterHours
 
         internal void Captured()
         {
-            if (ScreenState != NightScreen.Play || State.detained || releaseGrace > 0) return;
+            if (ScreenState != NightScreen.Play || State.detained || State.circuit.Solved || releaseGrace > 0) return;
             panel = null;
             if (State.dispatch.carrying) ReturnLoadOnCapture();
             caughtTime = 0;
@@ -526,6 +531,7 @@ namespace AfterHours
         bool SaveProgress()
         {
             FinishShiftOrder();
+            CheckReturnCircuit();
             if (Capturing) return true;
             try{ NightSave.Write(State); return true; }
             catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)

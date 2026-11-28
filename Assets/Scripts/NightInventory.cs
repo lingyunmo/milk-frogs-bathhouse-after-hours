@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AfterHours
 {
-    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print }
+    internal enum NightItemId { Torch, Battery, Stone, Starter, Seal, Receipt, RelayFuse, AnnexDiagram, LinenKey, StaffKey, UplinkKey, WashSlip, Names, Founding, Tape, Print, Stub, Cylinder }
 
     internal readonly struct NightInventoryItem
     {
@@ -86,6 +86,11 @@ namespace AfterHours
                         },
                         status: NightKeyDoors.IsUnlocked(key, State) ? "已开锁" : "");
                 }
+                if (State.circuit.room == 4 && State.circuit.capsule)
+                    yield return new NightInventoryItem(NightItemId.Cylinder,"送票铜筒","物资",
+                        State.circuit.vented ? "已经泄压。口沿有水，票根上的回路号还清楚。" : "沉甸甸的黄铜筒。先在墙边松阀，筒盖才能进投递口。");
+                if (State.circuit.room >= 2)
+                    yield return new NightInventoryItem(NightItemId.Stub,"半张回执票","证物",State.circuit.Stub,status:"东堤旧票务所");
                 if (NightShiftTrail.CanReadArchive(State))
                     yield return new NightInventoryItem(NightItemId.Print, "石桥旧站合影", "证物",
                         "站牌的反光板正对水塔。照片背面写着：她套上黄布头，笑三声，岸上的孩子就往那边游。", status:"旧照相馆");

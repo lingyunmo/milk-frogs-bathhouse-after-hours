@@ -94,10 +94,11 @@ namespace AfterHours
             SaveProgress();
         }
 
-        internal bool HasLockedKeyDoors => world.KeyDoors.Exists(KeyDoorLocked);
+        internal bool HasLockedKeyDoors => !State.circuit.Solved || world.KeyDoors.Exists(KeyDoorLocked);
 
         internal bool CanCrossKeyDoors(Vector3 from, Vector3 to)
         {
+            if (!ReturnWing.CanCross(State,from,to)) return false;
             foreach (var door in world.KeyDoors)
             {
                 const float edge = .34f;

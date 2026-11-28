@@ -92,6 +92,13 @@ namespace AfterHours
                             : order == FieldOrder.Lights ? "机位已标在街区地图上" : lead.place;
                     Type(copy, lead.action + "　·　" + note, "order-note");
                 }
+                if (done && order == FieldOrder.Drain)
+                    Type(copy,"检修签　回水阀"+(state.dispatch.sealedLines==7?"已验":"待验")+"　地下泵"+(state.pump?"已验":"待验"),"order-note");
+                if (done && order == FieldOrder.Radio)
+                {
+                    string Check(CallPath path) => state.circuit.Has(path) ? " ✓" : " ○";
+                    Type(copy,"通话签　前台"+Check(CallPath.FrontDesk)+"　转接"+Check(CallPath.Relay)+"　天线"+Check(CallPath.Aerial),"order-note");
+                }
                 Type(row, done ? "完工" : "手头工单", "order-stamp");
                 row.EnableInClassList("order-entry--tracked", !done && selected == order);
                 row.SetEnabled(!done);

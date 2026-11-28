@@ -88,7 +88,7 @@ namespace AfterHours
             Target(NightDispatch.Winch, "握住绞盘曲柄", .5f, StartWinch,
                 () => WorkingOn(FieldOrder.Barrier) && State.dispatch.delivered && State.dispatch.teeth < NightDispatch.Teeth);
             Target(NightDispatch.ReceiverDish, "转动维修站定向天线", .6f, StartTuning,
-                () => WorkingOn(FieldOrder.Radio) && State.power && State.annexIsolated && !State.contacted);
+                () => CanService(FieldOrder.Radio) && State.power && State.annexIsolated && !State.circuit.Has(CallPath.Aerial));
         }
 
         internal bool WorkingOn(FieldOrder order) =>
@@ -244,6 +244,7 @@ namespace AfterHours
                 tunerClick = Mathf.Lerp(1.25f, .26f, strength);
             }
             if (ChannelLock < 1) return;
+            State.circuit.LogCall(CallPath.Aerial);
             State.contacted = true;
             CloseDispatch();
             Emit(NightDispatch.ReceiverDish, .76f, "signal");

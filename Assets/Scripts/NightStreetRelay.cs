@@ -21,26 +21,27 @@ namespace AfterHours
                 () => Notify("值守频道 · 天线 Ⅱ，呼叫 Ⅲ。", 5));
             Target(radio, "检查转接机", 0,
                 () => Notify("电表纹丝不动。电源线上印着浴场的名字。", 5),
-                () => !State.power && !State.contacted);
+                () => !State.power && !State.circuit.Has(CallPath.Relay));
             Target(radio, "检查保险座", 0,
                 () => Notify("瓷座空了一截。盒盖内贴着旧领料章：「后场检修」。", 5),
-                () => WorkingOn(FieldOrder.Radio) && State.power && !State.contacted && !State.collected.Contains(NightStreetRelay.FuseId));
+                () => CanService(FieldOrder.Radio) && State.power && !State.circuit.Has(CallPath.Relay) && !State.collected.Contains(NightStreetRelay.FuseId));
             Target(radio, "装上备用保险管", 2.45f,
                 () => Repair(radio, .86f, () => State.collected.Add(NightStreetRelay.SeatedId), "tool"),
-                () => WorkingOn(FieldOrder.Radio) && State.power && !State.contacted && State.collected.Contains(NightStreetRelay.FuseId)
+                () => CanService(FieldOrder.Radio) && State.power && !State.circuit.Has(CallPath.Relay) && State.collected.Contains(NightStreetRelay.FuseId)
                     && !State.collected.Contains(NightStreetRelay.SeatedId));
             Target(radio, "调节转接机", 0, () => OpenRepair("街外应急转接", radio,
                 new[] { "Ⅰ", "Ⅱ", "Ⅲ" },
                 new[] { "天线旋钮的漆掉了。搪瓷牌上的字还在。", "呼叫旋钮响了一格。" },
                 new[] { 1, 2 }, () => Repair(radio, .76f, () =>
                 {
+                    State.circuit.LogCall(CallPath.Relay);
                     State.contacted = true;
                     Notify("「看见街尾的牌子，我就靠边。」对面松开了话筒。", 7);
                 }, "signal")),
-                () => WorkingOn(FieldOrder.Radio) && State.power && State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
+                () => CanService(FieldOrder.Radio) && State.power && State.annexRelay && !State.circuit.Has(CallPath.Relay) && State.collected.Contains(NightStreetRelay.SeatedId));
             Target(radio, "检查应急线路", 0,
                 () => Notify("机身热了，耳机里全是沙声。回路线挂着「副楼中继」的签。", 6),
-                () => WorkingOn(FieldOrder.Radio) && State.power && !State.annexRelay && !State.contacted && State.collected.Contains(NightStreetRelay.SeatedId));
+                () => CanService(FieldOrder.Radio) && State.power && !State.annexRelay && !State.circuit.Has(CallPath.Relay) && State.collected.Contains(NightStreetRelay.SeatedId));
         }
     }
 

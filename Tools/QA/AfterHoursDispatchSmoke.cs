@@ -50,6 +50,9 @@ namespace AfterHours
             targets = Field<List<NightTarget>>(game,"targets");
             var files = new[] { NightSave.FilePath, NightSave.FilePath + ".bak" };
             var backup = Array.ConvertAll(files, f => File.Exists(f) ? File.ReadAllBytes(f) : null);
+            bool hadTickets=PlayerPrefs.HasKey(NightTickets.ProfileKey);
+            int originalTickets=NightTickets.Mask;
+            PlayerPrefs.DeleteKey(NightTickets.ProfileKey);
             int result = 0;
             try
             {
@@ -65,6 +68,9 @@ namespace AfterHours
             }
             finally
             {
+                if(hadTickets) PlayerPrefs.SetInt(NightTickets.ProfileKey,originalTickets);
+                else PlayerPrefs.DeleteKey(NightTickets.ProfileKey);
+                PlayerPrefs.Save();
                 for (int i=0; i<files.Length; i++)
                     if (backup[i] != null) File.WriteAllBytes(files[i],backup[i]); else File.Delete(files[i]);
             }
@@ -148,6 +154,9 @@ namespace AfterHours
             Visit("换密封圈，拧紧回水接头").Use();
             Visit("排空后场积水").Use();
             Check(game.State.Drained && !job.orderHeld && Target(Offer(FieldOrder.Barrier)).Available(),"Pump route deadlock");
+            for(int i=0;i<3;i++)
+                Visit(NightReturnLines.Label(i*2+((job.leakPattern>>i)&1))).Use();
+            Check(job.sealedLines==7 && game.State.pump,"Pump-first prevented valve inspection");
             // Old sessions can have both later keys already. Do not lose physical work or a player's torch.
             var legacy=NightSave.Read();
             legacy.shiftEdition=0; legacy.story=new ShiftEvidence();
@@ -414,10 +423,11 @@ namespace AfterHours
             game.State.dispatch.playSeconds=900;
             backupBeacon.Use();
             Check(game.State.rescueTime==NightEvents.BackupArrivalTime,"Backup beacon clock gate");
-            game.State.beacon=false; game.State.rescueTime=-1;
             Visit("翻起反光接应板").Use();
-            Check(!Target("登上救援车").Available() && game.State.rescueTime==27,"Main sign clock gate");
+            Check(game.State.rescueTime==NightEvents.BackupArrivalTime,"Testing second line redelayed the arriving bus");
+            Check(!Target("登上救援车").Available() && game.State.rescueTime==NightEvents.BackupArrivalTime,"Signal replay restarted clock");
             Invoke(game,"TickWorld",28f);
+            var preBoard=NightSave.Read();
             Visit("登上救援车").Use();
             if(preview!=null)
             {
@@ -425,7 +435,113 @@ namespace AfterHours
                 var shot=CaptureInstrument(SiblingPreview("ending"));
                 while(shot.MoveNext()) yield return shot.Current;
             }
-            Check(game.State.escaped && game.ScreenState==NightScreen.Escaped,"Could not board");
+            Check(game.State.escaped && game.ScreenState==NightScreen.Escaped && NightTickets.Stamped(Ticket.Broadcast),"Ordinary ending was replaced");
+            game.SetScreen(NightScreen.Title);
+            Submit(root.Q<Button>("ticket-tab"));
+            var secretRow=root.Q<VisualElement>("ticket-5");
+            var secretLabels=secretRow.Query<Label>().ToList();
+            Check(secretLabels.Count==2 && secretLabels.TrueForAll(l=>l.text=="？？？"),"Sealed ticket leaked its identity");
+            Check(root.Q<VisualElement>("ticket-2").Query<Label>().ToList().Exists(l=>l.text=="已验"),"Missing gallery stamp");
+            if(preview!=null)
+            {
+                yield return new WaitForSecondsRealtime(.55f);
+                var shot=CaptureInstrument(SiblingPreview("wallet"));
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            Check(ui.CloseSubpage() && root.Q<Button>("new-night")!=null,"Cannot close gallery");
+            game.NewNight();
+            Check(NightTickets.Stamped(Ticket.Broadcast),"New game erased ticket");
+            Check(!Target("打左孔").Available(),"New game entered hidden room");
+            NightSave.Write(preBoard); game.ContinueNight(); lastStop=game.Player.Feet;
+            foreach(var stop in new[]{"读夜班故障单","取回水接头密封圈","关掉水槽进水阀","换密封圈，拧紧回水接头","排空后场积水",
+                "查看外线接线图","接通外线旁路"})
+            {
+                Visit(stop).Use();
+                if(stop=="接通外线旁路") Answers(1,2,0);
+            }
+            Visit("检查标签，接好浴场上行线").Use(); Answers(1,0);
+            Visit("打开路由器，确认链路灯").Use();
+            Visit("发送街名与站牌编号").Use();
+            Visit("取备用保险管").Use();
+            Visit("装上备用保险管").Use();
+            Visit("调节转接机").Use(); Answers(1,2);
+            Check(game.State.circuit.Has(CallPath.Aerial|CallPath.FrontDesk|CallPath.Relay) && !Target("转动维修站定向天线").Available(),"Lost or repeatable contact route");
+            Visit("拆开值班补给箱").Use();
+            Visit("按下货门试铃").Use();
+            Visit("请求一次补给").Use();
+            Invoke(game,"TickWorld",22f);
+            Check(!Target("打左孔").Available() && game.State.circuit.room==0,"Opened without collecting delivery");
+            Visit("打开补给箱").Use();
+            Check(game.State.circuit.room==1 && game.Message.Contains("隐藏任务"),"Missing final-service trigger");
+            for(int i=1;i<=5;i++)
+            {
+                var door=ReturnWing.Door(i);
+                bool solid=Physics.Raycast(door+Vector3.up+Vector3.left*.45f,Vector3.right,.9f,1<<FloorRoutes.DoorLayer);
+                Check(solid==(i>1) && game.CanCrossKeyDoors(door+Vector3.left,door+Vector3.right)==(i==1),"Incorrect gate physics "+i);
+            }
+            // Both drain methods and all three independent radio contacts must have been made in this run.
+            var eligibility=NightSave.Read();
+            foreach(CallPath path in new[]{CallPath.Aerial,CallPath.FrontDesk,CallPath.Relay})
+            {
+                eligibility.circuit.calls^=path;
+                Check(!ReturnCircuit.CompleteService(eligibility),"Missing call accepted: "+path);
+                eligibility.circuit.calls|=path;
+            }
+            eligibility.pump=false; Check(!ReturnCircuit.CompleteService(eligibility),"No pump credited"); eligibility.pump=true;
+            eligibility.dispatch.sealedLines=3; Check(!ReturnCircuit.CompleteService(eligibility),"Unrepaired circuit accepted");
+            Visit("打右孔").Use();
+            Check(game.State.circuit.room==2 && !Target("接听三根传声管").Available(),"Skipped second workroom");
+            Visit("把票压上透光架").Use(); Answers(2);
+            Check(game.RepairView!=null && game.State.circuit.room==2,"Unmirrored hole credited");
+            Answers(0);
+            var handset=Visit("接听三根传声管");
+            if(preview!=null)
+            {
+                ShowEstablishedView(); ui.Tick();
+                var shot=CaptureInstrument(SiblingPreview("listening"));
+                while(shot.MoveNext()) yield return shot.Current;
+            }
+            handset.Use();
+            yield return new WaitForSecondsRealtime(.75f);
+            Visit("叩井管").Use();
+            Visit("叩岸管").Use();
+            Check(game.State.circuit.matched==0 && game.State.circuit.room==3,"Wrong signal accepted");
+            Visit("叩井管").Use();
+            game.ContinueNight(); lastStop=game.Player.Feet;
+            Check(game.State.circuit.matched==1 && game.State.circuit.punch==2,"Lost physical clue on reload");
+            Visit("叩桥管").Use(); Visit("叩岸管").Use();
+            Check(!Target("投递甲路").Available(),"Capsule bypass");
+            Visit("取走装票的气筒").Use(); Visit("松开泄压阀").Use();
+            Visit("投递乙路").Use(); Check(game.State.circuit.room==4,"Misdirected capsule accepted");
+            Visit("投递甲路").Use();
+            Check(game.State.circuit.room==5 && !NightTickets.Stamped(Ticket.Return) && !Target("拿起回线听筒").Available(),"Ending granted before evidence");
+            Visit("掀开签收窗铅封").Use();
+            Visit("重叠两联票根").Use(); Answers(0);
+            Check(!game.State.circuit.compared,"Wrong witness mark accepted");
+            Answers(2); Visit("拿起回线听筒").Use(); Answers(0,0,1);
+            Check(game.State.circuit.Solved && !NightTickets.Stamped(Ticket.Return),"Signed reply awarded ticket before boarding");
+            game.ContinueNight(); lastStop=game.Player.Feet;
+            Visit("登上救援车").Use();
+            Check(game.State.escaped && NightTickets.Stamped(Ticket.Return),"Hidden ticket lost on boarding");
+            game.SetScreen(NightScreen.Title); Submit(root.Q<Button>("ticket-tab"));
+            Check(root.Q<VisualElement>("ticket-5").Query<Label>().ToList().Exists(l=>l.text==NightTickets.TrueTitle),"Unlocked title missing");
+            // Replay the same boarding interaction using the three regular evidence dispositions.
+            foreach(var ticket in new[]{Ticket.Passenger,Ticket.Name,Ticket.Deposit})
+            {
+                var story=JsonUtility.FromJson<NightState>(JsonUtility.ToJson(preBoard));
+                story.story.choice=ticket==Ticket.Deposit?WitnessChoice.Seal:WitnessChoice.Undecided;
+                if(ticket==Ticket.Passenger) story.collected.Remove(NightItemId.Names.ToString());
+                NightSave.Write(story); game.ContinueNight(); lastStop=game.Player.Feet;
+                Visit("登上救援车").Use(); Check(NightTickets.Stamped(ticket),"Missing ordinary ticket "+ticket);
+            }
+            game.NewNight(); game.State.night=NightState.MaxNights; game.Captured(); Invoke(game,"FinishCapture");
+            Check(NightTickets.Stamped(Ticket.LastNight) && NightTickets.Mask==63,"Incomplete gallery after six terminal outcomes");
+            Debug.Log("RETURN PASS independent service receipts, five gated rooms, saved echo and persistent tickets.");
+
+            void Answers(params int[] values)
+            {
+                foreach(int value in values) { game.RepairView.selected=value; Invoke(game,"ConfirmRepair"); }
+            }
         }
 
         void Photograph(int i)

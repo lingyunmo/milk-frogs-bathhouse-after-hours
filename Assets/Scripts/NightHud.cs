@@ -230,6 +230,11 @@ namespace AfterHours
             Keys(hints, "Enter", "确认");
             Keys(hints, "Esc", "返回");
 
+            if (subpage == "tickets")
+            {
+                BuildTicketDrawer(stage);
+                return;
+            }
             if (subpage.Length != 0)
             {
                 var sheet = Area(stage, "sheet title-sheet");
@@ -250,6 +255,7 @@ namespace AfterHours
             Item(menu, "选项", () => Open("settings"), "options");
             Item(menu, "操作", () => Open("controls"), "controls");
             Item(menu, "退出", () => Open("quit"), "quit");
+            TicketTab(stage,false);
             Stagger(menu, 5);
             Focus(first ?? fresh);
         }
@@ -464,10 +470,16 @@ namespace AfterHours
             Type(column, safe ? ending.title : "最后一夜", "ending-title serif");
             Area(column, "ending-rule");
             Type(column, safe ? ending.caption : "铁门合上了。走廊里只剩它的笑声。", "ending-caption serif");
-            if (safe && NightShiftTrail.Has(game.State,NightItemId.Tape))
+            if (safe && !game.State.circuit.Solved && NightShiftTrail.Has(game.State,NightItemId.Tape))
                 Type(column, "司机拔掉广播的插头。车厢的暖气管里，轻轻笑了三声。","ending-caption serif");
-            else if (safe && NightShiftTrail.Has(game.State,NightItemId.Founding))
+            else if (safe && !game.State.circuit.Solved && NightShiftTrail.Has(game.State,NightItemId.Founding))
                 Type(column, "天亮了。窗外有人排队买早场浴票。你摸到口袋里的第一号，还是湿的。","ending-caption serif");
+            if (safe && game.State.circuit.Solved)
+            {
+                var stub=Area(column,"return-proof");
+                Type(stub,game.State.circuit.Receipt,"proof-mark serif");
+                Type(stub,"一九八七年　交班人　袁素琴","proof-sign serif");
+            }
             int seconds = Mathf.FloorToInt(game.State.dispatch.playSeconds);
             Type(column, $"在场时间　{seconds / 60:D2}′ {seconds % 60:D2}″", "ending-overline");
             var actions = Area(column, "ending-actions");
